@@ -1,5 +1,5 @@
 # GyroPrompt 
-#DogeCoin #Cloud #Blockchain #Scripting #ScriptLanguage #CSharp #SQL
+#DogeCoin #Cloud #Blockchain #Scripting #ScriptLanguage #CSharp #SQL #Wolfram
 
 GyroPrompt was intended to be a Win console-based scripting language centered around the GyroCloud and DogeCoin.
 
@@ -8,6 +8,7 @@ Imagine Python but it's a little bloated, Python is also yelling at you in all c
 The GyroCloud was a simple SQL Server that would manage user accounts, namespaces, and file storage for users.
 I had a system set up where GyroPrompt would make .gs become a system recognized file type and would automatically run - much like how a .bat or .vbs automatically executes when opened. This feature was mysteriously patched by Microsoft in a security update
 I successfully began scaffolding the infrastructure for DogeCoin integrations with user profiles.
+GyroPrompt even had a Wolfram integration for encyclopedic data.
 I even had a YouTube page dedicated to this project: https://www.youtube.com/channel/UCbhwN6P65XKcoW82n6QaHMw
 ... and a website, www.gyorosoft.org which is no longer active (domain expired).
 
