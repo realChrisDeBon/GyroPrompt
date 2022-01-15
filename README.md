@@ -10,6 +10,7 @@ I had a system set up where GyroPrompt would make .gs become a system recognized
 I successfully began scaffolding the infrastructure for DogeCoin integrations with user profiles.
 GyroPrompt even had a Wolfram integration for encyclopedic data.
 I even had a YouTube page dedicated to this project: https://www.youtube.com/channel/UCbhwN6P65XKcoW82n6QaHMw
+I had a Gab page: https://gab.com/GyroSoftLabs
 ... and a website, www.gyorosoft.org which is no longer active (domain expired).
 
 I know not everything was coded to be extremely memory efficient. In fact, some of the coding practices I implemented were very very memory inefficient and bloated.
@@ -20,4 +21,4 @@ The reason I am publicizing this and basically soft-retiring, or maybe temporari
 This project could be a good start for someone to look over who's interested in how something like this might work.
 
 ############ IMPORTANT ################
-To add repo to VS, move GryoPrompt.sln to top of directory - all other files are in a subdirectory w/ folder named "TinCan" (this was one of the earlier named I toyed with before renaming it)
+To add repo to VS, move GryoPrompt.sln to top of directory - all other files are in a subdirectory w/ folder named "TinCan" (this was one of the earlier names I toyed with before renaming it)
