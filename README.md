@@ -3,7 +3,7 @@
 
 GyroPrompt was intended to be a Win console-based scripting language centered around the GyroCloud and DogeCoin.
 
-Imagine Python but it's a little bloated, Python is also yelling at you in all caps, and there's a PythonCloud where you use DogeCoin for hosting cloud apps, blockchains attached to namespaces (long term plan was to allow sub-cryptos to be launched with a few commands), namespaces for cloud apps, and file storage. That was the end goal for GyroPrompt. And I had made lots of progress.
+Imagine Python but it's a little bloated, Python is also yelling at you in all caps, and there's a PythonCloud where you use DogeCoin for hosting cloud apps, blockchains attached to namespaces (long term plan was to allow sub-cryptos to be launched with a few commands), namespaces for cloud apps, and file storage. That was the end goal for GyroPrompt. And I had made lots of progress in laying the ground work.
 
 The GyroCloud was a simple SQL Server that would manage user accounts, namespaces, and file storage for users.
 I had a system set up where GyroPrompt would make .gs become a system recognized file type and would automatically run - much like how a .bat or .vbs automatically executes when opened. This feature was mysteriously patched by Microsoft in a security update
