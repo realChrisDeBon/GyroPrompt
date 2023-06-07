@@ -28,7 +28,7 @@ namespace GyroPrompt
         /// <summary>
         /// Below are environmental variables. These are meant for the users to be able to interact with the console settings and modify the environment.
         /// The ConsoleInfo struct/method and keyConsoleKey IDictionary enable easier manipulation of console colors and to save current settings to be recalled.
-        /// All the proceeding variables are meant to enable to users to reference them through 'set environment variable_ value'
+        /// All the proceeding variables are meant to enable the users to reference them through 'set environment variable_ value'
         /// </summary>
         public struct ConsoleInfo {
             public ConsoleColor status_forecolor;
@@ -468,14 +468,22 @@ namespace GyroPrompt
             /// </summary>
             if (split_input[0].Equals("goto", StringComparison.OrdinalIgnoreCase))
             {
-                if (split_input.Length == 2) {
-                    bool valid = IsNumeric(split_input[1]);
-                    if (valid)
+                if (running_script == true)
+                {
+                    if (split_input.Length == 2)
                     {
-                        int a = Int32.Parse(split_input[1]);
-                        current_line = a;
+                        bool valid = IsNumeric(split_input[1]);
+                        if (valid)
+                        {
+                            int a = Int32.Parse(split_input[1]);
+                            current_line = a;
+                        }
                     }
-                } else { Console.WriteLine("Invalid format for line number."); }
+                    else { Console.WriteLine("Invalid format for line number."); }
+                } else
+                {
+                    Console.WriteLine("Can only goto line number when running a script.");
+                }
             }
 
         }
@@ -492,7 +500,9 @@ namespace GyroPrompt
             info.status_forecolor = foreColor_;
             info.status_backcolor = backColor_;
 
-            running_script = true;
+            running_script = true; // Tell parser we are actively running a script
+            current_line = 0; // Begin at 0
+
             List<string> Lines = System.IO.File.ReadAllLines(script).ToList<string>();
             int max_lines = Lines.Count();
             while(current_line < max_lines)
@@ -508,7 +518,8 @@ namespace GyroPrompt
             environmental_variables = environmental_variables_backup;
             setConsoleStatus(info);
 
-            running_script = false;
+            running_script = false; // Tell parser we are not actively running a script
+            current_line = 0; // Redundant reset
         }
         public string SetVariableValue(string input)
         {
