@@ -21,10 +21,14 @@ namespace GyroPrompt
         public List<LocalVariable> local_variables = new List<LocalVariable>();
         public List<object> environmental_variables = new List<object>();
         public Calculate calculate = new Calculate();
+        public RandomizeInt randomizer = new RandomizeInt();
+        public bool running_script = false; // Used for determining if a script is being ran
+        public int current_line = 0; // Used for reading scripts
 
         /// <summary>
         /// Below are environmental variables. These are meant for the users to be able to interact with the console settings and modify the environment.
-        /// 
+        /// The ConsoleInfo struct/method and keyConsoleKey IDictionary enable easier manipulation of console colors and to save current settings to be recalled.
+        /// All the proceeding variables are meant to enable to users to reference them through 'set environment variable_ value'
         /// </summary>
         public struct ConsoleInfo {
             public ConsoleColor status_forecolor;
@@ -80,6 +84,8 @@ namespace GyroPrompt
             get { return backColor; }
             set { backColor = value; Console.BackgroundColor = value; }
         }
+
+        // Some basic initializations for the environment
         public void setenvironment()
         {
             environmental_variables.Add(CursorX_);
@@ -454,8 +460,56 @@ namespace GyroPrompt
                     Console.WriteLine("Invalid format to modify environment.");
                 }
             }
-        }
 
+            ///<summary>
+            /// Script specific commands that will only execute if running_script = true
+            /// These commands only have an impact on the flow of a script file and not on
+            /// code that is executed from the prompt manually.
+            /// </summary>
+            if (split_input[0].Equals("goto", StringComparison.OrdinalIgnoreCase))
+            {
+                if (split_input.Length == 2) {
+                    bool valid = IsNumeric(split_input[1]);
+                    if (valid)
+                    {
+                        int a = Int32.Parse(split_input[1]);
+                        current_line = a;
+                    }
+                } else { Console.WriteLine("Invalid format for line number."); }
+            }
+
+        }
+        public void run(string script)
+        {
+            // Create backup of current environmental variables and local variables
+            List<LocalVariable> local_variables_backup = new List<LocalVariable>();
+            List<object> environmental_variables_backup = new List<object>();
+            local_variables_backup = local_variables;
+            environmental_variables_backup = environmental_variables;
+
+            // Create backup of current console settings
+            ConsoleInfo info = new ConsoleInfo();
+            info.status_forecolor = foreColor_;
+            info.status_backcolor = backColor_;
+
+            running_script = true;
+            List<string> Lines = System.IO.File.ReadAllLines(script).ToList<string>();
+            int max_lines = Lines.Count();
+            while(current_line < max_lines)
+            {
+                parse(Lines[current_line]);
+                current_line++;
+            }
+
+            // Revert to pre-script settings
+            local_variables.Clear();
+            environmental_variables.Clear();
+            local_variables = local_variables_backup;
+            environmental_variables = environmental_variables_backup;
+            setConsoleStatus(info);
+
+            running_script = false;
+        }
         public string SetVariableValue(string input)
         {
             string a = "";
@@ -507,6 +561,48 @@ namespace GyroPrompt
                     string b_ = ConvertNumericalVariable(_placeholder);
                     string b = calculate.calculate_string(b_);
                     a = a + b;
+                }
+                // Then check for a randomizer
+                if (capturedText.StartsWith("RandomizeInt:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string _placeholder = capturedText.Remove(0, 13);
+                    if (_placeholder.Contains(','))
+                    {
+                        string run_vars = ConvertNumericalVariable(_placeholder);
+                        string[] value_ = run_vars.Split(',');
+                        if (value_.Length == 2)
+                        {
+                            bool first_valid = IsNumeric(value_[0]);
+                            bool second_valid = IsNumeric(value_[1]);
+                            if (first_valid && second_valid)
+                            {
+                                int a_ = Int32.Parse(value_[0]);
+                                int b_ = Int32.Parse(value_[1]);
+                                if (a_ < b_)
+                                {
+                                    string random_int = randomizer.randomizeInt(value_[0], value_[1]);
+                                    a = a + random_int;
+                                }
+                                else
+                                {
+                                    Console.WriteLine("First value should be greater than second value.");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("Invalid numerical value.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Must have single comma separated values to define range.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Must have comma separated values to define range.");
+                    }
+
                 }
                 if (capturedText.Equals("\\n", StringComparison.OrdinalIgnoreCase)) { a = a + "\n"; }
 
@@ -568,6 +664,44 @@ namespace GyroPrompt
                     string _placeholder = capturedText.Remove(0, 10);
                     string a = ConvertNumericalVariable(_placeholder);
                     Console.Write(calculate.calculate_string(a));
+                }
+                // Then check for a randomizer
+                if (capturedText.StartsWith("RandomizeInt:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string _placeholder = capturedText.Remove(0, 13);
+                    if (_placeholder.Contains(','))
+                    {
+                        string run_vars = ConvertNumericalVariable(_placeholder);
+                        string[] value_ = run_vars.Split(',');
+                        if (value_.Length == 2)
+                        {
+                            bool first_valid = IsNumeric(value_[0]);
+                            bool second_valid = IsNumeric(value_[1]);
+                            if (first_valid && second_valid)
+                            {
+                                int a_ = Int32.Parse(value_[0]);
+                                int b_ = Int32.Parse(value_[1]);
+                                if (a_ < b_)
+                                {
+                                    string random_int = randomizer.randomizeInt(value_[0], value_[1]);
+                                    Console.Write(random_int);
+                                } else
+                                {
+                                    Console.WriteLine("First value should be greater than second value.");
+                                }
+                            } else
+                            {
+                                Console.WriteLine("Invalid numerical value.");
+                            }
+                        } else
+                        {
+                            Console.WriteLine("Must have single comma separated values to define range.");
+                        }
+                    } else
+                    {
+                        Console.WriteLine("Must have comma separated values to define range.");
+                    }
+
                 }
                 if (capturedText.Equals("\\n", StringComparison.OrdinalIgnoreCase)) { Console.WriteLine(); }
                 // Check for the foreground color
