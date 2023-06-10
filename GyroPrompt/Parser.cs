@@ -84,6 +84,12 @@ namespace GyroPrompt
             get { return backColor; }
             set { backColor = value; Console.BackgroundColor = value; }
         }
+        public int ScriptDelay = 500;
+        public int ScriptDelay_
+        {
+            get { return ScriptDelay; }
+            set { ScriptDelay = value; }
+        }
 
         // Some basic initializations for the environment
         public void setenvironment()
@@ -110,6 +116,7 @@ namespace GyroPrompt
             keyConsoleColor.Add("Magenta", ConsoleColor.Magenta);
             keyConsoleColor.Add("Yellow", ConsoleColor.Yellow);
             keyConsoleColor.Add("White", ConsoleColor.White);
+
         }
 
         public void parse(string input)
@@ -446,6 +453,25 @@ namespace GyroPrompt
                                         Console.WriteLine($"Color not found: {split_input[3]}");
                                     }
                                     break;
+                                case "scriptdelay":
+                                    string _num4 = SetVariableValue(split_input[3]);
+                                    bool _valid4 = IsNumeric(_num4);
+                                    if (_valid4 == true)
+                                    {
+                                        try
+                                        {
+                                            ScriptDelay = (Int32.Parse(_num4));
+                                        }
+                                        catch (ArgumentOutOfRangeException ex)
+                                        {
+                                            Console.WriteLine("Error passing value.");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"Invalid input: {_num4}");
+                                    }
+                                    break;
                                 default:
                                     Console.WriteLine($"{var_name} is invalid environmental variable.");
                                     break;
@@ -485,6 +511,33 @@ namespace GyroPrompt
                     Console.WriteLine("Can only goto line number when running a script.");
                 }
             }
+            if (split_input[0].Equals("pause", StringComparison.OrdinalIgnoreCase))
+            {
+                if (running_script == true)
+                {
+                    if (split_input.Length == 2)
+                    {
+                        string a_ = ConvertNumericalVariable(split_input[1]);
+                        bool valid = IsNumeric(a_);
+                        int b_ = Int32.Parse(split_input[1]);
+                        if (valid)
+                        {
+                            Thread.Sleep(b_);
+
+                        } else
+                        {
+                            Console.WriteLine($"Invalid input: {a_}.");
+                        }
+                    } else
+                    {
+                        Console.WriteLine("Invalid format to pause.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Can only pause when running a script.");
+                }
+            }
 
         }
         public void run(string script)
@@ -503,12 +556,14 @@ namespace GyroPrompt
             running_script = true; // Tell parser we are actively running a script
             current_line = 0; // Begin at 0
 
-            List<string> Lines = System.IO.File.ReadAllLines(script).ToList<string>();
+
+            List<string> Lines = System.IO.File.ReadAllLines(script).ToList<string>(); // Create a list of string so the file can be read line-by-line
             int max_lines = Lines.Count();
             while(current_line < max_lines)
             {
                 parse(Lines[current_line]);
                 current_line++;
+                Thread.Sleep(ScriptDelay);
             }
 
             // Revert to pre-script settings

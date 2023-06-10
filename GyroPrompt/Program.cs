@@ -20,7 +20,7 @@
                     {
                         parser.run(path);
                     }
-                    catch { Console.WriteLine("Unables to execute " + path + ", please make sure the file isn't opened or being used!"); }
+                    catch { Console.WriteLine("Unable to execute " + path + ", please make sure the file isn't opened or being used!"); }
                 }
             }
             else if (args.Length > 1)
