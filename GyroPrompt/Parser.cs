@@ -11,6 +11,10 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
+using System.Data.SqlTypes;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using GyroPrompt.Basic_Objects.Component;
+
 namespace GyroPrompt
 {
     public class Parser
@@ -24,6 +28,8 @@ namespace GyroPrompt
         public List<object> environmental_variables = new List<object>();
         public Calculate calculate = new Calculate();
         public RandomizeInt randomizer = new RandomizeInt();
+        public ConditionChecker condition_checker = new ConditionChecker();
+        
         public bool running_script = false; // Used for determining if a script is being ran
         public int current_line = 0; // Used for reading scripts
         ScriptCompiler compiler = new ScriptCompiler(); // UNDER CONSTRUCTION!
@@ -51,6 +57,7 @@ namespace GyroPrompt
             Console.BackgroundColor = _consoleinfo.status_backcolor;
         }
 
+        IDictionary<string, object> environmentalVars = new Dictionary<string, object>();
         public int CursorX = Console.CursorLeft;
         public int CursorX_
         {
@@ -103,6 +110,16 @@ namespace GyroPrompt
             environmental_variables.Add(WindowHeight_);
             environmental_variables.Add(foreColor_);
             environmental_variables.Add(backColor_);
+            environmental_variables.Add(ScriptDelay_);
+
+            environmentalVars.Add("CursorX", CursorX_);
+            environmentalVars.Add("CursorY", CursorY_);
+            environmentalVars.Add("WindowWidth", WindowWidth_);
+            environmentalVars.Add("WindowHeight", WindowHeight_);
+            environmentalVars.Add("Forecolor", foreColor_);
+            environmentalVars.Add("Backcolor", backColor_);
+            environmentalVars.Add("ScriptDelay", ScriptDelay_);
+
             keyConsoleColor.Add("Black", ConsoleColor.Black);
             keyConsoleColor.Add("DarkBlue", ConsoleColor.DarkBlue);
             keyConsoleColor.Add("DarkGreen", ConsoleColor.DarkGreen);
@@ -120,6 +137,7 @@ namespace GyroPrompt
             keyConsoleColor.Add("Yellow", ConsoleColor.Yellow);
             keyConsoleColor.Add("White", ConsoleColor.White);
 
+            condition_checker.LoadOperations();
         }
 
         public void parse(string input)
@@ -375,7 +393,7 @@ namespace GyroPrompt
                             string var_name = split_input[2].ToLower();
                             switch (var_name)
                             {
-                                case "height":
+                                case "windowheight":
                                     string _num = SetVariableValue(split_input[3]);
                                     bool _valid = IsNumeric(_num);
                                     if (_valid == true)
@@ -387,7 +405,7 @@ namespace GyroPrompt
                                         Console.WriteLine($"Invalid input: {_num}");
                                     }
                                     break;
-                                case "width":
+                                case "windowwidth":
                                     string _num1 = SetVariableValue(split_input[3]);
                                     bool _valid1 = IsNumeric(_num1);
                                     if (_valid1 == true)
@@ -435,7 +453,7 @@ namespace GyroPrompt
                                         Console.WriteLine($"Invalid input: {_num3}");
                                     }
                                     break;
-                                case "background":
+                                case "backcolor":
                                     if (keyConsoleColor.ContainsKey(split_input[3]))
                                     {
                                         ConsoleColor color = keyConsoleColor[split_input[3]];
@@ -445,7 +463,7 @@ namespace GyroPrompt
                                         Console.WriteLine($"Color not found: {split_input[3]}");
                                     }
                                     break;
-                                case "foreground":
+                                case "forecolor":
                                     if (keyConsoleColor.ContainsKey(split_input[3]))
                                     {
                                         ConsoleColor color = keyConsoleColor[split_input[3]];
@@ -487,6 +505,99 @@ namespace GyroPrompt
                 } else
                 {
                     Console.WriteLine("Invalid format to modify environment.");
+                }
+            }
+            
+            ///<summary>
+            /// Conditional statements and loops that will allow for the execution of code
+            /// if a specific condition is true or false, or until a specific condition
+            /// becomes true or false.
+            /// Example for If:
+            /// If variable = [variable2] then println correct|set variable = 0
+            /// If variable's value = variable2's value, then the commands that follow will execute. Multiple commands can be ran when separated by a | pipe
+            /// Example for While:
+            /// </summary>
+            if (split_input[0].Equals("if", StringComparison.OrdinalIgnoreCase))
+            {
+                string first_value = split_input[1];
+                bool first_value_exists = LocalVariableExists(first_value);
+                if (first_value_exists == true)
+                {
+
+
+                    OperatorTypes operator_ = new OperatorTypes();
+                    string operator_type = split_input[2];
+                    if (condition_checker.operationsDictionary.ContainsKey(operator_type)) {
+                        operator_ = condition_checker.operationsDictionary[operator_type];
+                        string condition_ = ""; // we're going to recompile each string until we hit a 'Then' statement
+                        string proceeding_commands = "";
+                        int x = 3; // This will mark when we switch from the condition to the proceeding commands
+                        foreach (string b in split_input.Skip(3))
+                        {
+                            if (b.Equals("then", StringComparison.OrdinalIgnoreCase))
+                            {
+                                x++;
+                                break;
+                            }
+                            else
+                            {
+                                condition_ += b + " ";
+                                x++;
+                            }
+                        }
+                        foreach (string c in split_input.Skip(x))
+                        {
+                            proceeding_commands += c + " ";
+                            
+                        }
+                        //DEBUG: Console.WriteLine($"Debug: {proceeding_commands}");
+                        string conditon_checkvariables = SetVariableValue(condition_).Trim();
+                        //DEBUG: Console.WriteLine($"Debug: {conditon_checkvariables}");
+                        string var_val = GrabVariableValue(first_value);
+                        //DEBUG: Console.WriteLine($"Going to check if '{var_val}' is {operator_.ToString()} to '{conditon_checkvariables}'");
+                        bool condition_is_met = false;
+                        if ((operator_ == OperatorTypes.EqualTo) || (operator_ == OperatorTypes.NotEqualTo))
+                        {
+                            condition_is_met = condition_checker.ConditionChecked(operator_, var_val, conditon_checkvariables);
+                        } else
+                        {
+                            // We must ensure var_cal and condition_checkvariables are numerical
+                            bool a_ = IsNumeric(var_val);
+                            bool b_ = IsNumeric(conditon_checkvariables);
+                            if ((a_ == true) && (b_ == true))
+                            {
+                                condition_is_met = condition_checker.ConditionChecked(operator_, var_val, conditon_checkvariables);
+
+                            }
+                        }
+                        if (condition_is_met == true)
+                        {
+                            string[] commands_to_execute = proceeding_commands.Split('|');
+                            try
+                            {
+                                foreach(string command in commands_to_execute)
+                                {
+                                    try
+                                    {
+                                        parse(command);
+                                    } catch
+                                    {
+                                        Console.WriteLine($"Error running command {command}.");
+                                    }
+                                }
+                            } catch
+                            {
+                                Console.WriteLine("There was an error processing list of commands.");
+                            }
+                        }
+                        
+                    } else
+                    {
+                        Console.WriteLine($"{operator_type} is not a valid operator.");
+                    }
+                } else
+                {
+                    Console.WriteLine($"{first_value} does not exist.");
                 }
             }
 
@@ -542,7 +653,7 @@ namespace GyroPrompt
                 }
             }
 
-            // if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(); }
+             if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(); }
         }
         public void run(string script)
         {
@@ -580,6 +691,7 @@ namespace GyroPrompt
             running_script = false; // Tell parser we are not actively running a script
             current_line = 0; // Redundant reset
         }
+        // Returns a string where all variables encapsulated in square brackets [ ] are converted to their value
         public string SetVariableValue(string input)
         {
             string a = "";
@@ -681,6 +793,7 @@ namespace GyroPrompt
 
             return a;
         }
+        // Print message 'input' to console
         public void print(string input)
         {
             // Grab current state of console
@@ -807,6 +920,7 @@ namespace GyroPrompt
             }
             setConsoleStatus(info); // Resets the colors prior to the print statement's execution
         }
+        // Check if variable 'name' exists
         public bool LocalVariableExists(string name)
         {
             bool exists = false;
@@ -814,9 +928,29 @@ namespace GyroPrompt
             {
                 if (var.Name == name) { exists = true; break; }
             }
+            if (environmentalVars.ContainsKey(name))
+            {
+                exists = true;
+            }
 
             return exists;
         }
+        // Returns string containing value of variable 'name'
+        public string GrabVariableValue(string name)
+        {
+            string a = "";
+            foreach (LocalVariable var in local_variables)
+            {
+                if (var.Name == name) { a = var.Value; break; }
+            }
+            if (environmentalVars.ContainsKey(name))
+            {
+                a = environmentalVars[name].ToString();
+            }
+
+            return a;
+        }
+        // Checks for all numerical values, including mathematical equations, and converts them to their number value
         public string ConvertNumericalVariable(string input)
         {
             // Locate all bracket integers and floats within input and replace with variable's value
@@ -866,11 +1000,13 @@ namespace GyroPrompt
             }
             return a;
         }
+        // Checks if string 'input' contains only alphanumeric characters
         public static bool ContainsOnlyLettersAndNumbers(string input)
         {
             Regex regex = new Regex("^[a-zA-Z0-9]+$");
             return regex.IsMatch(input);
         }
+        // Checks if string 'input' contains only numbers
         public static bool IsNumeric(string input)
         {
             return int.TryParse(input, out _);
