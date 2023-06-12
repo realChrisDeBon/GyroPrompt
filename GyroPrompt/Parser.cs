@@ -1,7 +1,9 @@
 ﻿
 using GyroPrompt.Basic_Functions;
 using GyroPrompt.Basic_Objects.Variables;
+using GyroPrompt.Compiler;
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -15,15 +17,16 @@ namespace GyroPrompt
     {
         /// <summary>
         /// Initialize some of the basic function objects and lists. These will likely be used frequently.
-        /// 
+        /// Some of these are also variables necessary for the smooth flow of code execution.
         /// </summary>
-
+        
         public List<LocalVariable> local_variables = new List<LocalVariable>();
         public List<object> environmental_variables = new List<object>();
         public Calculate calculate = new Calculate();
         public RandomizeInt randomizer = new RandomizeInt();
         public bool running_script = false; // Used for determining if a script is being ran
         public int current_line = 0; // Used for reading scripts
+        ScriptCompiler compiler = new ScriptCompiler(); // UNDER CONSTRUCTION!
 
         /// <summary>
         /// Below are environmental variables. These are meant for the users to be able to interact with the console settings and modify the environment.
@@ -539,6 +542,7 @@ namespace GyroPrompt
                 }
             }
 
+            // if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(); }
         }
         public void run(string script)
         {
@@ -555,8 +559,8 @@ namespace GyroPrompt
 
             running_script = true; // Tell parser we are actively running a script
             current_line = 0; // Begin at 0
-
-
+            
+            
             List<string> Lines = System.IO.File.ReadAllLines(script).ToList<string>(); // Create a list of string so the file can be read line-by-line
             int max_lines = Lines.Count();
             while(current_line < max_lines)
