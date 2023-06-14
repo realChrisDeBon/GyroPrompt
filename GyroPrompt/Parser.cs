@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using System.Data.SqlTypes;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using GyroPrompt.Basic_Objects.Component;
+using GyroPrompt.Basic_Objects.Collections;
 
 namespace GyroPrompt
 {
@@ -26,10 +27,13 @@ namespace GyroPrompt
         
         public List<LocalVariable> local_variables = new List<LocalVariable>();
         public List<object> environmental_variables = new List<object>();
+        public List<LocalList> local_arrays = new List<LocalList>();
+
         public Calculate calculate = new Calculate();
         public RandomizeInt randomizer = new RandomizeInt();
         public ConditionChecker condition_checker = new ConditionChecker();
         
+        public IDictionary<string, bool> namesInUse = new Dictionary<string, bool>();
         public bool running_script = false; // Used for determining if a script is being ran
         public int current_line = 0; // Used for reading scripts
         ScriptCompiler compiler = new ScriptCompiler(); // UNDER CONSTRUCTION!
@@ -145,6 +149,10 @@ namespace GyroPrompt
             keyConsoleColor.Add("Yellow", ConsoleColor.Yellow);
             keyConsoleColor.Add("White", ConsoleColor.White);
 
+            foreach (string envvar_name in environmentalVars.Keys)
+            {
+                namesInUse.Add(envvar_name, true); // All encompassing name reserve system
+            }
             condition_checker.LoadOperations();
         }
 
@@ -208,8 +216,8 @@ namespace GyroPrompt
 
                     if (proper_value == true)
                     {
-                        bool name_check = LocalVariableExists(split_input[1]);
-                        if (name_check == true) { Console.WriteLine($"{split_input[1]} variable exists."); no_issues = false; }
+                        bool name_check = NameInUse(split_input[1]);
+                        if (name_check == true) { Console.WriteLine($"{split_input[1]} name in use."); no_issues = false; }
                         if (no_issues == true)
                         {
                             // Syntax checks out, we proceed to declare the variable
@@ -219,6 +227,7 @@ namespace GyroPrompt
                             if (split_input[3] == "true" || split_input[3] == "1") { new_bool.bool_val = true; }
                             new_bool.Type = VariableType.Boolean;
                             local_variables.Add(new_bool);
+                            namesInUse.Add(split_input[1], true);
                         }
                     }
                     else
@@ -251,8 +260,8 @@ namespace GyroPrompt
                     bool proper_value = IsNumeric(split_input[3]);
                     if (proper_value == true)
                     {
-                        bool name_check = LocalVariableExists(split_input[1]);
-                        if (name_check == true) { Console.WriteLine($"{split_input[1]} variable exists."); no_issues = false; }
+                        bool name_check = NameInUse(split_input[1]);
+                        if (name_check == true) { Console.WriteLine($"{split_input[1]} name in use."); no_issues = false; }
                         if (no_issues == true) { 
                         // Syntax checks out, we proceed to declare the variable
                         IntegerVariable new_int = new IntegerVariable();
@@ -260,6 +269,7 @@ namespace GyroPrompt
                         new_int.int_value = Int32.Parse(split_input[3]);
                         new_int.Type = VariableType.Int;
                         local_variables.Add(new_int);
+                        namesInUse.Add(split_input[1], true);
                         }
                     }
                     else
@@ -294,7 +304,7 @@ namespace GyroPrompt
                         no_issues = false;
                     }
 
-                    bool name_check = LocalVariableExists(split_input[1]);
+                    bool name_check = NameInUse(split_input[1]);
                     if (name_check == false)
                     {
                         // Recombine string
@@ -314,7 +324,7 @@ namespace GyroPrompt
                         }
                     } else
                     {
-                        Console.WriteLine($"{split_input[1]} variable exists.");
+                        Console.WriteLine($"{split_input[1]} name in use.");
                         no_issues = false;
                     }
                 }
@@ -345,7 +355,7 @@ namespace GyroPrompt
                         no_issues = false;
                     }
 
-                    bool name_check = LocalVariableExists(split_input[1]);
+                    bool name_check = NameInUse(split_input[1]);
                     bool float_check = float.TryParse(split_input[3], NumberStyles.Float, CultureInfo.InvariantCulture.NumberFormat, out float result);
                     if (!float_check) {
                         Console.WriteLine($"Incorrect formatting to declare float. Float cannot take value: {split_input[3]}");
@@ -365,9 +375,280 @@ namespace GyroPrompt
                     }
                     else
                     {
-                        Console.WriteLine($"{split_input[1]} variable exists.");
+                        Console.WriteLine($"{split_input[1]} name in use.");
                         no_issues = false;
                     }
+                }
+            }
+            // Create new list, add item to list, remove item from list, set all in list
+            if (split_input[0].Equals("new_list", StringComparison.OrdinalIgnoreCase))
+            {
+                if (split_input.Length == 3) { 
+                string arrayType = split_input[1].ToLower();
+                ArrayType new_arrayType = new ArrayType();
+                    bool valid_arrayType = true;
+                    // Ensure a valid input was provided
+                    switch(arrayType)
+                    {
+                        case "string":
+                            new_arrayType = ArrayType.String;
+                            break;
+                        case "int":
+                            new_arrayType = ArrayType.Int;
+                            break;
+                        case "integer":
+                            new_arrayType = ArrayType.Int;
+                            break;
+                        case "float":
+                            new_arrayType = ArrayType.Float;
+                            break;
+                        case "bool":
+                            new_arrayType = ArrayType.Boolean;
+                            break;
+                        case "boolean":
+                            new_arrayType = ArrayType.Boolean;
+                            break;
+                        default:
+                            valid_arrayType = false;
+                            break;
+                    }
+                    if (valid_arrayType == true)
+                    {
+                        string listName = split_input[2];
+                        bool properName = ContainsOnlyLettersAndNumbers(listName);
+                        bool alreadyExists = NameInUse(listName);
+                        if ((properName == true) && (alreadyExists == false))
+                        {
+                            LocalList newArray = new LocalList();
+                            newArray.Name = listName;
+                            newArray.arrayType = new_arrayType;
+                            local_arrays.Add(newArray);
+                            namesInUse.Add(listName, true);
+                        }
+                    }
+                    else 
+                    {
+                        Console.WriteLine($"Improper type: {arrayType}.");
+                    }
+
+                }
+                else
+                {
+                    Console.WriteLine("Invalid format to create new list.");
+                }
+            }
+            if (split_input[0].Equals("list_add", StringComparison.OrdinalIgnoreCase)){
+                if (split_input.Length > 3)
+                {
+                    string listName = split_input[1];
+                    string varName = split_input[2];
+                    bool varExists = LocalVariableExists(varName);
+                    bool arrayExists = false;
+                    if (split_input.Length > 3)
+                    {
+                        bool foundList = false;
+                        string badVariable = "";
+                        foreach (LocalList list in local_arrays)
+                        {
+                            if (list.Name == listName)
+                            {
+                                foundList = true;
+                                foreach (string str in split_input.Skip(2))
+                                {
+                                    bool validVar = LocalVariableExists(str);
+                                    string currentVar = str;
+                                    if (validVar)
+                                    {
+                                        foreach(LocalVariable locvar in local_variables)
+                                        {
+                                            if (locvar.Name == currentVar)
+                                            {
+                                                list.itemAdd(locvar);
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        badVariable += str + " "; // add every non-added value to list
+                                    }
+                                }
+                                if (badVariable != "")
+                                {
+                                    Console.WriteLine($"Item(s) not found: {badVariable}");
+                                }
+                                break;
+                            }
+                        }
+                        if (foundList== false) { Console.WriteLine($"Could not locate list {listName}."); }
+                    }
+                    else if (split_input.Length == 3) 
+                    {
+                        if (varExists == true)
+                        {
+                            foreach (LocalList array in local_arrays)
+                            {
+                                if (array.Name == listName)
+                                {
+                                    foreach (LocalVariable localVar in local_variables)
+                                    {
+                                        if (localVar.Name == varName)
+                                        {
+                                            array.itemAdd(localVar);
+                                            break;
+                                        }
+                                    }
+                                    arrayExists = true;
+                                }
+                            }
+                            if (arrayExists == false)
+                            {
+                                Console.WriteLine($"Could not locate list {listName}.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {varName}.");
+                        }
+                    } else { Console.WriteLine("Invald format to add items to list."); }
+                }
+            }
+            if (split_input[0].Equals("list_remove", StringComparison.OrdinalIgnoreCase))
+            {
+                if (split_input.Length >= 3)
+                {
+                    string listName = split_input[1];
+                    string varName = split_input[2];
+                    bool varExists = LocalVariableExists(varName);
+                    bool arrayExists = false;
+                    if (varExists == true)
+                    {
+                        foreach (LocalList array in local_arrays)
+                        {
+                            if (array.Name == listName)
+                            {
+                                array.itemRemove(varName);
+                                break;
+                            }
+                        }
+                        if (arrayExists == false)
+                        {
+                            Console.WriteLine($"Could not locate list {listName}.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Could not locate variable {varName}.");
+                    }
+                }
+            }
+            if (split_input[0].Equals("list_setall", StringComparison.OrdinalIgnoreCase))
+            {
+                if (split_input.Length >= 2)
+                {
+                    bool arrayExist = false;
+                    string arrayName = split_input[1];
+                   
+                    foreach(LocalList localLists in local_arrays)
+                    {
+                        if (localLists.Name == arrayName)
+                        {
+                            switch (localLists.arrayType)
+                            {
+                                // The array type will determine how we handle the input
+                                case ArrayType.Float:
+                                    if (split_input.Length > 3)
+                                    {
+                                        Console.WriteLine("Invalid format to pass float.");
+                                    }
+                                    else
+                                    {
+                                        string a_ = SetVariableValue(split_input[2]);
+                                        string b_ = ConvertNumericalVariable(a_);
+                                        bool isfloat = float.TryParse(b_, NumberStyles.Float, CultureInfo.InvariantCulture.NumberFormat, out float result);
+                                        if (isfloat == true)
+                                        {
+                                            localLists.SetAllWithValue(b_);
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Output is not a valid float: {b_}");
+                                        }
+                                    }
+                                    break;
+                                case ArrayType.Int:
+                                    if (split_input.Length > 3)
+                                    {
+                                        Console.WriteLine("Invalid format to pass integer.");
+                                    } else
+                                    {
+                                        string a_ = SetVariableValue(split_input[2]);
+                                        string b_ = ConvertNumericalVariable(a_);
+                                        bool isInt = IsNumeric(b_);
+                                        if (isInt == true)
+                                        {
+                                            localLists.SetAllWithValue(b_);
+                                        } else
+                                        {
+                                            Console.WriteLine($"Output is not a valid integer: {b_}");
+                                        }
+                                    }
+                                    break;
+                                case ArrayType.String:
+                                    // We'll recompile string and pass it
+                                    string newValue = "";
+                                    if (split_input.Length > 3)
+                                    {
+                                        foreach (string s in split_input.Skip(2))
+                                        {
+                                            newValue += s;
+                                        }
+                                    }
+                                    string aa = SetVariableValue(newValue);
+                                    string bb = ConvertNumericalVariable(aa);
+                                    localLists.SetAllWithValue(bb.Trim());
+                                    break;
+                                case ArrayType.Boolean:
+                                    if (split_input.Length > 3)
+                                    {
+                                        Console.WriteLine("Invalid format to pass boolean.");
+                                    }
+                                    else
+                                    {
+                                        bool isBool = false;
+                                        string[] acceptableValue = { "true", "false", "1", "0" };
+                                        string operation = "";
+                                        foreach(string s in acceptableValue)
+                                        {
+                                            if (split_input[2].Equals(s, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                if ((s == "true") || (s == "1")) { operation = "True"; }
+                                                if ((s == "false") || s == "0" ) { operation = "False"; }
+                                                isBool = true;
+                                                break;
+                                            }
+                                        }
+                                        if (isBool == true)
+                                        {
+                                            localLists.SetAllWithValue(operation);
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Output is not a valid boolean: {split_input[2]}");
+                                        }
+                                    }
+                                    break;
+                            }
+                            arrayExist = true;
+                            break;
+                        }
+                    }
+                    if (arrayExist == false)
+                    {
+                        Console.WriteLine($"Could not locate list {arrayName}.");
+                    }
+                } else
+                {
+                    Console.WriteLine("Invalid format to set all in list.");
                 }
             }
             // Modify variable values
@@ -421,6 +702,25 @@ namespace GyroPrompt
                                         } else
                                         {
                                             Console.WriteLine($"Output is not valid float: {b_}");
+                                        }
+                                        break;
+                                    case VariableType.Boolean:
+                                        string[] acceptableValue = {"true",  "false", "1", "0"};
+                                        bool validInput = false;
+                                        foreach(string s in acceptableValue)
+                                        {
+                                            if (split_input[3].Equals(s, StringComparison.OrdinalIgnoreCase) == true)
+                                            {
+                                                if ((s == "true") || (s == "1"))
+                                                {
+                                                    var.Value = "True";
+                                                    break;
+                                                } else if ((s == "0") || (s == "false"))
+                                                {
+                                                    var.Value = "False";
+                                                    break;
+                                                }
+                                            }
                                         }
                                         break;
                                     
@@ -1014,8 +1314,14 @@ namespace GyroPrompt
             }
             
 
-            //DO NOT INCLUDE, UNDER CONSTRUCTION:
-            if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(); }
+            //DO NOT INCLUDE, UNDER CONSTRUCTION: if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(); }
+            if (split_input[0].Equals("NAMES"))
+            {
+                foreach(string key in namesInUse.Keys)
+                {
+                    Console.WriteLine(key);
+                }
+            }
         }
 
         // Executes a script file line-by-line
@@ -1150,6 +1456,87 @@ namespace GyroPrompt
                     }
 
                 }
+                // Then check for list items
+                if (capturedText.StartsWith("List:"))
+                {
+                    string _placeholder = capturedText.Remove(0, 5);
+                    if (_placeholder.StartsWith("At:"))
+                    {
+                        // Referencing an index position within the list
+                        string place_ = _placeholder.Remove(0, 3);
+                        string[] items_ = place_.Split(',');
+                        if (items_.Length == 2)
+                        {
+                            bool validName = false;
+                            bool isNumber = IsNumeric(items_[1].Trim());
+                            
+                            if (isNumber == true)
+                            {
+
+                                int indexednumber = Int32.Parse(items_[1]);
+
+                                foreach (LocalList list in local_arrays)
+                                {
+                                    if (list.Name == items_[0])
+                                    {
+                                        string b = list.GetValueAtIndex(indexednumber);
+                                        a += b;
+                                        validName = true;
+                                        break;
+                                    }
+                                }
+                                if (validName == false)
+                                {
+                                    Console.WriteLine($"Could not locate list: {items_[0]}.");
+                                }
+                            }
+
+                        } else
+                        {
+                            Console.WriteLine("Expecting list name and index position separated by comma.");
+                        }
+                        
+                    } else if (_placeholder.StartsWith("Item:"))
+                    {
+                        // Referencing a list item by name
+                        string place_ = _placeholder.Remove(0, 5);
+                        string[] items_ = place_.Split(",");
+                        if ( items_.Length == 2)
+                        {
+                            bool varExist = LocalVariableExists(items_[1].Trim());
+                            if (varExist == true)
+                            {
+                                bool validList = false;
+                                foreach (LocalList list in local_arrays)
+                                {
+                                    if (list.Name == items_[0])
+                                    {
+                                        foreach (LocalVariable locvar in list.items)
+                                        {
+                                            if (locvar.Name == items_[1].Trim())
+                                            {
+                                                a += locvar.Value;
+                                            }
+                                        }
+                                        validList = true;
+                                        break;
+                                    }
+                                }
+                                if (validList == false)
+                                {
+                                    Console.WriteLine($"Could not locate list: {items_[0]}");
+                                }
+                            } else { Console.WriteLine($"Could not locate variable {items_[1]}."); }
+                        } else
+                        {
+                            Console.WriteLine("Expecting list name and item name separated by comma.");
+                        }
+                    } else
+                    {
+                        Console.WriteLine("Must point to list position with Item or At.");
+                    }
+                }
+
                 if (capturedText.Equals("\\n", StringComparison.OrdinalIgnoreCase)) { a = a + "\n"; }
 
             }
@@ -1250,7 +1637,88 @@ namespace GyroPrompt
                     }
 
                 }
-                if (capturedText.Equals("\\n", StringComparison.OrdinalIgnoreCase)) { Console.WriteLine(); }
+                // Then check for a list reference
+                if (capturedText.StartsWith("List:"))
+                {
+                    string _placeholder = capturedText.Remove(0, 5);
+                    if (_placeholder.StartsWith("At:"))
+                    {
+                        // Referencing an index position within the list
+                        string place_ = _placeholder.Remove(0, 3);
+                        string[] items_ = place_.Split(',');
+                        if (items_.Length == 2)
+                        {
+                            bool validName = false;
+                            bool isNumber = IsNumeric(items_[1].Trim());
+
+                            if (isNumber == true)
+                            {
+
+                                int indexednumber = Int32.Parse(items_[1]);
+
+                                foreach (LocalList list in local_arrays)
+                                {
+                                    if (list.Name == items_[0])
+                                    {
+                                        string b = list.GetValueAtIndex(indexednumber);
+                                        Console.Write(b);
+                                        validName = true;
+                                        break;
+                                    }
+                                }
+                                if (validName == false)
+                                {
+                                    Console.WriteLine($"Could not locate list: {items_[0]}.");
+                                }
+                            }
+
+                        }
+                        else
+                        {
+                            Console.WriteLine("Expecting list name and index position separated by comma.");
+                        }
+
+                    }
+                    else if (_placeholder.StartsWith("Item:"))
+                    {
+                        // Referencing a list item by name
+                        string place_ = _placeholder.Remove(0, 5);
+                        string[] items_ = place_.Split(",");
+                        if (items_.Length == 2)
+                        {
+                            bool varExist = LocalVariableExists(items_[1].Trim());
+                            if (varExist == true)
+                            {
+                                bool validList = false;
+                                foreach (LocalList list in local_arrays)
+                                {
+                                    if (list.Name == items_[0])
+                                    {
+                                        foreach (LocalVariable locvar in list.items)
+                                        {
+                                            if (locvar.Name == items_[1].Trim())
+                                            {
+                                                Console.Write($"{locvar.Value}");
+                                            }
+                                        }
+                                        validList = true;
+                                        break;
+                                    }
+                                }
+                                if (validList == false)
+                                {
+                                    Console.WriteLine($"Could not locate list: {items_[0]}");
+                                }
+                            }
+                            else { Console.WriteLine($"Could not locate variable {items_[1]}."); }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Expecting list name and item name separated by comma.");
+                        }
+                    }
+                }
+                    if (capturedText.Equals("\\n", StringComparison.OrdinalIgnoreCase)) { Console.WriteLine(); }
                 // Check for the foreground color
                 if (capturedText.StartsWith("Color:", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1299,6 +1767,16 @@ namespace GyroPrompt
 
             return exists;
         }
+        // Check if name is in use anywhere
+        public bool NameInUse(string name)
+        {
+            if (namesInUse.ContainsKey(name))
+            {
+                return true;
+            }
+            else { return false; }
+        }
+
         // Returns string containing value of variable 'name'
         public string GrabVariableValue(string name)
         {
