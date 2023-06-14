@@ -343,7 +343,7 @@ namespace GyroPrompt
                                         break;
                                     case VariableType.Int:
                                         string placeholder = SetVariableValue(a);
-                                        string b = ConvertNumericalVariable(placeholder);
+                                        string b = ConvertNumericalVariable(placeholder).Trim();
                                         bool isnumber = IsNumeric(b);
                                         if (isnumber == true)
                                         {
@@ -355,7 +355,7 @@ namespace GyroPrompt
                                         break;
                                     case VariableType.Float:
                                         string placeholder2 = SetVariableValue(a);
-                                        string b_ = ConvertNumericalVariable(placeholder2);
+                                        string b_ = ConvertNumericalVariable(placeholder2).Trim();
                                         bool isfloat = float.TryParse(b_, NumberStyles.Float, CultureInfo.InvariantCulture.NumberFormat, out float result);
                                         if (isfloat == true)
                                         {
@@ -507,15 +507,45 @@ namespace GyroPrompt
                     Console.WriteLine("Invalid format to modify environment.");
                 }
             }
-            
+            if (split_input[0].Equals("pause", StringComparison.OrdinalIgnoreCase))
+            {
+                if (split_input.Length == 2)
+                {
+                    string a_ = ConvertNumericalVariable(split_input[1]);
+                    bool valid = IsNumeric(a_);
+                    int b_ = Int32.Parse(split_input[1]);
+                    if (valid)
+                    {
+                        Thread.Sleep(b_);
+
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Invalid input: {a_}.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Invalid format to pause.");
+                }
+            }
+
             ///<summary>
             /// Conditional statements and loops that will allow for the execution of code
             /// if a specific condition is true or false, or until a specific condition
             /// becomes true or false.
+            /// 
             /// Example for If:
-            /// If variable = [variable2] then println correct|set variable = 0
-            /// If variable's value = variable2's value, then the commands that follow will execute. Multiple commands can be ran when separated by a | pipe
+            /// If variable = [variable2] then println correct|set variable = 0 else println incorrect|set variable = [variable2]
+            /// If variable's value = variable2's value, then the commands 'println correct' and 'set variable = 0' execute, otherwise 'println incorrect' and 'set variable = [variable2]' will execute
+            /// Multiple commands can be ran when separated by a | pipe
+            /// 
             /// Example for While:
+            /// While variable1 < [variable2] do pause 500|set variable1 = [Calculate:{variable1}+1]|println Var1:[variable1] Var2:[variable2]
+            /// Assuming both variable1 and variable2 are integers, var1 = 0 and var2 = 5, the above code would pause for 500 miliseconds, increment var1 by 1, then print
+            /// both variables side-by-side 5 times until variable1 is no longer < to [variable2]
+            /// 
+            /// The 'do' statement is to 'while' what the 'then' statement is to 'if'
             /// </summary>
             if (split_input[0].Equals("if", StringComparison.OrdinalIgnoreCase))
             {
@@ -523,20 +553,20 @@ namespace GyroPrompt
                 bool first_value_exists = LocalVariableExists(first_value);
                 if (first_value_exists == true)
                 {
-
-
                     OperatorTypes operator_ = new OperatorTypes();
                     string operator_type = split_input[2];
                     if (condition_checker.operationsDictionary.ContainsKey(operator_type)) {
                         operator_ = condition_checker.operationsDictionary[operator_type];
                         string condition_ = ""; // we're going to recompile each string until we hit a 'Then' statement
                         string proceeding_commands = "";
+                        bool then_exists = false;
                         int x = 3; // This will mark when we switch from the condition to the proceeding commands
                         foreach (string b in split_input.Skip(3))
                         {
                             if (b.Equals("then", StringComparison.OrdinalIgnoreCase))
                             {
                                 x++;
+                                then_exists = true;
                                 break;
                             }
                             else
@@ -545,10 +575,24 @@ namespace GyroPrompt
                                 x++;
                             }
                         }
+                        bool else_statement_exists = false;
+                        string else_statement_commands = "";
                         foreach (string c in split_input.Skip(x))
                         {
-                            proceeding_commands += c + " ";
-                            
+                            if (c.Equals("else", StringComparison.OrdinalIgnoreCase))
+                            {
+                                else_statement_exists = true; // toggle existence of else statement
+                            } else
+                            {
+                                if (else_statement_exists == false)
+                                {
+                                    proceeding_commands += c + " "; // this will amend what executes under 'then'
+                                } else
+                                {
+                                    else_statement_commands += c + " "; // this will amend what executes under 'else'
+                                }
+                               
+                            }
                         }
                         //DEBUG: Console.WriteLine($"Debug: {proceeding_commands}");
                         string conditon_checkvariables = SetVariableValue(condition_).Trim();
@@ -556,41 +600,78 @@ namespace GyroPrompt
                         string var_val = GrabVariableValue(first_value);
                         //DEBUG: Console.WriteLine($"Going to check if '{var_val}' is {operator_.ToString()} to '{conditon_checkvariables}'");
                         bool condition_is_met = false;
-                        if ((operator_ == OperatorTypes.EqualTo) || (operator_ == OperatorTypes.NotEqualTo))
+                        if (then_exists == true)
                         {
-                            condition_is_met = condition_checker.ConditionChecked(operator_, var_val, conditon_checkvariables);
-                        } else
-                        {
-                            // We must ensure var_cal and condition_checkvariables are numerical
-                            bool a_ = IsNumeric(var_val);
-                            bool b_ = IsNumeric(conditon_checkvariables);
-                            if ((a_ == true) && (b_ == true))
+                            if ((operator_ == OperatorTypes.EqualTo) || (operator_ == OperatorTypes.NotEqualTo))
                             {
+                                // We check to see if value 'a' and value 'b' are either equal to or not equal to each other
                                 condition_is_met = condition_checker.ConditionChecked(operator_, var_val, conditon_checkvariables);
-
                             }
-                        }
-                        if (condition_is_met == true)
-                        {
-                            string[] commands_to_execute = proceeding_commands.Split('|');
-                            try
+                            else
                             {
-                                foreach(string command in commands_to_execute)
+                                // We must ensure var_cal and condition_checkvariables are numerical
+                                bool a_ = IsNumeric(var_val);
+                                bool b_ = IsNumeric(conditon_checkvariables);
+                                if ((a_ == true) && (b_ == true))
                                 {
-                                    try
+                                    // Since both are numerical, we can use an operator that compares their value by greater/less than
+                                    condition_is_met = condition_checker.ConditionChecked(operator_, var_val.Trim(), conditon_checkvariables.Trim());
+                                } else
+                                {
+                                    Console.WriteLine($"Can only use numerical values for operator: {operator_type}");
+                                }
+                            }
+                            if (condition_is_met == true)
+                            {
+                                // Each command is seperated by the vertical pipe | allowing for multiple commands to execute
+                                string[] commands_to_execute = proceeding_commands.Split('|');
+                                try
+                                {
+                                    foreach (string command in commands_to_execute)
                                     {
-                                        parse(command);
-                                    } catch
-                                    {
-                                        Console.WriteLine($"Error running command {command}.");
+                                        try
+                                        {
+                                            parse(command);
+                                        }
+                                        catch
+                                        {
+                                            //Error with specific command
+                                            Console.WriteLine($"Error running command {command}.");
+                                        }
                                     }
                                 }
-                            } catch
+                                catch
+                                {
+                                    // General error
+                                    Console.WriteLine("There was an error processing list of commands.");
+                                }
+                            } else if ((condition_is_met == false) && (else_statement_exists == true))
                             {
-                                Console.WriteLine("There was an error processing list of commands.");
+                                // Condition was false, so we execute the 'else' statement
+                                string[] else_commands_to_execute = else_statement_commands.Split('|');
+                                try
+                                {
+                                    foreach (string command in else_commands_to_execute)
+                                    {
+                                        try
+                                        {
+                                            parse(command);
+                                        }
+                                        catch
+                                        {
+                                            Console.WriteLine($"Error running command {command}.");
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    Console.WriteLine("There was an error processing list of commands.");
+                                }
                             }
+                        } else
+                        {
+                            Console.WriteLine($"If statements must include 'then'.");
                         }
-                        
                     } else
                     {
                         Console.WriteLine($"{operator_type} is not a valid operator.");
@@ -600,7 +681,163 @@ namespace GyroPrompt
                     Console.WriteLine($"{first_value} does not exist.");
                 }
             }
+            if (split_input[0].Equals("while", StringComparison.OrdinalIgnoreCase))
+            {
+                string first_value = split_input[1];
+                bool first_value_exists = LocalVariableExists(first_value);
+                if (first_value_exists == true)
+                {
+                    OperatorTypes operator_ = new OperatorTypes();
+                    string operator_type = split_input[2];
+                    if (condition_checker.operationsDictionary.ContainsKey(operator_type))
+                    {
+                        operator_ = condition_checker.operationsDictionary[operator_type];
+                        string condition_ = ""; // we're going to recompile each string until we hit a 'Do' statement
+                        string proceeding_commands = "";
+                        bool do_exists = false;
+                        int x = 3; // This will mark when we switch from the condition to the proceeding commands
+                        foreach (string b in split_input.Skip(3))
+                        {
+                            if (b.Equals("do", StringComparison.OrdinalIgnoreCase))
+                            {
+                                x++;
+                                do_exists = true;
+                                break;
+                            }
+                            else
+                            {
+                                condition_ += b + " ";
+                                x++;
+                            }
+                        }
 
+                        foreach (string c in split_input.Skip(x))
+                        {
+
+                           proceeding_commands += c + " "; // this will amend what executes under 'Do'
+                        }
+                        //DEBUG: Console.WriteLine($"Debug: {proceeding_commands}");
+                        string conditon_checkvariables = SetVariableValue(condition_).Trim();
+                        //DEBUG: Console.WriteLine($"Debug: {conditon_checkvariables}");
+                        string var_val = GrabVariableValue(first_value);
+                        //DEBUG: Console.WriteLine($"Going to check if '{var_val}' is {operator_.ToString()} to '{conditon_checkvariables}'");
+                        //DEBUG: Thread.Sleep(2000);
+                        bool condition_is_met = false; // We assume true for the while statement
+                        if (do_exists == true)
+                        {
+                            if ((operator_ == OperatorTypes.EqualTo) || (operator_ == OperatorTypes.NotEqualTo))
+                            {
+                                // We check to see if value 'a' and value 'b' are either equal to or not equal to each other
+                                // Since both are numerical, we can use an operator that compares their value by greater/less than
+                                    condition_is_met = condition_checker.ConditionChecked(operator_, var_val.Trim(), conditon_checkvariables.Trim());
+                                    if (condition_is_met == true)
+                                    {
+                                        bool keep_running = true;
+                                        while (keep_running)
+                                        {
+                                        string updated_var1 = GrabVariableValue(first_value); // We need to update the variable
+                                        string updated_var2 = SetVariableValue(condition_).Trim(); // We need to update the variable
+                                        bool condition_check = condition_checker.ConditionChecked(operator_, updated_var1, updated_var2);
+                                        if (condition_check == false) { keep_running = false; break; } // Redundancy never hurt anyone
+                                        else
+                                        {
+                                            string[] commands_to_execute = proceeding_commands.Split('|');
+                                            try
+                                            {
+                                                foreach (string command in commands_to_execute)
+                                                {
+                                                    try
+                                                    {
+                                                        parse(command);
+                                                    }
+                                                    catch
+                                                    {
+                                                        //Error with specific command, exiting 'while' loop
+                                                        Console.WriteLine($"Error running command {command}.");
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            catch
+                                            {
+                                                // General error, exiting 'while' loop
+                                                Console.WriteLine("There was an error processing list of commands.");
+                                                break;
+                                            }
+                                        }
+                                        }
+                                    }
+                                
+                            }
+                            else
+                            {
+                                // We must ensure var_cal and condition_checkvariables are numerical
+                                bool a_ = IsNumeric(var_val);
+                                bool b_ = IsNumeric(conditon_checkvariables);
+                                if ((a_ == true) && (b_ == true))
+                                {
+                                    condition_is_met = condition_checker.ConditionChecked(operator_, var_val, conditon_checkvariables);
+                                    if (condition_is_met == true)
+                                    {
+                                        bool keep_running = true;
+                                        while(keep_running)
+                                        {
+                                            string updated_var1 = GrabVariableValue(first_value); // We need to update the variable
+                                            string updated_var2 = SetVariableValue(condition_).Trim(); // We need to update the variable
+                                            bool condition_check = condition_checker.ConditionChecked(operator_, updated_var1, updated_var2);
+                                            if (condition_check == false) { keep_running = false; break; } // Redundancy is never a bad thing
+                                            else
+                                            {
+                                                string[] commands_to_execute = proceeding_commands.Split('|');
+                                                try
+                                                {
+                                                    foreach (string command in commands_to_execute)
+                                                    {
+                                                        try
+                                                        {
+                                                            parse(command);
+                                                        }
+                                                        catch
+                                                        {
+                                                            //Error with specific command, exiting 'while' loop
+                                                            Console.WriteLine($"Error running command {command}.");
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                catch
+                                                {
+                                                    // General error, exiting 'while' loop
+                                                    Console.WriteLine("There was an error processing list of commands.");
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                } else
+                                {
+                                    Console.WriteLine($"Can only use numerical values for operator: {operator_type}");
+                                }
+                            }
+                            
+                            
+                        }
+                        else
+                        {
+                            Console.WriteLine($"While statements must include 'do'.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{operator_type} is not a valid operator.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"{first_value} does not exist.");
+                }
+            }
             ///<summary>
             /// Script specific commands that will only execute if running_script = true
             /// These commands only have an impact on the flow of a script file and not on
@@ -625,36 +862,13 @@ namespace GyroPrompt
                     Console.WriteLine("Can only goto line number when running a script.");
                 }
             }
-            if (split_input[0].Equals("pause", StringComparison.OrdinalIgnoreCase))
-            {
-                if (running_script == true)
-                {
-                    if (split_input.Length == 2)
-                    {
-                        string a_ = ConvertNumericalVariable(split_input[1]);
-                        bool valid = IsNumeric(a_);
-                        int b_ = Int32.Parse(split_input[1]);
-                        if (valid)
-                        {
-                            Thread.Sleep(b_);
+            
 
-                        } else
-                        {
-                            Console.WriteLine($"Invalid input: {a_}.");
-                        }
-                    } else
-                    {
-                        Console.WriteLine("Invalid format to pause.");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Can only pause when running a script.");
-                }
-            }
-
-             if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(); }
+            //DO NOT INCLUDE, UNDER CONSTRUCTION:
+            if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(); }
         }
+
+        // Executes a script file line-by-line
         public void run(string script)
         {
             // Create backup of current environmental variables and local variables
@@ -1009,7 +1223,14 @@ namespace GyroPrompt
         // Checks if string 'input' contains only numbers
         public static bool IsNumeric(string input)
         {
-            return int.TryParse(input, out _);
+            foreach (char c in input)
+            {
+                if (!char.IsDigit(c))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }

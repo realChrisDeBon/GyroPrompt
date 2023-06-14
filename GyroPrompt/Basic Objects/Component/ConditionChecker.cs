@@ -31,8 +31,14 @@ namespace GyroPrompt.Basic_Objects.Component
         public bool ConditionChecked(OperatorTypes operation, string valueComparing, string comparingTo) 
         {
             bool result = false;
-            int a = Int32.Parse(valueComparing);
-            int b = Int32.Parse(comparingTo);
+            int a = 0;
+            int b = 0;
+            try
+            {
+                a = Int32.Parse(valueComparing);
+                b = Int32.Parse(comparingTo);
+            } catch { // TODO
+                    }
             switch (operation)
             {
                 case OperatorTypes.EqualTo:
@@ -52,6 +58,9 @@ namespace GyroPrompt.Basic_Objects.Component
                     break;
                 case OperatorTypes.EqualToOrLessThan:
                     if (a <= b) { result = true; }
+                    break;
+                default:
+                    result = false; 
                     break;
             }
             return result;

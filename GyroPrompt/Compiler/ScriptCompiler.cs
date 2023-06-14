@@ -9,6 +9,9 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using System.Reflection;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Basic.Reference.Assemblies;
+using Microsoft.CodeAnalysis.Text;
+using System.ComponentModel;
 
 namespace GyroPrompt.Compiler
 {
@@ -17,33 +20,44 @@ namespace GyroPrompt.Compiler
     /// and the idea is simple in theory - just parse through the .gs script files and translate it into corresponding C# code, then use either Roslyn or CodeDom
     /// to output a binary... right? Lol guess again retard. So this is here for the time being until I can get it up and working. 
     /// 
-    /// Current snag: It successfully output the "output.exe" and "output.pbd" files, however, when executing the binary application I 
-    /// am receiving the following error: Unhandled Exception: System.IO.FileNotFoundException: Could not load file or assembly 'System.Private.CoreLib, Version=6.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e' or one of its dependencies. The system cannot find the file specified.
-    /// I have been going through as much documentation as I can and there seems to be very little for similar instances of what I am attempting to do here, 
-    /// especially for .Net 6.0
-    /// 
-    /// Most documentation suggests this is platform compatibility. I've checked my CodeDom NuGet release and it was stable and updated this year (like a month ago) and references
-    /// that it is in support of .Net 6.0 I have also ensured 'System.Runtime.dll' is in the same working directory as our working binary and output binary, even experimenting to 
-    /// see if manually putting a copy of 'System.Private.CoreLib.dll' in the working directory would impact anything (it didn't).
-    /// 
-    /// Another note: Running GyroPrompt from the repo /debug directory provides more results - we get the .exe to compile, but the .exe has runtime issues.
-    /// However, if we publish GyroPrompt as a standalone .exe in a self-contained deployment mode, we are unable to compile the .exe at all and we get a 
-    /// (Path) is Null kind of error... possibly suggesting the compilation method may need tweaking to remain portable
+    /// Current snag: My IDE is only letting me use .Net 6.0, .NetStandard20, and .Net 4.7.2 even if I add the NuGet packages for like .Net50 or .Net70 (I'm sure this is a config thing)
+    /// .Net60 will not produce a working .exe file. It can produce a .dll that can be interpreted in a .NetCore runtime environment, but is totally incapable of outputting
+    /// a standalone .exe which is the problem because I am working in .Net 6.0
+    /// For example, the string testContents works and successfully outputs a working .exe, but the second I add 'Thread.Sleep(500);' within the for loop, I receive error:
+    /// System.Collections.Immutable.ImmutableArray`1[Microsoft.CodeAnalysis.Diagnostic]
+    /// .... which implies compatibility problems 
     /// </summary>
 
     // Monitoring: https://github.com/ligershark/WebOptimizer/issues/172
-    // apparently others have experienced similar issues jumping from .Net 5.0 into .Net 6.0 so we might just be waiting for a fix idk fuck this 
+    // https://stackoverflow.com/questions/32769630/how-to-compile-a-c-sharp-file-with-roslyn-programmatically?rq=4
+    // https://github.com/dotnet/roslyn/issues/58540 of interest
+    // https://github.com/dotnet/roslyn/issues/61655 of interest
+    // https://stackoverflow.com/questions/41111826/emit-win32icon-with-roslyn maybe of interest idk?
 
     public class ScriptCompiler
     {
+        static string ReadEmbeddedTextFile(string resourceName)
+        {
+            // We grab the CompilerSourceTemplate.txt contents and return it as a string
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                return reader.ReadToEnd();
+            }
+        }
+
         public void Compile()
         {
-            string basePath = Path.GetDirectoryName(typeof(System.Runtime.GCSettings).GetTypeInfo().Assembly.Location);
-            string assemblyName = Path.GetRandomFileName();
-            // Just some test code until we tweak the compiler settings to output flawlessly 
-            var tree = CSharpSyntaxTree.ParseText(@"
+            // We use the CompilerSourceTemplate.txt to hold our code in a more organized fashion
+            string resourceName = "GyroPrompt.Compiler.CompilerSourceTemplate.txt"; // This grabs the CompilerSourceTemplate.txt contents
+            string fileContents = ReadEmbeddedTextFile($"{resourceName}");
+            string testContents = @"        
         using System;
-
+        using System.Drawing;
+        using System.Threading.Tasks;
+        using System.Collections.Generic;
+        using System.Linq;
         namespace HelloWorldprogram
         {
         internal class Program
@@ -51,63 +65,54 @@ namespace GyroPrompt.Compiler
             public static void Main()
             {
                 Console.WriteLine(""Hello World!"");
+                for (int x = 0; x < 10; x++){
+                    Console.WriteLine(x);
+                }
                 Console.ReadLine();
             }   
         }
-        }");
+        }";
 
+            string FileName = "output_program";
+            string ExePath = AppDomain.CurrentDomain.BaseDirectory + @"\" + FileName + ".exe";
 
+            // Add all relevant references
+            List<MetadataReference> References = new List<MetadataReference>();
+            foreach (var item in ReferenceAssemblies.NetStandard20) 
+                References.Add(item);
 
-            var root = tree.GetRoot() as CompilationUnitSyntax;
-            var references = root.Usings;
-            var referencePaths = new List<string> {
-                typeof(object).GetTypeInfo().Assembly.Location,
-                typeof(Console).GetTypeInfo().Assembly.Location,
-                Path.Combine(basePath, "System.Runtime.dll"),
-                Path.Combine(basePath, "System.Runtime.Extensions.dll"),
-                Path.Combine(basePath, "mscorlib.dll")
-            };
-            referencePaths.AddRange(references.Select(x => Path.Combine(basePath, $"{x.Name}.dll")));
-            var executableReferences = new List<MetadataReference>();
-            foreach (var reference in referencePaths)
+            // Delete the file if it already exists
+            if (File.Exists(ExePath))
+                File.Delete(ExePath);
+
+            // Compiler options
+            CSharpCompilationOptions DefaultCompilationOptions =
+                new CSharpCompilationOptions(outputKind: OutputKind.ConsoleApplication, platform: Platform.AnyCpu)
+                .WithOverflowChecks(true).WithOptimizationLevel(OptimizationLevel.Release);
+
+            // Encode source code
+            string sourceCode = SourceText.From(testContents, Encoding.UTF8).ToString();
+
+            // CSharp options
+            var parsedSyntaxTree = Parse(sourceCode, "", CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp10));
+
+            // finally compile the .exe file
+            var compilation = CSharpCompilation.Create(FileName, new SyntaxTree[] { parsedSyntaxTree }, references: References, DefaultCompilationOptions);
+            var result = compilation.Emit(ExePath);
+            
+            if (result.Success)
             {
-                if (File.Exists(reference))
-                {
-                    executableReferences.Add(MetadataReference.CreateFromFile(reference));
-                }
+                Console.WriteLine("Compiled script.");
+            } else
+            {
+                Console.WriteLine(result.Diagnostics.ToString());
             }
 
-            ///<remarks>
-            /// Herein is where I'm pretty certain our problem is emerging. All the documentation I have come across suggests 'System.Private.CoreLib' should be embedded in the
-            /// framework automatically, however, I have repeatedly been faced with the above mentioned issue. So I will continue to come back to this occasionally but I am not going
-            /// to get fixated on this feature (that really should be more of a late stage feature anyways) and lose focus on expanding functionality and scope of parses
-            /// </remarks>
-            
-            var compilationOptions = new CSharpCompilationOptions(
-                OutputKind.ConsoleApplication,
-                optimizationLevel: OptimizationLevel.Release,
-                platform: Platform.X86
-                );
-            var compilation = CSharpCompilation.Create(assemblyName,
-                syntaxTrees: new[] { tree }, 
-                references: executableReferences,
-                options: compilationOptions);
 
-            // Generate the output file paths
-            var outputDir = AppDomain.CurrentDomain.BaseDirectory;
-            string outputPath = Path.Combine(outputDir, "output.exe");
-            string pdbPath = Path.Combine(outputDir, "output.pdb");
-           
-            // Compile the output binary
-            var emitResult = compilation.Emit(outputPath, pdbPath);
-
-            //If our compilation failed
-            if (!emitResult.Success)
+            static SyntaxTree Parse(string text, string filename = "", CSharpParseOptions options = null)
             {
-                foreach (var diagnostic in emitResult.Diagnostics)
-                {
-                    Console.WriteLine(diagnostic.ToString());
-                }
+                var stringText = SourceText.From(text, Encoding.UTF8);
+                return SyntaxFactory.ParseSyntaxTree(stringText, options, filename);
             }
         }
 
