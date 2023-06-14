@@ -58,6 +58,12 @@ namespace GyroPrompt
         }
 
         IDictionary<string, object> environmentalVars = new Dictionary<string, object>();
+        public string Title = Console.Title;
+        public string Title_
+        {
+            get { return Title; }
+            set { Title = value; Console.Title = value; }
+        }
         public int CursorX = Console.CursorLeft;
         public int CursorX_
         {
@@ -111,6 +117,7 @@ namespace GyroPrompt
             environmental_variables.Add(foreColor_);
             environmental_variables.Add(backColor_);
             environmental_variables.Add(ScriptDelay_);
+            environmental_variables.Add(Title_);
 
             environmentalVars.Add("CursorX", CursorX_);
             environmentalVars.Add("CursorY", CursorY_);
@@ -119,6 +126,7 @@ namespace GyroPrompt
             environmentalVars.Add("Forecolor", foreColor_);
             environmentalVars.Add("Backcolor", backColor_);
             environmentalVars.Add("ScriptDelay", ScriptDelay_);
+            environmentalVars.Add("Title", Title_);
 
             keyConsoleColor.Add("Black", ConsoleColor.Black);
             keyConsoleColor.Add("DarkBlue", ConsoleColor.DarkBlue);
@@ -169,6 +177,56 @@ namespace GyroPrompt
                 Console.WriteLine(); // end with new line
             }
             // Detect a new variable declaration
+            if (split_input[0].Equals("bool", StringComparison.OrdinalIgnoreCase)) 
+            {
+                bool no_issues = true;
+                if (split_input.Length != 4)
+                {
+                    Console.WriteLine("Incorrect formatting to declare bool.");
+                    no_issues = false;
+                } else
+                {
+                    bool valid_name = ContainsOnlyLettersAndNumbers(split_input[1]);
+                    if (valid_name == true)
+                    {
+                        if (split_input[2] == "=") { no_issues = true; }
+                        else
+                        {
+                            Console.WriteLine("Incorrect formatting to declare bool.");
+                            no_issues = false;
+                        }
+                    } else
+                    {
+                        Console.WriteLine("Variable names may only contain letters and numbers.");
+                        no_issues = false;
+                    }
+                    bool proper_value = false;
+                    split_input[3].Split();
+                    if (split_input[3] == "false" || split_input[3] == "0") { proper_value = true; }
+                    if (split_input[3] == "true" || split_input[3] == "1") { proper_value = true; }
+
+
+                    if (proper_value == true)
+                    {
+                        bool name_check = LocalVariableExists(split_input[1]);
+                        if (name_check == true) { Console.WriteLine($"{split_input[1]} variable exists."); no_issues = false; }
+                        if (no_issues == true)
+                        {
+                            // Syntax checks out, we proceed to declare the variable
+                            BooleanVariable new_bool = new BooleanVariable();
+                            new_bool.Name = split_input[1];
+                            if (split_input[3] == "false" || split_input[3] == "0") { new_bool.bool_val = false; }
+                            if (split_input[3] == "true" || split_input[3] == "1") { new_bool.bool_val = true; }
+                            new_bool.Type = VariableType.Boolean;
+                            local_variables.Add(new_bool);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Incorrect formatting to declare bool. Bool cannot take value: {split_input[3]}");
+                    }
+                }
+            }
             if (split_input[0].Equals("int", StringComparison.OrdinalIgnoreCase))
             {
                 bool no_issues = true;
@@ -312,7 +370,7 @@ namespace GyroPrompt
                     }
                 }
             }
-            // Detect a variable set
+            // Modify variable values
             if (split_input[0].Equals("set", StringComparison.OrdinalIgnoreCase))
             {
                 string var_name = split_input[1];
@@ -381,7 +439,96 @@ namespace GyroPrompt
                     }
                 }
             }
-            // Detect environemntal variable modification
+            if (split_input[0].Equals("toggle", StringComparison.OrdinalIgnoreCase))
+            {
+                if (split_input.Length == 2)
+                {
+                    string var_name = split_input[1];
+                    bool valid_var = LocalVariableExists(var_name);
+                    
+                    if (valid_var == true)
+                    {
+                        foreach(LocalVariable local_var in local_variables)
+                        {
+                            if ((local_var.Name == var_name) && (local_var.Type == VariableType.Boolean))
+                            {
+                                if (local_var.Value == "False") { local_var.Value = "True"; } else if (local_var.Value == "True") { local_var.Value = "False"; } // Switch the values
+                            } else if ((local_var.Name == var_name) && (local_var.Type != VariableType.Boolean))
+                            {
+                                Console.WriteLine($"{local_var.Name} is not a boolean value.");
+                                break;
+                            }
+                        }
+                    } else
+                    {
+                        Console.WriteLine($"Could not locate variable {var_name}.");
+                    }
+                }
+            }
+            if (split_input[0].Equals("int+", StringComparison.OrdinalIgnoreCase))
+            {
+                if ( split_input.Length == 2)
+                {
+                    string var_name = split_input[1];
+                    bool var_exists = LocalVariableExists(var_name);
+                    if (var_exists == true)
+                    {
+                        foreach(LocalVariable localVar in local_variables)
+                        {
+                            if ((localVar.Name == var_name) && (localVar.Type == VariableType.Int))
+                            {
+                                int a = Int32.Parse(localVar.Value);
+                                a++; // increment it by 1
+                                localVar.Value = a.ToString();
+                            } else if ((localVar.Name == var_name) && (localVar.Type != VariableType.Int)) {
+                                Console.WriteLine($"{localVar.Name} is not an integer value.");
+                                break;
+                            }
+                        }
+                    } else
+                    {
+                        Console.WriteLine($"Could not locate variable {var_name}.");
+                    }
+                } else
+                {
+                    Console.WriteLine("int+ can only take 1 value.");
+                }
+            }
+            if (split_input[0].Equals("int-", StringComparison.OrdinalIgnoreCase))
+            {
+                if (split_input.Length == 2)
+                {
+                    string var_name = split_input[1];
+                    bool var_exists = LocalVariableExists(var_name);
+                    if (var_exists == true)
+                    {
+                        foreach (LocalVariable localVar in local_variables)
+                        {
+                            if ((localVar.Name == var_name) && (localVar.Type == VariableType.Int))
+                            {
+                                int a = Int32.Parse(localVar.Value);
+                                a--; // decrease it by 1
+                                localVar.Value = a.ToString();
+                            }
+                            else if ((localVar.Name == var_name) && (localVar.Type != VariableType.Int))
+                            {
+                                Console.WriteLine($"{localVar.Name} is not an integer value.");
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Could not locate variable {var_name}.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("int- can only take 1 value.");
+                }
+            }
+
+            // Detect environmental variable modification
             if (split_input[0].Equals("environment", StringComparison.OrdinalIgnoreCase))
             {
                 if (split_input.Length > 3 && split_input.Length < 6)
@@ -394,7 +541,7 @@ namespace GyroPrompt
                             switch (var_name)
                             {
                                 case "windowheight":
-                                    string _num = SetVariableValue(split_input[3]);
+                                    string _num = SetVariableValue(split_input[3].Trim());
                                     bool _valid = IsNumeric(_num);
                                     if (_valid == true)
                                     {
@@ -406,7 +553,7 @@ namespace GyroPrompt
                                     }
                                     break;
                                 case "windowwidth":
-                                    string _num1 = SetVariableValue(split_input[3]);
+                                    string _num1 = SetVariableValue(split_input[3].Trim());
                                     bool _valid1 = IsNumeric(_num1);
                                     if (_valid1 == true)
                                     {
@@ -418,7 +565,7 @@ namespace GyroPrompt
                                     }
                                     break;
                                 case "cursorx":
-                                    string _num2 = SetVariableValue(split_input[3]);
+                                    string _num2 = SetVariableValue(split_input[3].Trim());
                                     bool _valid2 = IsNumeric(_num2);
                                     if (_valid2 == true)
                                     {
@@ -436,7 +583,7 @@ namespace GyroPrompt
                                     }
                                     break;
                                 case "cursory":
-                                    string _num3 = SetVariableValue(split_input[3]);
+                                    string _num3 = SetVariableValue(split_input[3].Trim());
                                     bool _valid3 = IsNumeric(_num3);
                                     if (_valid3 == true)
                                     {
@@ -492,6 +639,9 @@ namespace GyroPrompt
                                     {
                                         Console.WriteLine($"Invalid input: {_num4}");
                                     }
+                                    break;
+                                case "title":
+                                    Console.Title = (split_input[3]);
                                     break;
                                 default:
                                     Console.WriteLine($"{var_name} is invalid environmental variable.");
@@ -1116,7 +1266,7 @@ namespace GyroPrompt
                     }
                 }
                 // Check for the background color
-                if (capturedText.StartsWith("Background:", StringComparison.OrdinalIgnoreCase))
+                if (capturedText.StartsWith("Backcolor:", StringComparison.OrdinalIgnoreCase))
                 {
                     string _placeholder = capturedText.Remove(0, 11);
                     if (keyConsoleColor.ContainsKey(_placeholder))
@@ -1208,9 +1358,7 @@ namespace GyroPrompt
                     {
                         a += var.Value;
                     }
-                   
                 }
-
             }
             return a;
         }

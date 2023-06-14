@@ -10,7 +10,8 @@ namespace GyroPrompt.Basic_Objects.Variables
     {
         String,
         Int,
-        Float
+        Float,
+        Boolean
     }
     public class LocalVariable
     {

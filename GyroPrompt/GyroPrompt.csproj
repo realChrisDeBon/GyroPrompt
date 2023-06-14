@@ -17,11 +17,15 @@
 
   <ItemGroup>
     <None Remove="Compiler\CompilerSourceTemplate.txt" />
+    <None Remove="GyroPrompt User Manual.pdf" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Compiler\CompilerSourceTemplate.txt">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GyroPrompt User Manual.pdf">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
   </ItemGroup>
 
