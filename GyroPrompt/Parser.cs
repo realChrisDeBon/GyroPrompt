@@ -1764,6 +1764,7 @@ namespace GyroPrompt
             running_script = false; // Tell parser we are not actively running a script
             current_line = 0; // Redundant reset
         }
+
         /// <summary>
         /// taskInfo is a struct used to pass List<string> and integer script delay into new thread as object (if task is background and not inline)
         /// If TaskType is inline, then we'll just process it in the executeTask method
