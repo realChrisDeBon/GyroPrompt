@@ -5,6 +5,7 @@
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ApplicationIcon>icons8-command-line-ios-16-filled-96.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -17,15 +18,15 @@
 
   <ItemGroup>
     <None Remove="Compiler\CompilerSourceTemplate.txt" />
-    <None Remove="GyroPrompt User Manual.pdf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="icons8-command-line-ios-16-filled-96.ico" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Compiler\CompilerSourceTemplate.txt">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="GyroPrompt User Manual.pdf">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
   </ItemGroup>
 

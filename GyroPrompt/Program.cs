@@ -1,7 +1,11 @@
-﻿namespace GyroPrompt
+﻿using Terminal.Gui;
+
+namespace GyroPrompt
 {
     internal class Program
     {
+        private static Parser parser;
+        private static TextField userPrompt;
         static void Main(string[] args)
         {
             // Initialize console
@@ -20,7 +24,7 @@
                     {
                         parser.run(path);
                     }
-                    catch { Console.WriteLine("Unable to execute " + path + ", please make sure the file isn't opened or being used!"); }
+                    catch (Exception error) { Console.WriteLine("Unable to execute " + path + ", please make sure the file isn't opened or being used!)"); }
                 }
             }
             else if (args.Length > 1)
@@ -32,12 +36,16 @@
             }
 
 
+
             while (true)
             {
-                Console.Write("GyroPrompt > ");
-                string command = Console.ReadLine();
-                parser.parse(command);
+                    Console.Write("GyroPrompt > ");
+                    string command = Console.ReadLine();
+                    parser.parse(command);
             }
+
         }
+
+        
     }
 }

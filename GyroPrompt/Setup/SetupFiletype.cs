@@ -46,9 +46,9 @@ namespace GyroPrompt.Setup
 
                         // Now we will tell Windows to assign a specific .ico file (the GyroPrompt icon) to all .gs files
                         key = Registry.ClassesRoot.CreateSubKey(extention + "\\DefaultIcon");
-                        if (File.Exists(Directory.GetCurrentDirectory() + "\\gyro_icon.ico"))
+                        if (File.Exists(Directory.GetCurrentDirectory() + "\\gyroscript.ico"))
                         {
-                            key.SetValue("", Directory.GetCurrentDirectory() + "\\gyro_icon.ico");
+                            key.SetValue("", Directory.GetCurrentDirectory() + "\\gyroscropt.ico");
                             key.Close();
                             if (rkSubKey != null) { Clear = true; }
                         }
