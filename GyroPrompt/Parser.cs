@@ -1699,12 +1699,12 @@ namespace GyroPrompt
 
                 //DO NOT INCLUDE, UNDER CONSTRUCTION: if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(); }
                 //DEBUGGING: if (split_input[0].Equals("NAMES"))
-                {
-                    foreach (string key in namesInUse.Keys)
-                    {
-                        Console.WriteLine(key);
-                    }
-                }
+                //{
+               //     foreach (string key in namesInUse.Keys)
+              //      {
+                //        Console.WriteLine(key);
+               //     }
+                //}
                 if (split_input[0].Equals("SETUP"))
                 {
                     SetupFiletype setup = new SetupFiletype();
