@@ -1766,7 +1766,7 @@ namespace GyroPrompt
         }
 
         /// <summary>
-        /// taskInfo is a struct used to pass List<string> and integer script delay into new thread as object (if task is background and not inline)
+        /// taskInfo is a struct used to pass List<string> and integer scriptdelay into new thread as object (if task is background and not in-line)
         /// If TaskType is inline, then we'll just process it in the executeTask method
         /// </summary>
         public struct taskInfo
