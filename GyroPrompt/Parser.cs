@@ -1619,15 +1619,14 @@ namespace GyroPrompt
                                             if (condition_check == false) { keep_running = false; break; } // Redundancy never hurt anyone
                                             else
                                             {
-                                                string[] commands_to_execute = proceeding_commands.Split('|');
+                                                string[] commands_to_execute = proceeding_commands.Split("|");
                                                 try
                                                 {
                                                     foreach (string command in commands_to_execute)
                                                     {
-                                                        command.Trim();
                                                         try
                                                         {
-                                                            parse(command);
+                                                            parse(command.TrimEnd());
                                                         }
                                                         catch
                                                         {
@@ -1674,7 +1673,7 @@ namespace GyroPrompt
                                                         {
                                                             try
                                                             {
-                                                                parse(command);
+                                                                parse(command.TrimEnd());
                                                             }
                                                             catch
                                                             {
