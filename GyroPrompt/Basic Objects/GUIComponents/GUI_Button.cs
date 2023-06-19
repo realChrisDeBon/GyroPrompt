@@ -79,6 +79,14 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
+        public void SetText (string text)
+        {
+            newButton.Text = text;
+        }
+        public string GetText()
+        {
+            return newButton.Text.ToString();
+        }
         public void SetXCoord(int x_)
         {
             try

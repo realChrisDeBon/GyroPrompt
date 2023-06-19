@@ -48,9 +48,9 @@ namespace GyroPrompt
         /// These variables and methods are used for handling the GUI components. If the user enables the GUI layer, due to the nature of how the Terminal.GUI NuGet
         /// package works, it will operate in an instance of a new Window and will appear on top of the regular CLI interface (until the instance of the GUI Window is
         /// terminated). In order to manage the text output of the console, we have a top level bool GUIModeEnabled. If enabled, we direct the console output to a string
-        /// variable which will (TODO: Eventually) become accessible to the user via an environmental variable. This will allow the console output to be accessed and ported
+        /// variable which will (Eventually) become accessible to the user via an environmental variable. This will allow the console output to be accessed and ported
         /// to GUI components (text fields, labels, etc). When the GUIModeEnabled is set to false, the console output reverts to its original state and output directly to
-        /// the console like normally.
+        /// the console like normally (Eventually).
         /// </summary>
         public bool GUIModeEnabled = false;
         public string ConsoleOutCatcher = "";
@@ -440,6 +440,453 @@ namespace GyroPrompt
                             Console.WriteLine($"{split_input[1]} name in use.");
                             no_issues = false;
                         }
+                    }
+                }
+                ///<summary>
+                /// GUI items can transform the application into a more robust Terminal User Interface. GUI items will only
+                /// display when top level bool GUIModeOn is set to true.
+                /// 
+                /// Brief synopsis of syntax (may change)
+                /// gui_mode on/guimode off                                      <- toggle GUIModeEnabled bool
+                /// new_gui_item button name tasklist x y width height          <- creates button named 'name' (name also becomes default text), positioned at x, y with width, height
+                /// new_gui_item textfield name x y bool                       <- creates textfield named 'name', positioned at x,y and the bool determines if textfield is readonly
+                /// gui_item_setwidth name fillvalue number                   <- sets width of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes width value), Fill (number ignored, object will auto fill)
+                /// gui_item_setheight name fillvalue number                 <- sets height of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes height value), Fill (number ignored, object will auto fill)
+                /// gui_item_gettext name variable                          <- sets value of 'variable' to object 'name' text
+                /// gui_item_settext name value[...]                       <- sets text of object 'name' to value (reads like a string)
+                /// </summary>
+                if (split_input[0].Equals("gui_mode", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input[1].Equals("on", StringComparison.OrdinalIgnoreCase))
+                    {
+                        consoleDirector.runningPermision = true;
+                        GUIModeEnabled = true;
+                        consoleDirector.InitializeGUIWindow();
+
+                    }
+                    else if (split_input[1].Equals("off", StringComparison.OrdinalIgnoreCase))
+                    {
+                        consoleDirector.terminate();
+                        consoleDirector.runningPermision = false;
+                        GUIModeEnabled = false;
+                    }
+                }
+                if (split_input[0].Equals("new_gui_item", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input[1].Equals("Button", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // new_gui_item button Buttontext Tasklist x y width height
+                        // This will create a new GUI button named 'Buttontext', when clicked will execute the tasklist 'Tasklist' by name
+                        // The button's x y coordinates and width height are taken as the last 4 parameters (all integers)
+                        if (split_input.Length == 8)
+                        {
+                            bool validInputs = true;
+                            string tempStr = "";
+                            foreach (string s in split_input.Skip(2))
+                            {
+                                bool temp_ = ContainsOnlyLettersAndNumbers(s);
+                                if (temp_ == false)
+                                {
+                                    validInputs = false; tempStr = s; break;
+                                }
+                            }
+                            if (validInputs == true)
+                            {
+                                if (!GUIObjectsInUse.ContainsKey(split_input[2]))
+                                {
+                                    bool numericProperties = true; // x, y, width, height
+                                                                   // Quick check to make sure last 4 parameters are numeric (x, y, width, height)
+                                    foreach (string s in split_input.Skip(4))
+                                    {
+                                        bool temp_ = IsNumeric(s);
+                                        if (temp_ == false) { numericProperties = false; tempStr = s; break; }
+                                    }
+                                    if (numericProperties == true)
+                                    {
+                                        int xx = Int32.Parse(split_input[4]);
+                                        int yy = Int32.Parse(split_input[5]);
+                                        int wid = Int32.Parse(split_input[6]);
+                                        int hei = Int32.Parse(split_input[7]);
+                                        // Now we check if the tasklist exists
+                                        string taskListName = split_input[3];
+                                        foreach (TaskList tasklist in tasklists_inuse)
+                                        {
+                                            if (tasklist.taskName == taskListName)
+                                            {
+                                                GUI_Button newbutton = new GUI_Button(split_input[2], tasklist, xx, yy, wid, hei);
+                                                consoleDirector.GUIButtonsToAdd.Add(newbutton);
+                                                GUIObjectsInUse.Add(newbutton.GUIObjName, newbutton);
+                                            }
+                                        }
+
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"Invalid input: {tempStr}");
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"{split_input[2]} name in use.");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Invalid input: {tempStr}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid format for GUI button.");
+                        }
+                    }
+                    if (split_input[1].Equals("Textfield", StringComparison.OrdinalIgnoreCase))
+
+                    {
+                        if (split_input.Length == 6)
+                        {
+                            bool validInputs = true;
+                            string badstring = "";
+                            foreach (string s in split_input.Skip(1).Skip(5))
+                            {
+                                bool temp_ = ContainsOnlyLettersAndNumbers(s);
+                                if (temp_ == false) { validInputs = false; badstring = s; break; }
+                            }
+                            if (validInputs == true)
+                            {
+                                string textfieldName = split_input[2];
+                                string expectedBool = SetVariableValue(split_input[5].ToLower());
+                                if (!GUIObjectsInUse.ContainsKey(textfieldName))
+                                {
+                                    bool check1 = IsNumeric(split_input[3]);
+                                    bool check2 = IsNumeric(split_input[4]);
+                                    if ((check1 == true) && (check2 == true))
+                                    {
+                                        int x_ = Int32.Parse(split_input[3]);
+                                        int y_ = Int32.Parse(split_input[4]);
+                                        // Finally check to make sure a Bool value was given
+                                        bool boolToPass = false;
+                                        bool validBool = false;
+                                        switch (expectedBool)
+                                        {
+                                            case "false":
+                                                validBool = true;
+                                                boolToPass = false;
+                                                break;
+                                            case "False":
+                                                validBool = true;
+                                                boolToPass = false;
+                                                break;
+                                            case "true":
+                                                validBool = true;
+                                                boolToPass = true;
+                                                break;
+                                            case "True":
+                                                validBool = true;
+                                                boolToPass = true;
+                                                break;
+                                            case "0":
+                                                validBool = true;
+                                                boolToPass = false;
+                                                break;
+                                            case "1":
+                                                validBool = true;
+                                                boolToPass = true;
+                                                break;
+                                            default:
+                                                break;
+                                        }
+                                        if (validBool == true)
+                                        {
+                                            // Ok all values check out, we can make out text field now
+                                            GUI_textfield newtextfield = new GUI_textfield(textfieldName, x_, y_, boolToPass);
+                                            consoleDirector.GUITextFieldsToAdd.Add(newtextfield);
+                                            GUIObjectsInUse.Add(newtextfield.GUIObjName, newtextfield);
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Invalid input: {expectedBool} Expect bool value of true or false.");
+                                        }
+
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"Invalid format: {check1} and/or {check2}. Expecting two integer values for X and Y.");
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"{textfieldName} name in use.");
+                                }
+
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Invalid input: {badstring}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid format for GUI text field.");
+                        }
+                    }
+                }
+                if (split_input[0].Equals("gui_item_setwidth"))
+                {
+                    if (split_input.Length == 4)
+                    {
+                        string guiObjectName = split_input[1];
+                        if (GUIObjectsInUse.ContainsKey(guiObjectName))
+                        {
+                            GUIObjectType guiobjecttype = GUIObjectsInUse[guiObjectName].GUIObjectType;
+
+                            string fv = split_input[2].ToLower();
+                            bool validFill = false;
+                            fillValue filval = fillValue.Number;
+                            switch (fv)
+                            {
+                                case "number":
+                                    validFill = true;
+                                    filval = fillValue.Number;
+                                    break;
+                                case "percent":
+                                    validFill = true;
+                                    filval = fillValue.Percentage;
+                                    break;
+                                case "fill":
+                                    validFill = true;
+                                    filval = fillValue.Fill;
+                                    break;
+                                default:
+                                    validFill = false;
+                                    break;
+                            }
+                            if (validFill == true)
+                            {
+                                bool validNumber = IsNumeric(split_input[3]);
+                                int xx = Int32.Parse(split_input[3]);
+                                if (validNumber == true)
+                                {
+                                    bool foundAndChangedWidth = false;
+                                    switch (guiobjecttype)
+                                    {
+                                        case GUIObjectType.Button:
+                                            foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
+                                            {
+                                                if (guibtn.GUIObjName == guiObjectName)
+                                                {
+                                                    guibtn.SetWidth(xx, filval);
+                                                    foundAndChangedWidth = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        case GUIObjectType.Textfield:
+                                            foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
+                                            {
+                                                if (guitxt.GUIObjName == guiObjectName)
+                                                {
+                                                    guitxt.SetWidth(xx, filval);
+                                                    foundAndChangedWidth = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        default:
+                                            // Object not found but somehow a quantum misfire of code happened and we ended up here
+                                            foundAndChangedWidth = false;
+                                            break;
+                                    }
+
+                                    if (foundAndChangedWidth == false)
+                                    {
+                                        Console.WriteLine("Object type cannot accept argument for setwidth.");
+                                    }
+
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"Invalid input: {split_input[3]}. Expected integer.");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Invalid format: {fv}. Expected: Percent, Fill, Number");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate GUI object {guiObjectName}.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format to set width.");
+                    }
+                }
+                if (split_input[0].Equals("gui_item_setheight"))
+                {
+                    if (split_input.Length == 4)
+                    {
+                        string guiObjectName = split_input[1];
+                        if (GUIObjectsInUse.ContainsKey(guiObjectName))
+                        {
+                            GUIObjectType guiobjecttype = GUIObjectsInUse[guiObjectName].GUIObjectType;
+                            string fv = split_input[2].ToLower();
+                            bool validFill = false;
+                            fillValue filval = fillValue.Number;
+                            switch (fv)
+                            {
+                                case "number":
+                                    validFill = true;
+                                    filval = fillValue.Number;
+                                    break;
+                                case "percent":
+                                    validFill = true;
+                                    filval = fillValue.Percentage;
+                                    break;
+                                case "fill":
+                                    validFill = true;
+                                    filval = fillValue.Fill;
+                                    break;
+                                default:
+                                    validFill = false;
+                                    break;
+                            }
+                            if (validFill == true)
+                            {
+                                bool validNumber = IsNumeric(split_input[3]);
+                                int xx = Int32.Parse(split_input[3]);
+                                if (validNumber == true)
+                                {
+                                    bool foundAndChangedHeight = false;
+                                    switch (guiobjecttype)
+                                    {
+                                        case GUIObjectType.Button:
+                                            foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
+                                            {
+                                                if (guibtn.GUIObjName == guiObjectName)
+                                                {
+                                                    guibtn.SetHeight(xx, filval);
+                                                    foundAndChangedHeight = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        case GUIObjectType.Textfield:
+                                            foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
+                                            {
+                                                if (guitxt.GUIObjName == guiObjectName)
+                                                {
+                                                    guitxt.SetHeight(xx, filval);
+                                                    foundAndChangedHeight = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        default:
+                                            // Object not found but somehow a quantum misfire of code happened and we ended up here
+                                            foundAndChangedHeight = false;
+                                            break;
+                                    }
+                                    if (foundAndChangedHeight == false)
+                                    {
+                                        Console.WriteLine("Object type cannot accept argument for setheight.");
+                                    }
+
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"Invalid input: {split_input[3]}. Expected integer.");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Invalid format: {fv}. Expected: Percent, Fill, Number");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate GUI object {guiObjectName}.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format to set height.");
+                    }
+                }
+                if (split_input[0].Equals("gui_item_gettext", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 3)
+                    {
+                        string guiObjectName = split_input[1];
+                        string variableName = split_input[2];
+                        bool validVriable = LocalVariableExists(variableName);
+                        bool guiObjectExists = (GUIObjectsInUse.ContainsKey(guiObjectName));
+                        if ((validVriable == true) && ( guiObjectExists == true))
+                        {
+                            GUIObjectType objtype = GUIObjectsInUse[guiObjectName].GUIObjectType;
+                            switch (objtype)
+                            {
+                                case GUIObjectType.Textfield:
+                                    foreach (GUI_textfield txtfield in consoleDirector.GUITextFieldsToAdd)
+                                    {
+                                        if (txtfield.GUIObjName == guiObjectName)
+                                        {
+                                            foreach (LocalVariable var in local_variables)
+                                            {
+                                                if (var.Name == variableName)
+                                                {
+                                                    if (var.Type == VariableType.String)
+                                                    {
+                                                        var.Value = txtfield.GetText();
+                                                    } else
+                                                    {
+                                                        Console.WriteLine($"{var.Name} is not a string.");
+                                                    }
+                                                    
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+                                    break;
+                                case GUIObjectType.Button:
+                                    foreach (GUI_Button buttonobj in consoleDirector.GUIButtonsToAdd)
+                                    {
+                                        if (buttonobj.GUIObjName == guiObjectName)
+                                        {
+                                            foreach (LocalVariable var in local_variables)
+                                            {
+                                                if (var.Name == variableName)
+                                                {
+                                                    if (var.Type == VariableType.String)
+                                                    {
+                                                        var.Value = buttonobj.GetText();
+                                                    } else
+                                                    {
+                                                        Console.WriteLine($"{var.Name} is not a string.");
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+                                    break;
+                            }
+                        } else if ((validVriable == true) && (guiObjectExists == false)){
+                            Console.WriteLine($"Could not locate GUI object {guiObjectName}.");
+                        } else if ((validVriable == false) && (guiObjectExists == true)) {
+                            Console.WriteLine($"Could not locate variable {variableName}.");
+                        } else
+                        {
+                            Console.WriteLine($"Invalid GUI object: {guiObjectName} Invalid variable: {variableName}");
+                        }
+                    } else
+                    {
+                        Console.WriteLine("Invalid format to gettext.");
                     }
                 }
                 ///<summary>
@@ -870,7 +1317,6 @@ namespace GyroPrompt
                             {
                                 command += s + " ";
                             }
-                            command.Trim();
                         }
                         else if (split_input.Length == 3)
                         {
@@ -1360,7 +1806,8 @@ namespace GyroPrompt
                                         }
                                         break;
                                     case "title":
-                                        Console.Title = (split_input[3]);
+                                        string a_ = SetVariableValue(split_input[3]);
+                                        Console.Title = (a_);
                                         break;
                                     default:
                                         Console.WriteLine($"{var_name} is invalid environmental variable.");
@@ -1745,13 +2192,7 @@ namespace GyroPrompt
 
 
                 //DO NOT INCLUDE, UNDER CONSTRUCTION: if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(); }
-                //DEBUGGING: if (split_input[0].Equals("NAMES"))
-                //{
-               //     foreach (string key in namesInUse.Keys)
-              //      {
-                //        Console.WriteLine(key);
-               //     }
-                //}
+
                 if (split_input[0].Equals("SETUP"))
                 {
                     SetupFiletype setup = new SetupFiletype();
@@ -1772,361 +2213,11 @@ namespace GyroPrompt
                     }
                 }
 
-                ///<summary>
-                /// GUI Mode stuff. Under construction. This is not official build. 
-                /// </summary>
                 if (split_input[0].Equals("BEEP", StringComparison.OrdinalIgnoreCase))
                 {
                     Console.Beep(1000, 1000);
                 }
-                if (split_input[0].Equals("gui_mode", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (split_input[1].Equals("on", StringComparison.OrdinalIgnoreCase))
-                    {
-                        consoleDirector.runningPermision = true;
-                        GUIModeEnabled = true;
-                        consoleDirector.InitializeGUIWindow();
 
-                    } else if (split_input[1].Equals("off", StringComparison.OrdinalIgnoreCase))
-                    {
-                        consoleDirector.Terminate();  // Having trouble terminating the GUI window for some raisin
-                        consoleDirector.runningPermision = false;
-                        GUIModeEnabled = false; 
-                    }
-                }
-                if (split_input[0].Equals("new_gui_item", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (split_input[1].Equals("Button", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // new_gui_item button Buttontext Tasklist x y width height
-                        // This will create a new GUI button named 'Buttontext', when clicked will execute the tasklist 'Tasklist' by name
-                        // The button's x y coordinates and width height are taken as the last 4 parameters (all integers)
-                        if (split_input.Length == 8)
-                        {
-                            bool validInputs = true;
-                            string tempStr = "";
-                            foreach (string s in split_input.Skip(2))
-                            {
-                                bool temp_ = ContainsOnlyLettersAndNumbers(s);
-                                if (temp_ == false) { validInputs = false; tempStr = s; break;
-                                }
-                            } 
-                            if (validInputs == true)
-                            {
-                                if (!GUIObjectsInUse.ContainsKey(split_input[2]))
-                                {
-                                    bool numericProperties = true; // x, y, width, height
-                                                                   // Quick check to make sure last 4 parameters are numeric (x, y, width, height)
-                                    foreach (string s in split_input.Skip(4))
-                                    {
-                                        bool temp_ = IsNumeric(s);
-                                        if (temp_ == false) { numericProperties = false; tempStr = s; break; }
-                                    }
-                                    if (numericProperties == true)
-                                    {
-                                        int xx = Int32.Parse(split_input[4]);
-                                        int yy = Int32.Parse(split_input[5]);
-                                        int wid = Int32.Parse(split_input[6]);
-                                        int hei = Int32.Parse(split_input[7]);
-                                        // Now we check if the tasklist exists
-                                        string taskListName = split_input[3];
-                                        foreach (TaskList tasklist in tasklists_inuse)
-                                        {
-                                            if (tasklist.taskName == taskListName)
-                                            {
-                                                GUI_Button newbutton = new GUI_Button(split_input[2], tasklist, xx, yy, wid, hei);
-                                                consoleDirector.GUIButtonsToAdd.Add(newbutton);
-                                                GUIObjectsInUse.Add(newbutton.GUIObjName, newbutton);
-                                            }
-                                        }
-
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine($"Invalid input: {tempStr}");
-                                    }
-                                } else
-                                {
-                                    Console.WriteLine($"{split_input[2]} name in use.");
-                                }
-                            } else
-                            {
-                                Console.WriteLine($"Invalid input: {tempStr}");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine("Invalid format for GUI button.");
-                        }
-                    }
-                    if (split_input[1].Equals("Textfield", StringComparison.OrdinalIgnoreCase))
-
-                    {
-                        if (split_input.Length == 6)
-                        {
-                            bool validInputs = true;
-                            string badstring = "";
-                            foreach (string s in split_input.Skip(1).Skip(5))
-                            {
-                                bool temp_ = ContainsOnlyLettersAndNumbers(s);
-                                if (temp_ == false) { validInputs = false; badstring = s; break; }
-                            }
-                            if (validInputs == true)
-                            {
-                                string textfieldName = split_input[2];
-                                string expectedBool = SetVariableValue(split_input[5].ToLower());
-                                if (!GUIObjectsInUse.ContainsKey(textfieldName))
-                                {
-                                    bool check1 = IsNumeric(split_input[3]);
-                                    bool check2 = IsNumeric(split_input[4]);
-                                    if ((check1 == true) && (check2 == true))
-                                    {
-                                        int x_ = Int32.Parse(split_input[3]);
-                                        int y_ = Int32.Parse(split_input[4]);
-                                        // Finally check to make sure a Bool value was given
-                                        bool boolToPass = false;
-                                        bool validBool = false;
-                                        switch (expectedBool)
-                                        {
-                                            case "false":
-                                                validBool = true;
-                                                boolToPass = false;
-                                                break;
-                                            case "False":
-                                                validBool = true;
-                                                boolToPass = false;
-                                                break;
-                                            case "true":
-                                                validBool = true;
-                                                boolToPass = true;
-                                                break;
-                                            case "True":
-                                                validBool = true;
-                                                boolToPass = true;
-                                                break;
-                                            case "0":
-                                                validBool = true;
-                                                boolToPass = false;
-                                                break;
-                                            case "1":
-                                                validBool = true;
-                                                boolToPass = true;
-                                                break;
-                                            default:
-                                                break;
-                                        }
-                                        if (validBool == true)
-                                        {
-                                            // Ok all values check out, we can make out text field now
-                                            GUI_textfield newtextfield = new GUI_textfield(textfieldName, x_, y_, boolToPass);
-                                            consoleDirector.GUITextFieldsToAdd.Add(newtextfield);
-                                            GUIObjectsInUse.Add(newtextfield.GUIObjName, newtextfield);
-                                        } else
-                                        {
-                                            Console.WriteLine($"Invalid input: {expectedBool} Expect bool value of true or false.");
-                                        }
-
-                                    } else
-                                    {
-                                        Console.WriteLine($"Invalid format: {check1} and/or {check2}. Expecting two integer values for X and Y.");
-                                    }
-                                } else
-                                {
-                                    Console.WriteLine($"{textfieldName} name in use.");
-                                }
-
-                            } else
-                            {
-                                Console.WriteLine($"Invalid input: {badstring}");
-                            }
-                        } else
-                        {
-                            Console.WriteLine("Invalid format for GUI text field.");
-                        }
-                    }
-                }
-                if (split_input[0].Equals("gui_item_setwidth"))
-                {
-                    if (split_input.Length == 4)
-                    {
-                        string guiObjectName = split_input[1];
-                        if (GUIObjectsInUse.ContainsKey(guiObjectName))
-                        {
-                            GUIObjectType guiobjecttype = GUIObjectsInUse[guiObjectName].GUIObjectType;
-
-                            string fv = split_input[2].ToLower();
-                            bool validFill = false;
-                            fillValue filval = fillValue.Number;
-                            switch (fv)
-                            {
-                                case "number":
-                                    validFill = true;
-                                    filval = fillValue.Number;
-                                    break;
-                                case "percent":
-                                    validFill = true;
-                                    filval = fillValue.Percentage;
-                                    break;
-                                case "fill":
-                                    validFill = true;
-                                    filval = fillValue.Fill;
-                                    break;
-                                default:
-                                    validFill = false;
-                                    break;
-                            }
-                            if (validFill == true)
-                            {
-                                bool validNumber = IsNumeric(split_input[3]);
-                                int xx = Int32.Parse(split_input[3]);
-                                if (validNumber == true)
-                                {
-                                    bool foundAndChangedWidth = false;
-                                    switch (guiobjecttype)
-                                    {
-                                        case GUIObjectType.Button:
-                                            foreach(GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
-                                            {
-                                                if (guibtn.GUIObjName == guiObjectName)
-                                                {
-                                                    guibtn.SetWidth(xx, filval); 
-                                                    foundAndChangedWidth = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        case GUIObjectType.Textfield:
-                                            foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
-                                            {
-                                                if (guitxt.GUIObjName == guiObjectName)
-                                                {
-                                                    guitxt.SetWidth(xx, filval);
-                                                    foundAndChangedWidth = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        default:
-                                            // Object not found but somehow a quantum misfire of code happened and we ended up here
-                                            foundAndChangedWidth = false;
-                                            break;
-                                    }
-
-                                    if (foundAndChangedWidth == false)
-                                    {
-                                        Console.WriteLine("Object type cannot accept argument for setwidth.");
-                                    }
-
-                                }
-                                else
-                                {
-                                    Console.WriteLine($"Invalid input: {split_input[3]}. Expected integer.");
-                                }
-                            }
-                            else
-                            {
-                                Console.WriteLine($"Invalid format: {fv}. Expected: Percent, Fill, Number");
-                            }
-                        } else
-                        {
-                            Console.WriteLine($"{guiObjectName} not valid GUI object.");
-                        }
-                    } else
-                    {
-                        Console.WriteLine("Invalid format to set width.");
-                    }
-                }
-                if (split_input[0].Equals("gui_item_setheight"))
-                {
-                    if (split_input.Length == 4)
-                    {
-                        string guiObjectName = split_input[1];
-                        if (GUIObjectsInUse.ContainsKey(guiObjectName))
-                        {
-                            GUIObjectType guiobjecttype = GUIObjectsInUse[guiObjectName].GUIObjectType;
-                            string fv = split_input[2].ToLower();
-                            bool validFill = false;
-                            fillValue filval = fillValue.Number;
-                            switch (fv)
-                            {
-                                case "number":
-                                    validFill = true;
-                                    filval = fillValue.Number;
-                                    break;
-                                case "percent":
-                                    validFill = true;
-                                    filval = fillValue.Percentage;
-                                    break;
-                                case "fill":
-                                    validFill = true;
-                                    filval = fillValue.Fill;
-                                    break;
-                                default:
-                                    validFill = false;
-                                    break;
-                            }
-                            if (validFill == true)
-                            {
-                                bool validNumber = IsNumeric(split_input[3]);
-                                int xx = Int32.Parse(split_input[3]);
-                                if (validNumber == true)
-                                {
-                                    bool foundAndChangedHeight = false;
-                                    switch (guiobjecttype)
-                                    {
-                                        case GUIObjectType.Button:
-                                            foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
-                                            {
-                                                if (guibtn.GUIObjName == guiObjectName)
-                                                {
-                                                    guibtn.SetHeight(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        case GUIObjectType.Textfield:
-                                            foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
-                                            {
-                                                if (guitxt.GUIObjName == guiObjectName)
-                                                {
-                                                    guitxt.SetHeight(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        default:
-                                            // Object not found but somehow a quantum misfire of code happened and we ended up here
-                                            foundAndChangedHeight = false;
-                                            break;
-                                    }
-                                    if (foundAndChangedHeight == false)
-                                    {
-                                        Console.WriteLine("Object type cannot accept argument for setheight.");
-                                    }
-
-                                }
-                                else
-                                {
-                                    Console.WriteLine($"Invalid input: {split_input[3]}. Expected integer.");
-                                }
-                            }
-                            else
-                            {
-                                Console.WriteLine($"Invalid format: {fv}. Expected: Percent, Fill, Number");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"{guiObjectName} not valid GUI object.");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("Invalid format to set height.");
-                    }
-                }
             } catch (Exception error){ Console.WriteLine($"Error with input - {error}"); }
         }
 
@@ -2188,8 +2279,8 @@ namespace GyroPrompt
                 // Executes the commands inline
                 foreach (string command in commands)
                 {
-                    parse(command);
-                    parse(pause_); // Script delay
+                    parse(command.TrimEnd());
+                    parse(pause_.TrimEnd()); // Script delay
 
                 }
             } else if (type == TaskType.BackgroundTask)
@@ -2205,8 +2296,8 @@ namespace GyroPrompt
             string pause_ = ($"pause {currentTask.scriptdelay.ToString()}");
             foreach(string command in currentTask.commands)
             {
-                parse(command);
-                parse(pause_);
+                parse(command.TrimEnd());
+                parse(pause_.TrimEnd());
             }
         }
 

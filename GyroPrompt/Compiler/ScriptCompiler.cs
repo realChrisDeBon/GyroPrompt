@@ -49,7 +49,7 @@ namespace GyroPrompt.Compiler
 
         public void Compile()
         {
-            // We use the CompilerSourceTemplate.txt to hold our code in a more organized fashion
+            // We use the CompilerSourceTemplate.txt to hold our code in a more organized fashion NOTE: Not working with this finicky as fuck method
             string resourceName = "GyroPrompt.Compiler.CompilerSourceTemplate.txt"; // This grabs the CompilerSourceTemplate.txt contents
             string fileContents = ReadEmbeddedTextFile($"{resourceName}");
             string testContents = @"        

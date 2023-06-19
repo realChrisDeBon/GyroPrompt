@@ -7,7 +7,6 @@ using Terminal.Gui;
 
 namespace GyroPrompt.Basic_Objects.GUIComponents
 {
-
     public class ConsoleOutputDirector
     {
         public List<GUI_Button> GUIButtonsToAdd = new List<GUI_Button>();
@@ -17,14 +16,22 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         public void InitializeGUIWindow(string windowTitle = "GUIMode", int x_ = 0, int y_ = 0)
         {
                 Application.Init();
+                var top = Application.Top;
 
-                // Set the default color scheme
-                mainWindow = new Window($"{windowTitle}")
+            // Set the default color scheme
+            mainWindow = new Window($"{windowTitle}")
                 {
                     X = x_,
                     Y = y_,
                     Width = Dim.Fill(),
-                    Height = Dim.Fill()
+                    Height = Dim.Fill(),
+                    Border = new Border()
+                    {
+                        BorderStyle = BorderStyle.Single,
+                        DrawMarginFrame = true,
+                        Padding = new Thickness(1),
+                        BorderBrush = Color.White
+                    }
                 };
                 mainWindow.ColorScheme = new ColorScheme()
                 {
@@ -43,19 +50,17 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             {
                 mainWindow.Add(item_.textView);
             }
-              
-
                 // Execute application
-                var top = Application.Top;
                 top.Add(mainWindow);
                 Application.Run();
 
-            
         }
 
-        public void Terminate()
+        public void terminate()
         {
-            Application.Current.EndInit(); // This is not working for some raisin and I need to figure out why.
+            mainWindow.EndInit();
+            mainWindow.RequestStop();
+            Application.RequestStop();
         }
     }
 }
