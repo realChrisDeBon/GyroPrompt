@@ -4,8 +4,6 @@ namespace GyroPrompt
 {
     internal class Program
     {
-        private static Parser parser;
-        private static TextField userPrompt;
         static void Main(string[] args)
         {
             // Initialize console
@@ -36,13 +34,8 @@ namespace GyroPrompt
             }
 
 
-
-            while (true)
-            {
-                    Console.Write("GyroPrompt > ");
-                    string command = Console.ReadLine();
-                    parser.parse(command);
-            }
+            //parser.SetConsoleOut();
+            parser.beginInputLoop(); // Begin the input loop
 
         }
 
