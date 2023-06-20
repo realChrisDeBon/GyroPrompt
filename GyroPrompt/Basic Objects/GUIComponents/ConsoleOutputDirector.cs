@@ -12,7 +12,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         public List<GUI_Button> GUIButtonsToAdd = new List<GUI_Button>();
         public List<GUI_textfield> GUITextFieldsToAdd = new List<GUI_textfield>();
         public bool runningPermision = true;
-        Window mainWindow;
+        public Window mainWindow;
         public void InitializeGUIWindow(string windowTitle = "GUIMode", int x_ = 0, int y_ = 0)
         {
                 Application.Init();
@@ -40,7 +40,6 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                     HotNormal = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
                     HotFocus = Terminal.Gui.Attribute.Make(Color.White, Color.Black)
                 };
-
             // Take every GUI object within GUIItemsToAdd and add it to mainWindow
             foreach (GUI_Button item in GUIButtonsToAdd)
             {
@@ -50,17 +49,17 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             {
                 mainWindow.Add(item_.textView);
             }
+            try
+            {
                 // Execute application
                 top.Add(mainWindow);
                 Application.Run();
-
+            }
+            catch
+            {
+                // Expect error to be thrown when Application.Shutdown() and Application.RequestStop() execute from parser
+            }
         }
 
-        public void terminate()
-        {
-            mainWindow.EndInit();
-            mainWindow.RequestStop();
-            Application.RequestStop();
-        }
     }
 }

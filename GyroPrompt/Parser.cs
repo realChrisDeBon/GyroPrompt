@@ -52,6 +52,7 @@ namespace GyroPrompt
         /// to GUI components (text fields, labels, etc). When the GUIModeEnabled is set to false, the console output reverts to its original state and output directly to
         /// the console like normally (Eventually).
         /// </summary>
+        
         public bool GUIModeEnabled = false;
         public string ConsoleOutCatcher = "";
         ConsoleOutputDirector consoleDirector = new ConsoleOutputDirector();
@@ -189,16 +190,20 @@ namespace GyroPrompt
                 {
                     using (var writer = new StringWriter())
                     {
-                        Console.SetOut(writer);
-                        //Console.Write("GyroPrompt > ");
-                        string command = Console.ReadLine();
-                        parse(command);
-                        ConsoleOutCatcher = ConsoleOutCatcher + (writer.ToString());
-                        writer.Flush();
+                            Console.SetOut(writer);
+                            //Console.Write("GyroPrompt > ");
+                            string command = Console.ReadLine();
+                            parse(command);
+                            ConsoleOutCatcher = ConsoleOutCatcher + (writer.ToString());
+                            writer.Flush();
+                        if (GUIModeEnabled == false) { Console.SetOut(originOut); }
                     }
-                } else
+                } else if (GUIModeEnabled == false) 
                 {
-                    Console.SetOut(originOut);
+                    if (Console.Out != originOut)
+                    {
+                        Console.SetOut(originOut);
+                    }
                     Console.Write("GyroPrompt > ");
                     string command = Console.ReadLine();
                     parse(command);
@@ -447,8 +452,8 @@ namespace GyroPrompt
                 /// display when top level bool GUIModeOn is set to true.
                 /// 
                 /// Brief synopsis of syntax (may change)
-                /// gui_mode on/guimode off                                      <- toggle GUIModeEnabled bool
-                /// new_gui_item button name tasklist x y width height          <- creates button named 'name' (name also becomes default text), positioned at x, y with width, height
+                /// gui_mode on/gui_mode off/gui_mode reset                       <- toggle GUIModeEnabled bool
+                /// new_gui_item button name tasklist x y width height          <- creates button named 'name' (name also becomes default text) which will execute tasklist when pressed, positioned at x, y with width, height
                 /// new_gui_item textfield name x y bool                       <- creates textfield named 'name', positioned at x,y and the bool determines if textfield is readonly
                 /// gui_item_setwidth name fillvalue number                   <- sets width of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes width value), Fill (number ignored, object will auto fill)
                 /// gui_item_setheight name fillvalue number                 <- sets height of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes height value), Fill (number ignored, object will auto fill)
@@ -462,13 +467,34 @@ namespace GyroPrompt
                         consoleDirector.runningPermision = true;
                         GUIModeEnabled = true;
                         consoleDirector.InitializeGUIWindow();
-
                     }
                     else if (split_input[1].Equals("off", StringComparison.OrdinalIgnoreCase))
                     {
-                        consoleDirector.terminate();
+                            TurnGUIModeOff();
+                    } else if (split_input[1].Equals("reset", StringComparison.OrdinalIgnoreCase))
+                    {
+                        resetView();
+                    }
+                    void resetView()
+                    {
+                        while (GUIModeEnabled == true)
+                        {
+                            GUIModeEnabled = false;
+                        }
                         consoleDirector.runningPermision = false;
-                        GUIModeEnabled = false;
+                    }
+                    void TurnGUIModeOff()
+                    {
+                        try
+                        {
+                            Application.Shutdown();
+                            Application.RequestStop();
+                        }
+                        catch
+                        {
+                            // An exception is expected to be thrown but we're just going to ignore that little shitter for now
+
+                        }
                     }
                 }
                 if (split_input[0].Equals("new_gui_item", StringComparison.OrdinalIgnoreCase))
@@ -642,20 +668,20 @@ namespace GyroPrompt
 
                             string fv = split_input[2].ToLower();
                             bool validFill = false;
-                            fillValue filval = fillValue.Number;
+                            coordVal filval = coordVal.Number;
                             switch (fv)
                             {
                                 case "number":
                                     validFill = true;
-                                    filval = fillValue.Number;
+                                    filval = coordVal.Number;
                                     break;
                                 case "percent":
                                     validFill = true;
-                                    filval = fillValue.Percentage;
+                                    filval = coordVal.Percentage;
                                     break;
                                 case "fill":
                                     validFill = true;
-                                    filval = fillValue.Fill;
+                                    filval = coordVal.Fill;
                                     break;
                                 default:
                                     validFill = false;
@@ -734,20 +760,20 @@ namespace GyroPrompt
                             GUIObjectType guiobjecttype = GUIObjectsInUse[guiObjectName].GUIObjectType;
                             string fv = split_input[2].ToLower();
                             bool validFill = false;
-                            fillValue filval = fillValue.Number;
+                            coordVal filval = coordVal.Number;
                             switch (fv)
                             {
                                 case "number":
                                     validFill = true;
-                                    filval = fillValue.Number;
+                                    filval = coordVal.Number;
                                     break;
                                 case "percent":
                                     validFill = true;
-                                    filval = fillValue.Percentage;
+                                    filval = coordVal.Percentage;
                                     break;
                                 case "fill":
                                     validFill = true;
-                                    filval = fillValue.Fill;
+                                    filval = coordVal.Fill;
                                     break;
                                 default:
                                     validFill = false;
@@ -815,6 +841,98 @@ namespace GyroPrompt
                         Console.WriteLine("Invalid format to set height.");
                     }
                 }
+                if (split_input[0].Equals("gui_item_setx", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 4)
+                    {
+                        string guiObjectName = split_input[1];
+                        if (GUIObjectsInUse.ContainsKey(guiObjectName))
+                        {
+                            GUIObjectType guiobjecttype = GUIObjectsInUse[guiObjectName].GUIObjectType;
+                            string fv = split_input[2].ToLower();
+                            bool validFill = false;
+                            coordValue filval = coordValue.Number;
+                            switch (fv)
+                            {
+                                case "number":
+                                    validFill = true;
+                                    filval = coordValue.Number;
+                                    break;
+                                case "percent":
+                                    validFill = true;
+                                    filval = coordValue.Percent;
+                                    break;
+                                case "center":
+                                    validFill = true;
+                                    filval = coordValue.Center;
+                                    break;
+                                default:
+                                    validFill = false;
+                                    break;
+                            }
+                            if (validFill == true)
+                            {
+                                bool validNumber = IsNumeric(split_input[3]);
+                                int xx = Int32.Parse(split_input[3]);
+                                if (validNumber == true)
+                                {
+                                    bool foundAndChangedHeight = false;
+                                    switch (guiobjecttype)
+                                    {
+                                        case GUIObjectType.Button:
+                                            foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
+                                            {
+                                                if (guibtn.GUIObjName == guiObjectName)
+                                                {
+                                                    guibtn.SetXCoord(xx, filval);
+                                                    foundAndChangedHeight = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        case GUIObjectType.Textfield:
+                                            foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
+                                            {
+                                                if (guitxt.GUIObjName == guiObjectName)
+                                                {
+                                                    guitxt.SetXCoord(xx, filval);
+                                                    foundAndChangedHeight = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        default:
+                                            // Object not found but somehow a quantum misfire of code happened and we ended up here
+                                            foundAndChangedHeight = false;
+                                            break;
+                                    }
+                                    if (foundAndChangedHeight == false)
+                                    {
+                                        Console.WriteLine("Object type cannot accept argument for setheight.");
+                                    }
+
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"Invalid input: {split_input[3]}. Expected integer.");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Invalid format: {fv}. Expected: Percent, Fill, Number");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate GUI object {guiObjectName}.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format to set height.");
+                    }
+                }
+                
                 if (split_input[0].Equals("gui_item_gettext", StringComparison.OrdinalIgnoreCase))
                 {
                     if (split_input.Length == 3)
@@ -887,6 +1005,62 @@ namespace GyroPrompt
                     } else
                     {
                         Console.WriteLine("Invalid format to gettext.");
+                    }
+                }
+                if (split_input[0].Equals("gui_item_settext", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length >= 3)
+                    {
+                        string guiObjectName = split_input[1];
+                        string textToSetTo = "";
+                        StringBuilder newstring = new StringBuilder();
+                        if (split_input.Length > 3)
+                        {
+                            foreach(string s  in split_input.Skip(2))
+                            {
+                                newstring.Append(s);
+                            }
+                            textToSetTo = SetVariableValue(newstring.ToString());
+                        } else if (split_input.Length == 3) { 
+                            textToSetTo = SetVariableValue(split_input[2]);
+                        }
+                        bool guiObjectExists = (GUIObjectsInUse.ContainsKey(guiObjectName));
+                        if (guiObjectExists == true)
+                        {
+                            GUIObjectType objtype = GUIObjectsInUse[guiObjectName].GUIObjectType;
+                            switch (objtype)
+                            { 
+                                case GUIObjectType.Textfield:
+                                    foreach (GUI_textfield txtfield in consoleDirector.GUITextFieldsToAdd)
+                                    {
+                                        if (txtfield.GUIObjName == guiObjectName)
+                                        {
+                                            txtfield.SetText(textToSetTo);
+                                        }
+                                    }
+                                    break;
+                                case GUIObjectType.Button:
+                                    foreach (GUI_Button buttonobj in consoleDirector.GUIButtonsToAdd)
+                                    {
+                                        if (buttonobj.GUIObjName == guiObjectName)
+                                        {
+                                            buttonobj.SetText(textToSetTo);
+                                        }
+                                    }
+                                    break;
+                                default:
+                                    Console.WriteLine($"Cannot set text to {guiObjectName}");
+                                    break;
+                            }
+                        }
+                        else if (guiObjectExists == false)
+                        {
+                            Console.WriteLine($"Could not locate GUI object {guiObjectName}.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format to settext.");
                     }
                 }
                 ///<summary>

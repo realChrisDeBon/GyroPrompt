@@ -50,19 +50,19 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         {
             textView.Text = text;
         }
-        public override void SetWidth(int x_, fillValue filler)
+        public override void SetWidth(int x_, coordVal filler)
         {
             try
             {
                 switch (filler)
                 {
-                    case fillValue.Fill:
+                    case coordVal.Fill:
                         textView.Width = Dim.Fill();
                         break;
-                    case fillValue.Percentage:
+                    case coordVal.Percentage:
                         textView.Width = Dim.Percent(x_);
                         break;
-                    case fillValue.Number:
+                    case coordVal.Number:
                         textView.Width = x_;
                         break;
                 }
@@ -72,19 +72,19 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
-        public override void SetHeight(int x_, fillValue filler)
+        public override void SetHeight(int x_, coordVal filler)
         {
             try
             {
                 switch (filler)
                 {
-                    case fillValue.Fill:
+                    case coordVal.Fill:
                         textView.Height = Dim.Fill();
                         break;
-                    case fillValue.Percentage:
+                    case coordVal.Percentage:
                         textView.Height = Dim.Percent(x_);
                         break;
-                    case fillValue.Number:
+                    case coordVal.Number:
                         textView.Height = x_;
                         break;
                 }
@@ -94,22 +94,44 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
-        public void SetXCoord(int x_)
+        public void SetXCoord(int x_, coordValue filler)
         {
             try
             {
-                textView.X = x_;
+                switch (filler)
+                {
+                    case coordValue.Number:
+                        textView.X = x_;
+                        break;
+                    case coordValue.Center:
+                        textView.X = Pos.Center();
+                        break;
+                    case coordValue.Percent:
+                        textView.X = Pos.Percent(x_);
+                        break;
+                }
             }
             catch
             {
 
             }
         }
-        public void SetYCoord(int x_)
+        public void SetYCoord(int x_, coordValue filler)
         {
             try
             {
-                textView.Y = x_;
+                switch (filler)
+                {
+                    case coordValue.Number:
+                        textView.Y = x_;
+                        break;
+                    case coordValue.Center:
+                        textView.Y = Pos.Center();
+                        break;
+                    case coordValue.Percent:
+                        textView.Y = Pos.Percent(x_);
+                        break;
+                }
             }
             catch
             {

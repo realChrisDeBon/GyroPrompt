@@ -19,12 +19,13 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             GUIObjName = name_;
             GUIObjectType = GUIObjectType.Button;
 
-            newButton = new Button($"{name_}")
+            newButton = new Button()
             {
                 X = x_,
                 Y = y_,
                 Width = width_,
                 Height = height_,
+                Text = name_
             };
             onClick = commandsOnClick;
 
@@ -35,19 +36,19 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         }
 
 
-        public override void SetWidth(int x_, fillValue filler)
+        public override void SetWidth(int x_, coordVal filler)
         {
             try
             {
                 switch (filler)
                 {
-                    case fillValue.Fill:
+                    case coordVal.Fill:
                         newButton.Width = Dim.Fill();
                         break;
-                    case fillValue.Percentage:
+                    case coordVal.Percentage:
                         newButton.Width = Dim.Percent(x_);
                         break;
-                    case fillValue.Number:
+                    case coordVal.Number:
                         newButton.Width = x_;
                         break;
                 }
@@ -57,19 +58,19 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
-        public override void SetHeight(int x_, fillValue filler)
+        public override void SetHeight(int x_, coordVal filler)
         {
             try
             {
                 switch (filler)
                 {
-                    case fillValue.Fill:
+                    case coordVal.Fill:
                         newButton.Height = Dim.Fill();
                         break;
-                    case fillValue.Percentage:
+                    case coordVal.Percentage:
                         newButton.Height = Dim.Percent(x_);
                         break;
-                    case fillValue.Number:
+                    case coordVal.Number:
                         newButton.Height = x_;
                         break;
                 }
@@ -87,22 +88,44 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         {
             return newButton.Text.ToString();
         }
-        public void SetXCoord(int x_)
+        public void SetXCoord(int x_, coordValue filler)
         {
             try
             {
-                newButton.X = x_;
+                switch (filler)
+                {
+                    case coordValue.Number:
+                        newButton.X = x_;
+                        break;
+                    case coordValue.Center:
+                        newButton.X = Pos.Center();
+                        break;
+                    case coordValue.Percent:
+                        newButton.X = Pos.Percent(x_);
+                        break;
+                }
             }
             catch
             {
 
             }
         }
-        public void SetYCoord(int x_)
+        public void SetYCoord(int x_, coordValue filler)
         {
             try
             {
-                newButton.Y = x_;
+                switch (filler)
+                {
+                    case coordValue.Number:
+                        newButton.Y = x_;
+                        break;
+                    case coordValue.Center:
+                        newButton.Y = Pos.Center();
+                        break;
+                    case coordValue.Percent:
+                        newButton.Y = Pos.Percent(x_);
+                        break;
+                }
             }
             catch
             {
