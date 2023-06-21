@@ -254,6 +254,7 @@ namespace GyroPrompt
                     }
                     else
                     {
+
                         bool valid_name = ContainsOnlyLettersAndNumbers(split_input[1]);
                         if (valid_name == true)
                         {
@@ -271,8 +272,10 @@ namespace GyroPrompt
                         }
                         bool proper_value = false;
                         split_input[3].Split();
-                        if (split_input[3] == "false" || split_input[3] == "0") { proper_value = true; }
-                        if (split_input[3] == "true" || split_input[3] == "1") { proper_value = true; }
+                        string aa = SetVariableValue(split_input[3]);
+                        aa.ToLower();
+                        if (aa.Equals("False",StringComparison.OrdinalIgnoreCase) || aa == "0") { proper_value = true; }
+                        if (aa.Equals("True", StringComparison.OrdinalIgnoreCase) || aa == "1") { proper_value = true; }
 
 
                         if (proper_value == true)
@@ -284,8 +287,8 @@ namespace GyroPrompt
                                 // Syntax checks out, we proceed to declare the variable
                                 BooleanVariable new_bool = new BooleanVariable();
                                 new_bool.Name = split_input[1];
-                                if (split_input[3] == "false" || split_input[3] == "0") { new_bool.bool_val = false; }
-                                if (split_input[3] == "true" || split_input[3] == "1") { new_bool.bool_val = true; }
+                                if (aa.Equals("False", StringComparison.OrdinalIgnoreCase) || aa == "0") { new_bool.bool_val = false; }
+                                if (aa.Equals("True", StringComparison.OrdinalIgnoreCase) || aa == "1") { new_bool.bool_val = true; }
                                 new_bool.Type = VariableType.Boolean;
                                 local_variables.Add(new_bool);
                                 namesInUse.Add(split_input[1], true);
@@ -293,7 +296,7 @@ namespace GyroPrompt
                         }
                         else
                         {
-                            Console.WriteLine($"Incorrect formatting to declare bool. Bool cannot take value: {split_input[3]}");
+                            Console.WriteLine($"Incorrect formatting to declare bool. Bool cannot take value: {aa}");
                         }
                     }
                 }
@@ -322,8 +325,8 @@ namespace GyroPrompt
                             Console.WriteLine("Variable names may only contain letters and numbers.");
                             no_issues = false;
                         }
-
-                        bool proper_value = IsNumeric(split_input[3]);
+                        string a_ = SetVariableValue(split_input[3]);
+                        bool proper_value = IsNumeric(a_);
                         if (proper_value == true)
                         {
                             bool name_check = NameInUse(split_input[1]);
@@ -333,7 +336,7 @@ namespace GyroPrompt
                                 // Syntax checks out, we proceed to declare the variable
                                 IntegerVariable new_int = new IntegerVariable();
                                 new_int.Name = split_input[1];
-                                new_int.int_value = Int32.Parse(split_input[3]);
+                                new_int.int_value = Int32.Parse(a_);
                                 new_int.Type = VariableType.Int;
                                 local_variables.Add(new_int);
                                 namesInUse.Add(split_input[1], true);
@@ -1441,6 +1444,28 @@ namespace GyroPrompt
                         Console.WriteLine("Invalid format to set all in list.");
                     }
                 }
+                if (split_input[0].Equals("list_printall", StringComparison.OrdinalIgnoreCase))
+                {
+                    string listName = split_input[1];
+                    if (split_input.Length == 2)
+                    {
+                        bool listExists = false;
+                        foreach (LocalList list_ in local_arrays)
+                        {
+                            if (list_.Name == listName)
+                            {
+                                listExists = true;
+                                list_.PrintAll();
+                                break;
+                            }
+                        }
+                        if (listExists == false)
+                        {
+                            Console.WriteLine($"Could not locate list {listName}");
+                        }
+                    } else { Console.WriteLine("Invalid format for list_printall"); 
+                    }
+                }
                 
                 /// <summary>
                 /// The filesystem interface allows the user to read, write, move, copy, and edit attributes of
@@ -1586,7 +1611,7 @@ namespace GyroPrompt
                             bool issuccess = true;
                             try
                             {
-                                locallist = filesystem.ReadFileToList(path_);
+                                locallist = filesystem.ReadFileToList(path_, locallist_);
                             } catch
                             {
                                 issuccess = false;
@@ -1603,7 +1628,7 @@ namespace GyroPrompt
                                 bool issuccess = true;
                                 try
                                 {
-                                    locallist = filesystem.ReadFileToList(path_);
+                                    locallist = filesystem.ReadFileToList(path_, locallist_);
                                 }
                                 catch
                                 {
@@ -1615,8 +1640,12 @@ namespace GyroPrompt
                                     {
                                         if (lists_.Name == locallist_)
                                         {
-                                            lists_.items.Clear();
-                                            lists_.items = locallist.items;
+
+                                            foreach(LocalVariable var in locallist.items)
+                                            {
+                                                lists_.items.Add(var);
+                                                lists_.numberOfElements++;
+                                            }
                                             break;
                                         }
                                     }
@@ -2980,8 +3009,8 @@ namespace GyroPrompt
                             
                             if (isNumber == true)
                             {
-                                items_[1] = ConvertNumericalVariable(items_[1]);
-                                int indexednumber = Int32.Parse(items_[1]);
+                                string a_ = ConvertNumericalVariable(items_[1]);
+                                int indexednumber = Int32.Parse(a_);
 
                                 foreach (LocalList list in local_arrays)
                                 {
@@ -3204,16 +3233,17 @@ namespace GyroPrompt
                     {
                         // Referencing an index position within the list
                         string place_ = _placeholder.Remove(0, 3);
-                        string[] items_ = place_.Split(',');
+                        string converints = ConvertNumericalVariable(place_);
+                        string[] items_ = converints.Split(',');
                         if (items_.Length == 2)
                         {
                             bool validName = false;
-                            bool isNumber = IsNumeric(items_[1].Trim());
-
+                            bool isNumber = IsNumeric(items_[1].TrimEnd());
+                            string a_ = ConvertNumericalVariable(items_[1].TrimEnd());
                             if (isNumber == true)
                             {
 
-                                int indexednumber = Int32.Parse(items_[1]);
+                                int indexednumber = Int32.Parse(a_);
 
                                 foreach (LocalList list in local_arrays)
                                 {

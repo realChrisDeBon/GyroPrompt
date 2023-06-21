@@ -67,7 +67,7 @@ namespace GyroPrompt.Basic_Objects.Component
                 return null;
             }
         }
-        public LocalList ReadFileToList(string path)
+        public LocalList ReadFileToList(string path, string lstname)
         {
             LocalList list = new LocalList();
             if (File.Exists(path))
@@ -76,7 +76,7 @@ namespace GyroPrompt.Basic_Objects.Component
                 {
                     string[] filecontents = File.ReadAllLines(path);
                     FileInfo fileInfo = new FileInfo(path);
-                    string filename = fileInfo.Name.ToString();
+                    string filename = Path.GetFileNameWithoutExtension(fileInfo.Name);
                     int x = 1;
                     foreach (string line in filecontents)
                     {
@@ -84,10 +84,11 @@ namespace GyroPrompt.Basic_Objects.Component
                         newline.Name = $"{filename}line{x}";
                         newline.Type = VariableType.String;
                         newline.Value = line;
-                        list.itemAdd(newline);
+                        list.items.Add(newline);
+                        list.numberOfElements++;
                         x++;
                     }
-                    list.Name = $"{filename}toarray";
+                    list.Name = $"{lstname}";
                     list.arrayType = ArrayType.String;
                     return list;
                 }

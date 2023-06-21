@@ -138,5 +138,13 @@ namespace GyroPrompt.Basic_Objects.Collections
 
             return $"{name} not found";
         }
+        public void PrintAll()
+        {
+            Console.WriteLine($"Contents of list {Name}");
+            foreach(LocalVariable var in items)
+            {
+                Console.WriteLine($"Variable name: {var.Name}\tType:{var.Type.ToString()}\tValue: {var.Value}");
+            }
+        }
     }
 }
