@@ -38,6 +38,7 @@ namespace GyroPrompt
         public Calculate calculate = new Calculate();
         public RandomizeInt randomizer = new RandomizeInt();
         public ConditionChecker condition_checker = new ConditionChecker();
+        public FilesystemInterface filesystem = new FilesystemInterface();
         
         public IDictionary<string, bool> namesInUse = new Dictionary<string, bool>();
         public bool running_script = false; // Used for determining if a script is being ran
@@ -169,6 +170,7 @@ namespace GyroPrompt
             keyConsoleColor.Add("Yellow", ConsoleColor.Yellow);
             keyConsoleColor.Add("White", ConsoleColor.White);
 
+            
             foreach (string envvar_name in environmentalVars.Keys)
             {
                 namesInUse.Add(envvar_name, true); // All encompassing name reserve system
@@ -195,7 +197,7 @@ namespace GyroPrompt
                             string command = Console.ReadLine();
                             parse(command);
                             ConsoleOutCatcher = ConsoleOutCatcher + (writer.ToString());
-                            writer.Flush();
+                        writer.Flush();
                         if (GUIModeEnabled == false) { Console.SetOut(originOut); }
                     }
                 } else if (GUIModeEnabled == false) 
@@ -449,9 +451,9 @@ namespace GyroPrompt
                 }
                 ///<summary>
                 /// GUI items can transform the application into a more robust Terminal User Interface. GUI items will only
-                /// display when top level bool GUIModeOn is set to true.
+                /// display when top level bool GUIModeOn is set to true. 
                 /// 
-                /// Brief synopsis of syntax (may change)
+                /// Brief synopsis of syntax so far (may change)
                 /// gui_mode on/gui_mode off/gui_mode reset                       <- toggle GUIModeEnabled bool
                 /// new_gui_item button name tasklist x y width height          <- creates button named 'name' (name also becomes default text) which will execute tasklist when pressed, positioned at x, y with width, height
                 /// new_gui_item textfield name x y bool                       <- creates textfield named 'name', positioned at x,y and the bool determines if textfield is readonly
@@ -908,7 +910,7 @@ namespace GyroPrompt
                                     }
                                     if (foundAndChangedHeight == false)
                                     {
-                                        Console.WriteLine("Object type cannot accept argument for setheight.");
+                                        Console.WriteLine("Object type cannot accept argument for setx.");
                                     }
 
                                 }
@@ -919,7 +921,7 @@ namespace GyroPrompt
                             }
                             else
                             {
-                                Console.WriteLine($"Invalid format: {fv}. Expected: Percent, Fill, Number");
+                                Console.WriteLine($"Invalid format: {fv}. Expected: Percent, Number, Center");
                             }
                         }
                         else
@@ -929,10 +931,100 @@ namespace GyroPrompt
                     }
                     else
                     {
-                        Console.WriteLine("Invalid format to set height.");
+                        Console.WriteLine("Invalid format to set X.");
                     }
                 }
-                
+                if (split_input[0].Equals("gui_item_sety", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 4)
+                    {
+                        string guiObjectName = split_input[1];
+                        if (GUIObjectsInUse.ContainsKey(guiObjectName))
+                        {
+                            GUIObjectType guiobjecttype = GUIObjectsInUse[guiObjectName].GUIObjectType;
+                            string fv = split_input[2].ToLower();
+                            bool validFill = false;
+                            coordValue filval = coordValue.Number;
+                            switch (fv)
+                            {
+                                case "number":
+                                    validFill = true;
+                                    filval = coordValue.Number;
+                                    break;
+                                case "percent":
+                                    validFill = true;
+                                    filval = coordValue.Percent;
+                                    break;
+                                case "center":
+                                    validFill = true;
+                                    filval = coordValue.Center;
+                                    break;
+                                default:
+                                    validFill = false;
+                                    break;
+                            }
+                            if (validFill == true)
+                            {
+                                bool validNumber = IsNumeric(split_input[3]);
+                                int xx = Int32.Parse(split_input[3]);
+                                if (validNumber == true)
+                                {
+                                    bool foundAndChangedHeight = false;
+                                    switch (guiobjecttype)
+                                    {
+                                        case GUIObjectType.Button:
+                                            foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
+                                            {
+                                                if (guibtn.GUIObjName == guiObjectName)
+                                                {
+                                                    guibtn.SetYCoord(xx, filval);
+                                                    foundAndChangedHeight = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        case GUIObjectType.Textfield:
+                                            foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
+                                            {
+                                                if (guitxt.GUIObjName == guiObjectName)
+                                                {
+                                                    guitxt.SetYCoord(xx, filval);
+                                                    foundAndChangedHeight = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        default:
+                                            // Object not found but somehow a quantum misfire of code happened and we ended up here
+                                            foundAndChangedHeight = false;
+                                            break;
+                                    }
+                                    if (foundAndChangedHeight == false)
+                                    {
+                                        Console.WriteLine("Object type cannot accept argument for sety.");
+                                    }
+
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"Invalid input: {split_input[3]}. Expected integer.");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Invalid format: {fv}. Expected: Percent, Fill, Center");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate GUI object {guiObjectName}.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format to set Y.");
+                    }
+                }
                 if (split_input[0].Equals("gui_item_gettext", StringComparison.OrdinalIgnoreCase))
                 {
                     if (split_input.Length == 3)
@@ -943,6 +1035,7 @@ namespace GyroPrompt
                         bool guiObjectExists = (GUIObjectsInUse.ContainsKey(guiObjectName));
                         if ((validVriable == true) && ( guiObjectExists == true))
                         {
+                            
                             GUIObjectType objtype = GUIObjectsInUse[guiObjectName].GUIObjectType;
                             switch (objtype)
                             {
@@ -1063,14 +1156,14 @@ namespace GyroPrompt
                         Console.WriteLine("Invalid format to settext.");
                     }
                 }
-                ///<summary>
+                /// <summary>
                 /// List items can hold multiple variable items. 
                 /// 
                 /// SYNTAX EXAMPLES:
-                /// new_list (variabletype) (listname)             <- creates new list
-                /// list_add (listname) (variablename [...])      <- can add more than 1 variable if separated by a space
-                /// list_remove (listname) (variablename)        <- removes specified variablename from list
-                /// list_setall (listname) (value)              <- every member of list receives new value
+                /// new_list variabletype listname             <- creates new list
+                /// list_add listname variablename [...]      <- can add more than 1 variable if separated by a space
+                /// list_remove listname variablename        <- removes specified variablename from list
+                /// list_setall listname value              <- every member of list receives new value
                 /// </summary>
                 if (split_input[0].Equals("new_list", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1348,18 +1441,311 @@ namespace GyroPrompt
                         Console.WriteLine("Invalid format to set all in list.");
                     }
                 }
-                ///<summary>
+                
+                /// <summary>
+                /// The filesystem interface allows the user to read, write, move, copy, and edit attributes of
+                /// files and directories.
+                ///
+                /// SYNTAX EXAMPLES:
+                /// filesystem_write path contents[...]                 <- writes contents to path, will overwrite original contents
+                /// filesystem_append path contents[...]               <- appens contents to path, will not overwrit
+                /// filesystem_readall path variable                  <- sets variable value to contents of file
+                /// filesystem_readtolist path list                  <- assigns each line of file to a string variable to list [list must be either A) an empty string list, or B) not exist at all]
+                /// filesystem_delete path                          <- deletes file at path
+                /// filesystem_copy currentpath targetpath         <- copys file in currentpath to targetpath
+                /// filesystem_move currentpath targetpath        <- moves file from currentpath to targetpath
+                /// filesystem_sethidden path                                  <- sets file at path to hidden
+                /// filesystem_setvisible path                                <- sets file at path to not hidden
+                /// filesystem_mkdir path                                                   <- creates directory at path
+                /// filesystem_rmdir path                                                  <- removes directory at path
+                /// filesystem_copydir currentpath targetpath                             <- copy directory in current path to targetpath
+                /// filesystem_movedir current path targetpath                           <- move directory from current path to targetpath
+                /// <summary>
+                if (split_input[0].Equals("filesystem_write", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length >= 3)
+                    {
+                        string path_ = SetVariableValue(split_input[1]);
+                        string content_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
+                        filesystem.WriteOverFile(path_, content_);
+                    } else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_write");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_append", StringComparison.OrdinalIgnoreCase))
+                {
+                    ///<summary>
+                    /// This script does not work and is giving me a really weird fucking problem
+                    /// [txtfield] is not properly converting to its value and is outputting nothing into the file
+                    /// 
+                    /// bool isreadonly = false
+                    /// string btntext = Save
+                    /// string txtfield = nol
+                    /// int varzero = 0
+                    /// new_task btnclick background 0
+                    /// task_add btnclick gui_item_gettext maintext txtfield
+                    /// task_add btnclick environment set title[txtfield]
+                    /// task_add btnclick pause 1000
+                    /// task_add btnclick filesystem_append C:\Users\chris\OneDrive\Desktop\demonstration.txt[txtfield]
+                    /// new_gui_item textfield maintext 5 5[isreadonly]
+                    /// new_gui_item button mainButton btnclick 10 15 5 3
+                    /// gui_item_sety mainButton percent 90
+                    /// gui_item_settext mainButton[btntext]
+                    /// gui_item_setwidth maintext percent 100
+                    /// gui_item_setheight maintext percent 50
+                    /// gui_item_setx maintext number 0
+                    /// gui_mode on
+                    /// 
+                    /// 
+                    /// </summary>
+                    if (split_input.Length >= 3)
+                    {
+                        string path_ = SetVariableValue(split_input[1]);
+                        string content_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
+                        filesystem.AppendToFile(path_, content_);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_append");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_readall", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 3)
+                    {
+                        bool varexists = LocalVariableExists(split_input[2]);
+                        if (varexists == true)
+                        {
+                            try
+                            {
+                                string a_ = filesystem.ReadEntireFile(split_input[1]);
+                                if (a_ == null)
+                                {
+                                    foreach (LocalVariable var in local_variables)
+                                    {
+                                        if (var.Name == split_input[2])
+                                        {
+                                            if (var.Type == VariableType.String)
+                                            {
+                                                var.Value = a_;
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"{split_input[2]} not a valid string variable.");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                Console.WriteLine($"Error occurred when reading from file {split_input[1]}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"{split_input[2]} not a valid string variable.");
+                        }
+                    } else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_readall");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_readtolist", StringComparison.OrdinalIgnoreCase))
+
+                {
+                    if (split_input.Length == 3)
+                    {
+                        string path_ = SetVariableValue(split_input[1]);
+                        string locallist_ = SetVariableValue(split_input[2]);
+                        bool listExists = false;
+                        bool listEmpty = false;
+                        bool listIsString = false;
+                        // Make sure if there is a list with this name, it is empty
+                        foreach(LocalList list_ in local_arrays)
+                        {
+                            if (list_.Name == locallist_)
+                            {
+                                listExists = true;
+                                if (list_.numberOfElements == 0)
+                                {
+                                    listEmpty = true; // It exists but it is empty (usable)
+                                    if (list_.arrayType == ArrayType.String)
+                                    {
+                                        listIsString = true;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        
+                        if (listExists == false)
+                        {
+                            LocalList locallist = new LocalList();
+                            bool issuccess = true;
+                            try
+                            {
+                                locallist = filesystem.ReadFileToList(path_);
+                            } catch
+                            {
+                                issuccess = false;
+                            }
+                            if (issuccess == true)
+                            {
+                                local_arrays.Add(locallist);
+                            }
+                        } else if ((listExists == true) && (listEmpty == true))
+                        {
+                            if (listIsString == true)
+                            {
+                                LocalList locallist = new LocalList();
+                                bool issuccess = true;
+                                try
+                                {
+                                    locallist = filesystem.ReadFileToList(path_);
+                                }
+                                catch
+                                {
+                                    issuccess = false;
+                                }
+                                if (issuccess == true)
+                                {
+                                    foreach(LocalList lists_ in local_arrays)
+                                    {
+                                        if (lists_.Name == locallist_)
+                                        {
+                                            lists_.items.Clear();
+                                            lists_.items = locallist.items;
+                                            break;
+                                        }
+                                    }
+                                }
+
+
+                            } else
+                            {
+                                Console.WriteLine($"If providing name of list that already exists, it must be an empty string list.");
+                            }
+                        } else
+                        {
+                            Console.WriteLine($"If providing name of list that already exists, it must be an empty string list.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_append");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_delete", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 2)
+                    {
+                        filesystem.DeleteFile(split_input[1]);
+                    } else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_delete");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_copy", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 3)
+                    {
+                        filesystem.CopyFileToLocation(split_input[1], split_input[2]);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_copy");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_move", StringComparison.OrdinalIgnoreCase))
+                {
+                        if (split_input.Length == 3)
+                        {
+                            filesystem.MoveFileToLocation(split_input[1], split_input[2]);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid format for filesystem_move");
+                        }
+                }
+                if (split_input[0].Equals("filesystem_sethidden", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 2)
+                    {
+                        filesystem.SetFileToHidden(split_input[1]);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_sethidden");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_setvisible", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 2)
+                    {
+                        filesystem.SetHiddenFileToVisible(split_input[1]);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_setvisible");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_mkdir", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 2)
+                    {
+                        filesystem.CreateDirectory(split_input[1]);
+                    } else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_mkdir");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_rmdir", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 2)
+                    {
+                        filesystem.RemoveDirectory(split_input[1]);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_rmdir");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_copydir", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 3)
+                    {
+                        filesystem.CopyDirectoryToLocation(split_input[1], split_input[2]);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_copydir");
+                    }
+                }
+                if (split_input[0].Equals("filesystem_movedir", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 3)
+                    {
+                        filesystem.MoveDirectoryToLocation(split_input[1], split_input[2]);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format for filesystem_movedir");
+                    }
+                }
+
                 /// Tasks are a list of commands than can be executed as a background task (on a separate thread) or in-line with the main code.
                 /// Tasks will run once in chronological order (unless a loop in the task keeps it alive)
                 /// 
                 /// SYNTAX EXAMPLES:
-                /// new_task (taskname) ('inline'/'background') (*integer)  <- creates new task list, sets to inline/background, *integer is optional parameter to define the task's local script delay
-                /// task_add (taskname) (command(s) [...])                 <- appends new line of commands to task list
-                /// task_remove (taskname) (index)                        <- removes task line at specified index
-                /// task_insert (taskname) (index) (command(s) [...])    <- interts new line of commands into index
-                /// task_printall                                       <- prints list of all task items
-                /// task_setdelay (name) (int:miliseconds)             <- sets the local script delay of task
-                /// task_execute (taskname)                           <- executes specified task
+                /// new_task taskname 'inline'/'background' integer       <- creates new task list, sets to inline/background, *integer is optional parameter to define the task's local script delay
+                /// task_add taskname command(s) [...]                   <- appends new line of commands to task list
+                /// task_remove taskname index                          <- removes task line at specified index
+                /// task_insert taskname index command(s)[...]         <- interts new line of commands into index
+                /// task_printall                                     <- prints list of all task items
+                /// task_setdelay name int:miliseconds               <- sets the local script delay of task
+                /// task_execute taskname                           <- executes specified task
                 /// </summary>
                 if (split_input[0].Equals("new_task", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1742,15 +2128,21 @@ namespace GyroPrompt
                                                 {
                                                     if ((s == "true") || (s == "1"))
                                                     {
+                                                        validInput = true;
                                                         var.Value = "True";
                                                         break;
                                                     }
                                                     else if ((s == "0") || (s == "false"))
                                                     {
+                                                        validInput = true;
                                                         var.Value = "False";
                                                         break;
                                                     }
                                                 }
+                                            }
+                                            if (validInput == false)
+                                            {
+                                                Console.WriteLine($"Output is not valid boolean: {split_input[3]}");
                                             }
                                             break;
 
@@ -1863,7 +2255,6 @@ namespace GyroPrompt
                         Console.WriteLine("int- can only take 1 value.");
                     }
                 }
-
                 // Detect environmental variable modification
                 if (split_input[0].Equals("environment", StringComparison.OrdinalIgnoreCase))
                 {
@@ -2517,7 +2908,6 @@ namespace GyroPrompt
                     if (var.Name == capturedText)
                     {
                         a = a + var.Value;
-                        
                     }
                 }
                 if (environmentalVars.ContainsKey(capturedText))
@@ -2590,7 +2980,7 @@ namespace GyroPrompt
                             
                             if (isNumber == true)
                             {
-
+                                items_[1] = ConvertNumericalVariable(items_[1]);
                                 int indexednumber = Int32.Parse(items_[1]);
 
                                 foreach (LocalList list in local_arrays)
@@ -2649,9 +3039,56 @@ namespace GyroPrompt
                         {
                             Console.WriteLine("Expecting list name and item name separated by comma.");
                         }
+                    } else if (_placeholder.StartsWith("Length:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string place_ = _placeholder.Remove(0, 7);
+                        bool validlist = false;
+                        foreach (LocalList list in local_arrays)
+                        {
+                            if (list.Name == place_)
+                            {
+                                a += list.numberOfElements.ToString();
+                                validlist = true;
+                                break;
+                            }
+                            if (validlist == false)
+                            {
+                                Console.WriteLine($"Could not locate list: {place_}");
+                            }
+                        }
                     } else
                     {
-                        Console.WriteLine("Must point to list position with Item or At.");
+                        Console.WriteLine("Must point to list position with Item or At, or number of items with Len.");
+                    }
+                }
+                // Then check for filesystem conditions
+                if (capturedText.StartsWith("Filesystem:"))
+                {
+                    string placeholder_ = capturedText.Remove(0, 11);
+                    if (placeholder_.StartsWith("FileExists:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 11);
+                        bool exists = filesystem.DoesFileExist(_placeholder);
+                        if (exists == true)
+                        {
+                            a += "True";
+                        } else if (exists == false)
+                        {
+                            a += "False";
+                        }
+                    }
+                    if (placeholder_.StartsWith("DirExists:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 10);
+                        bool exists = filesystem.DoesDirectoryExist(_placeholder);
+                        if (exists == true)
+                        {
+                            a += "True";
+                        }
+                        else if (exists == false)
+                        {
+                            a += "False";
+                        }
                     }
                 }
 
@@ -2834,13 +3271,81 @@ namespace GyroPrompt
                             }
                             else { Console.WriteLine($"Could not locate variable {items_[1]}."); }
                         }
+                        else if (_placeholder.StartsWith("Length:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string cplace_ = _placeholder.Remove(0, 7);
+                            bool validlist = false;
+                            foreach (LocalList list in local_arrays)
+                            {
+                                if (list.Name == cplace_)
+                                {
+                                    Console.Write(list.numberOfElements.ToString());
+                                    validlist = true;
+                                    break;
+                                }
+                                if (validlist == false)
+                                {
+                                    Console.WriteLine($"Could not locate list: {cplace_}");
+                                }
+                            }
+                        }
                         else
                         {
                             Console.WriteLine("Expecting list name and item name separated by comma.");
                         }
                     }
+                    else if (_placeholder.StartsWith("Length:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string place_ = _placeholder.Remove(0, 7);
+                        bool validlist = false;
+                        foreach (LocalList list in local_arrays)
+                        {
+                            if (list.Name == place_)
+                            {
+                                Console.Write(list.numberOfElements.ToString());
+                                validlist = true;
+                                break;
+                            }
+                            if (validlist == false)
+                            {
+                                Console.WriteLine($"Could not locate list: {place_}");
+                            }
+                        }
+                    }
                 }
-                    if (capturedText.Equals("\\n", StringComparison.OrdinalIgnoreCase)) { Console.WriteLine(); }
+                // Then check for filesystem
+                if (capturedText.StartsWith("Filesystem:"))
+                {
+                    string placeholder_ = capturedText.Remove(0, 11);
+                    if (placeholder_.StartsWith("FileExists:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 11);
+                        bool exists = filesystem.DoesFileExist(_placeholder);
+                        if (exists == true)
+                        {
+                            Console.Write("True");
+                        }
+                        else if (exists == false)
+                        {
+                            Console.Write("False");
+                        }
+                    }
+                    if (placeholder_.StartsWith("DirExists:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 10);
+                        bool exists = filesystem.DoesDirectoryExist(_placeholder);
+                        if (exists == true)
+                        {
+                            Console.Write("True");
+                        }
+                        else if (exists == false)
+                        {
+                            Console.Write("False");
+                        }
+                    }
+                }
+
+                if (capturedText.Equals("\\n", StringComparison.OrdinalIgnoreCase)) { Console.WriteLine(); }
                 // Check for the foreground color
                 if (capturedText.StartsWith("Color:", StringComparison.OrdinalIgnoreCase))
                 {
