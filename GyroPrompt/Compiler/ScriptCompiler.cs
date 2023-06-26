@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Drawing;
 using System.Threading.Tasks;
+using System.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
@@ -12,109 +13,224 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Basic.Reference.Assemblies;
 using Microsoft.CodeAnalysis.Text;
 using System.ComponentModel;
+using System.IO.Compression;
+using System.IO;
 
 namespace GyroPrompt.Compiler
 {
     /// <summary>
-    /// lol so I for some reason decided like "Hey, I hate my life, might as well give GyroPrompt a compiler! What could possibly go wrong?!"
-    /// and the idea is simple in theory - just parse through the .gs script files and translate it into corresponding C# code, then use either Roslyn or CodeDom
-    /// to output a binary... right? Lol guess again retard. So this is here for the time being until I can get it up and working. 
-    /// 
-    /// Current snag: My IDE is only letting me use .Net 6.0, .NetStandard20, and .Net 4.7.2 even if I add the NuGet packages for like .Net50 or .Net70 (I'm sure this is a config thing)
-    /// .Net60 will not produce a working .exe file. It can produce a .dll that can be interpreted in a .NetCore runtime environment, but is totally incapable of outputting
-    /// a standalone .exe which is the problem because I am working in .Net 6.0
-    /// For example, the string testContents works and successfully outputs a working .exe, but the second I add 'Thread.Sleep(500);' within the for loop, I receive error:
-    /// System.Collections.Immutable.ImmutableArray`1[Microsoft.CodeAnalysis.Diagnostic]
-    /// .... which implies compatibility problems 
+    /// lmao so this is such a dingleberry way to do it, so we just take the C# solution for GyroPrompt, package it into a .zip, then extract that .zip folder
+    /// then using a handy dandy StringBuiler, we re-write the Main() in Program.cs to just run each line through the parser. Then we use 'dotnet' to publish 
+    /// it as a standalone .exe lol. Not technically its own 'compiler' I guess it's a way to convert a script file to an executable though. It works. Just need
+    /// to kind of modify a few things so the target machine doesn't require Dotnet being installed (via including a runtime and dependencies directory)
     /// </summary>
-
-    // Monitoring: https://github.com/ligershark/WebOptimizer/issues/172
-    // https://stackoverflow.com/questions/32769630/how-to-compile-a-c-sharp-file-with-roslyn-programmatically?rq=4
-    // https://github.com/dotnet/roslyn/issues/58540 of interest
-    // https://github.com/dotnet/roslyn/issues/61655 of interest
-    // https://stackoverflow.com/questions/41111826/emit-win32icon-with-roslyn maybe of interest idk?
 
     public class ScriptCompiler
     {
-        static string ReadEmbeddedTextFile(string resourceName)
+        public void Compile(string scriptpath)
         {
-            // We grab the CompilerSourceTemplate.txt contents and return it as a string
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-            using (StreamReader reader = new StreamReader(stream))
-            {
-                return reader.ReadToEnd();
-            }
-        }
 
-        public void Compile()
-        {
-            // We use the CompilerSourceTemplate.txt to hold our code in a more organized fashion NOTE: Not working with this finicky as fuck method
-            string resourceName = "GyroPrompt.Compiler.CompilerSourceTemplate.txt"; // This grabs the CompilerSourceTemplate.txt contents
-            string fileContents = ReadEmbeddedTextFile($"{resourceName}");
-            string testContents = @"        
-        using System;
-        using System.Drawing;
-        using System.Threading.Tasks;
-        using System.Collections.Generic;
-        using System.Linq;
-        namespace HelloWorldprogram
-        {
-        internal class Program
-        {
-            public static void Main()
+            List<string> Lines = System.IO.File.ReadAllLines(scriptpath).ToList<string>(); // Create a list of string so the file can be read line-by-line
+            FileInfo fileInfo = new FileInfo(scriptpath);
+            string appname = Path.GetFileNameWithoutExtension(fileInfo.Name);
+            StringBuilder allCommands = new StringBuilder();
+            int currentind = 0;
+            int last_ = Lines.Count - 1;
+            foreach (string line in Lines)
             {
-                Console.WriteLine(""Hello World!"");
-                for (int x = 0; x < 10; x++){
-                    Console.WriteLine(x);
+                allCommands.Append("\"" + line + "\"");
+                if (currentind < last_)
+                {
+                    allCommands.Append(", ");
                 }
-                Console.ReadLine();
-            }   
-        }
-        }";
 
-            string FileName = "output_program";
-            string ExePath = AppDomain.CurrentDomain.BaseDirectory + @"\" + FileName + ".exe";
-
-            // Add all relevant references
-            List<MetadataReference> References = new List<MetadataReference>();
-            foreach (var item in ReferenceAssemblies.NetStandard20) 
-                References.Add(item);
-
-            // Delete the file if it already exists
-            if (File.Exists(ExePath))
-                File.Delete(ExePath);
-
-            // Compiler options
-            CSharpCompilationOptions DefaultCompilationOptions =
-                new CSharpCompilationOptions(outputKind: OutputKind.ConsoleApplication, platform: Platform.AnyCpu)
-                .WithOverflowChecks(true).WithOptimizationLevel(OptimizationLevel.Release);
-
-            // Encode source code
-            string sourceCode = SourceText.From(testContents, Encoding.UTF8).ToString();
-
-            // CSharp options
-            var parsedSyntaxTree = Parse(sourceCode, "", CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp10));
-
-            // finally compile the .exe file
-            var compilation = CSharpCompilation.Create(FileName, new SyntaxTree[] { parsedSyntaxTree }, references: References, DefaultCompilationOptions);
-            var result = compilation.Emit(ExePath);
-            
-            if (result.Success)
-            {
-                Console.WriteLine("Compiled script.");
-            } else
-            {
-                Console.WriteLine(result.Diagnostics.ToString());
             }
+            allCommands.Append("};");
 
+            string resourceName = "GyroPrompt.Output.zip";
+            string outputDir = Environment.CurrentDirectory + "\\Output";
+            // Extract .zip folder
+            // Load the embedded resource
+            ManualResetEvent extractionCompleted = new ManualResetEvent(false);
 
-            static SyntaxTree Parse(string text, string filename = "", CSharpParseOptions options = null)
+            using (Stream resourceStream = typeof(ScriptCompiler).Assembly.GetManifestResourceStream(resourceName))
             {
-                var stringText = SourceText.From(text, Encoding.UTF8);
-                return SyntaxFactory.ParseSyntaxTree(stringText, options, filename);
+                if (resourceStream == null)
+                {
+                    Console.WriteLine("Embedded resource not found.");
+                    return;
+                }
+
+                // Create the output directory if it doesn't exist
+                if (!Directory.Exists(outputDir))
+                {
+                    DirectoryInfo directoryInfo = Directory.CreateDirectory(outputDir);
+                    directoryInfo.Attributes |= FileAttributes.Hidden;
+                }
+
+                // Copy the resource stream to a temporary file
+                string tempFilePath = Path.GetTempFileName();
+                using (FileStream tempFileStream = File.OpenWrite(tempFilePath))
+                {
+                    resourceStream.CopyTo(tempFileStream);
+                }
+
+                // Extract the contents of the ZIP folder
+                // Extract the contents of the ZIP folder in a separate thread
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    try
+                    {
+                        using (ZipArchive zipArchive = ZipFile.OpenRead(tempFilePath))
+                        {
+                            foreach (ZipArchiveEntry entry in zipArchive.Entries)
+                            {
+                                var extractedFileOrFolder = entry.FullName;
+                                // Combine the output directory with the entry's name to get the full path
+                                string outputPath = Path.Combine(outputDir, entry.FullName);
+                                try
+                                {
+                                    var destDirPath = Path.GetDirectoryName(outputPath);
+                                    Directory.CreateDirectory(destDirPath);
+                                    entry.ExtractToFile(outputPath, true);
+                                }
+                                catch (Exception ex)
+                                {
+
+                                }
+
+                            }
+                        }
+                        // Signal that the extraction is completed
+                        extractionCompleted.Set();
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+                    // Delete the temporary file
+                    File.Delete(tempFilePath); // temp files are like cheap hookers that you throw away once you're done
+                });
+            }
+            // Wait for the extraction to complete
+            extractionCompleted.WaitOne();
+
+            //Console.WriteLine("ZIP folder extracted successfully.");
+
+            bool fileExists = File.Exists(outputDir + "\\GyroPrompt\\GyroPrompt\\Program.cs");
+            if (fileExists == true)
+            {
+                // We're going to ragtag Frankenstein-hack some stuff here with a StringBuilder fingers crossed
+                StringBuilder mainclass = new StringBuilder();
+                mainclass.AppendLine(@"using Terminal.Gui;
+
+namespace GyroPrompt
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            // Initialize console
+            Parser parser = new Parser();
+            parser.setenvironment();
+            Console.Title = (""Application"");");
+
+                mainclass.AppendLine(@"            string[] commands = new string[] {" + allCommands);
+
+                mainclass.AppendLine(@"
+            foreach(string s in commands){
+            parser.parse(s);
+            parser.parse(""pause 1000"");
             }
         }
+    }
+}");
+
+
+                string projectFilePath = outputDir + "\\GyroPrompt\\GyroPrompt\\GyroPrompt.csproj";
+                File.WriteAllText(outputDir + "\\GyroPrompt\\GyroPrompt\\Program.cs", mainclass.ToString());
+                string outputDirectory = Environment.CurrentDirectory + "\\app";
+
+                try
+                {
+                    ExecuteDotnetPublish(projectFilePath, outputDirectory, appname, outputDir);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                }
+
+                static SyntaxTree Parse(string text, string filename = "", CSharpParseOptions options = null)
+                {
+                    var stringText = SourceText.From(text, Encoding.UTF8);
+                    return SyntaxFactory.ParseSyntaxTree(stringText, options, filename);
+                }
+
+
+                static void ExecuteDotnetPublish(string projectFilePath, string outputDirectory, string applicationname, string deleteThisDir)
+                {
+                    string dotnetExePath = GetDotnetExePath();
+
+                    if (dotnetExePath == null)
+                    {
+                        Console.WriteLine("dotnet executable not found.");
+                        return;
+                    }
+
+                    string arguments = $"publish \"{projectFilePath}\" --output \"{outputDirectory}\" -r win-x86 -p:PublishSingleFile=true --self-contained true -p:AssemblyName={applicationname} -p:TrimUnusedDependencies=true";
+
+                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    {
+                        FileName = dotnetExePath,
+                        Arguments = arguments,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false
+                    };
+
+                    using (Process process = Process.Start(startInfo))
+                    {
+                        string output = process.StandardOutput.ReadToEnd();
+                        process.WaitForExit();
+
+                        if (process.ExitCode == 0)
+                        {
+                            Console.WriteLine("Publish succeeded.");
+                            Directory.Delete(deleteThisDir, true);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Publish failed.");
+                            Console.WriteLine(output);
+                            Directory.Delete(deleteThisDir, true);
+                        }
+                    }
+
+                    static string GetDotnetExePath()
+                    {
+                        string dotnetSdkPath = "C:\\Program Files\\dotnet";
+
+                        if (string.IsNullOrEmpty(dotnetSdkPath))
+                        {
+                            return null;
+                        }
+
+                        string dotnetExePath = Path.Combine(dotnetSdkPath, "dotnet.exe");
+
+                        if (File.Exists(dotnetExePath))
+                        {
+                            return dotnetExePath;
+                        }
+                        return null;
+                    }
+
+                }
+            }
+            else
+            {
+                Console.WriteLine("Error loading script file.");
+            }
+        } 
 
     }
 }

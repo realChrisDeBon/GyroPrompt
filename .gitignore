@@ -362,3 +362,6 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /GyroPrompt/Compiler/ScriptCompiler.cs
+/GyroPrompt.sln
+/GyroPrompt/Output.zip
+/GyroPrompt/Output.zip

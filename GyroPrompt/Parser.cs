@@ -18,12 +18,20 @@ using GyroPrompt.Basic_Objects.Collections;
 using GyroPrompt.Setup;
 using GyroPrompt.Basic_Objects.GUIComponents;
 using Terminal.Gui;
+using GyroPrompt.Basic_Objects.Data_Management;
+using GyroPrompt.Basic_Functions.Object_Modifiers;
+using System.Diagnostics;
+using System.Security.Cryptography;
+
+public enum objectClass
+{
+    Variable,
+    EnvironmentalVariable,
+    List
+}
 
 namespace GyroPrompt
-
-
 {
-
     public class Parser
     {
         /// <summary>
@@ -36,11 +44,15 @@ namespace GyroPrompt
         public List<TaskList> tasklists_inuse = new List<TaskList>();
 
         public Calculate calculate = new Calculate();
+        public TimeDateHandler timedate_handler = new TimeDateHandler();
         public RandomizeInt randomizer = new RandomizeInt();
         public ConditionChecker condition_checker = new ConditionChecker();
         public FilesystemInterface filesystem = new FilesystemInterface();
+        public DataHasher datahasher = new DataHasher();
+        public DataSerializer dataserializer = new DataSerializer();
+
         
-        public IDictionary<string, bool> namesInUse = new Dictionary<string, bool>();
+        public IDictionary<string, objectClass> namesInUse = new Dictionary<string, objectClass>();
         public bool running_script = false; // Used for determining if a script is being ran
         public int current_line = 0; // Used for reading scripts
         ScriptCompiler compiler = new ScriptCompiler(); // UNDER CONSTRUCTION!
@@ -173,7 +185,7 @@ namespace GyroPrompt
             
             foreach (string envvar_name in environmentalVars.Keys)
             {
-                namesInUse.Add(envvar_name, true); // All encompassing name reserve system
+                namesInUse.Add(envvar_name, objectClass.EnvironmentalVariable); // All encompassing name reserve system
             }
 
             condition_checker.LoadOperations(); // Load enum types for operators
@@ -221,6 +233,11 @@ namespace GyroPrompt
 
                 string[] split_input = input.Split(' ');
 
+                // Detect comment declaration
+                if ((split_input[0].Equals("#", StringComparison.OrdinalIgnoreCase)) || (split_input[0].StartsWith("#", StringComparison.OrdinalIgnoreCase)))
+                {
+                    // Hashtags are treated like comments
+                }
                 // Detect a print statement
                 if (split_input[0].Equals("print", StringComparison.OrdinalIgnoreCase))
                 {
@@ -291,7 +308,7 @@ namespace GyroPrompt
                                 if (aa.Equals("True", StringComparison.OrdinalIgnoreCase) || aa == "1") { new_bool.bool_val = true; }
                                 new_bool.Type = VariableType.Boolean;
                                 local_variables.Add(new_bool);
-                                namesInUse.Add(split_input[1], true);
+                                namesInUse.Add(split_input[1], objectClass.Variable);
                             }
                         }
                         else
@@ -339,7 +356,7 @@ namespace GyroPrompt
                                 new_int.int_value = Int32.Parse(a_);
                                 new_int.Type = VariableType.Int;
                                 local_variables.Add(new_int);
-                                namesInUse.Add(split_input[1], true);
+                                namesInUse.Add(split_input[1], objectClass.Variable);
                             }
                         }
                         else
@@ -391,6 +408,7 @@ namespace GyroPrompt
                                 new_string.Value = a;
                                 new_string.Type = VariableType.String;
                                 local_variables.Add(new_string);
+                                namesInUse.Add(new_string.Name, objectClass.Variable);
                             }
                         }
                         else
@@ -443,6 +461,7 @@ namespace GyroPrompt
                                 new_float.float_value = float.Parse(split_input[3], CultureInfo.InvariantCulture.NumberFormat);
                                 new_float.Type = VariableType.Float;
                                 local_variables.Add(new_float);
+                                namesInUse.Add(new_float.Name, objectClass.Variable);
                             }
                         }
                         else
@@ -452,18 +471,1017 @@ namespace GyroPrompt
                         }
                     }
                 }
+                // Modify variable values
+                if (split_input[0].Equals("set", StringComparison.OrdinalIgnoreCase))
+                {
+                    string var_name = split_input[1];
+                    bool name_found = false;
+                    if (split_input.Length >= 3)
+                    {
+                        foreach (LocalVariable var in local_variables)
+                        {
+                            if (var.Name == var_name)
+                            {
+                                name_found = true;
+                                if (split_input[2] == "=")
+                                {
+                                    string a = "";
+                                    if (split_input.Length > 3)
+                                    {
+                                        // Recombine the string if necessary
+
+                                        foreach (string s in split_input.Skip(3))
+                                        {
+                                            a += s + " ";
+                                        }
+                                    }
+                                    switch (var.Type)
+                                    {
+                                        case VariableType.String:
+                                            var.Value = SetVariableValue(a);
+                                            break;
+                                        case VariableType.Int:
+                                            string placeholder = SetVariableValue(a);
+                                            string b = ConvertNumericalVariable(placeholder).Trim();
+                                            bool isnumber = IsNumeric(b);
+                                            if (isnumber == true)
+                                            {
+                                                var.Value = b;
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"Output is not valid integer: {b}");
+                                            }
+                                            break;
+                                        case VariableType.Float:
+                                            string placeholder2 = SetVariableValue(a);
+                                            string b_ = ConvertNumericalVariable(placeholder2).Trim();
+                                            bool isfloat = float.TryParse(b_, NumberStyles.Float, CultureInfo.InvariantCulture.NumberFormat, out float result);
+                                            if (isfloat == true)
+                                            {
+                                                var.Value = b_;
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"Output is not valid float: {b_}");
+                                            }
+                                            break;
+                                        case VariableType.Boolean:
+                                            string[] acceptableValue = { "true", "false", "1", "0" };
+                                            bool validInput = false;
+                                            foreach (string s in acceptableValue)
+                                            {
+                                                if (split_input[3].Equals(s, StringComparison.OrdinalIgnoreCase) == true)
+                                                {
+                                                    if ((s == "true") || (s == "1"))
+                                                    {
+                                                        validInput = true;
+                                                        var.Value = "True";
+                                                        break;
+                                                    }
+                                                    else if ((s == "0") || (s == "false"))
+                                                    {
+                                                        validInput = true;
+                                                        var.Value = "False";
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            if (validInput == false)
+                                            {
+                                                Console.WriteLine($"Output is not valid boolean: {split_input[3]}");
+                                            }
+                                            break;
+
+                                    }
+
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Invalid formatting to set variable value.");
+                                }
+                            }
+                        }
+                        if (name_found == false)
+                        {
+                            Console.WriteLine($"Could not locate variable {var_name}.");
+                        }
+                    }
+                }
+                if (split_input[0].Equals("toggle", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 2)
+                    {
+                        string var_name = split_input[1];
+                        bool valid_var = LocalVariableExists(var_name);
+
+                        if (valid_var == true)
+                        {
+                            foreach (LocalVariable local_var in local_variables)
+                            {
+                                if ((local_var.Name == var_name) && (local_var.Type == VariableType.Boolean))
+                                {
+                                    if (local_var.Value == "False") { local_var.Value = "True"; } else if (local_var.Value == "True") { local_var.Value = "False"; } // Switch the values
+                                }
+                                else if ((local_var.Name == var_name) && (local_var.Type != VariableType.Boolean))
+                                {
+                                    Console.WriteLine($"{local_var.Name} is not a boolean value.");
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {var_name}.");
+                        }
+                    }
+                }
+                if (split_input[0].Equals("int+", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 2)
+                    {
+                        string var_name = split_input[1];
+                        bool var_exists = LocalVariableExists(var_name);
+                        if (var_exists == true)
+                        {
+                            foreach (LocalVariable localVar in local_variables)
+                            {
+                                if ((localVar.Name == var_name) && (localVar.Type == VariableType.Int))
+                                {
+                                    int a = Int32.Parse(localVar.Value);
+                                    a++; // increment it by 1
+                                    localVar.Value = a.ToString();
+                                }
+                                else if ((localVar.Name == var_name) && (localVar.Type != VariableType.Int))
+                                {
+                                    Console.WriteLine($"{localVar.Name} is not an integer value.");
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {var_name}.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("int+ can only take 1 value.");
+                    }
+                }
+                if (split_input[0].Equals("int-", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 2)
+                    {
+                        string var_name = split_input[1];
+                        bool var_exists = LocalVariableExists(var_name);
+                        if (var_exists == true)
+                        {
+                            foreach (LocalVariable localVar in local_variables)
+                            {
+                                if ((localVar.Name == var_name) && (localVar.Type == VariableType.Int))
+                                {
+                                    int a = Int32.Parse(localVar.Value);
+                                    a--; // decrease it by 1
+                                    localVar.Value = a.ToString();
+                                }
+                                else if ((localVar.Name == var_name) && (localVar.Type != VariableType.Int))
+                                {
+                                    Console.WriteLine($"{localVar.Name} is not an integer value.");
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {var_name}.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("int- can only take 1 value.");
+                    }
+                }
+                // Detect environmental variable modification
+                if (split_input[0].Equals("environment", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length > 3 && split_input.Length < 6)
+                    {
+                        if (split_input[1].Equals("set", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (split_input.Length == 4)
+                            {
+                                string var_name = split_input[2].ToLower();
+                                switch (var_name)
+                                {
+                                    case "windowheight":
+                                        string _num = SetVariableValue(split_input[3].Trim());
+                                        bool _valid = IsNumeric(_num);
+                                        if (_valid == true)
+                                        {
+                                            WindowHeight_ = (Int32.Parse(_num));
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Invalid input: {_num}");
+                                        }
+                                        break;
+                                    case "windowwidth":
+                                        string _num1 = SetVariableValue(split_input[3].Trim());
+                                        bool _valid1 = IsNumeric(_num1);
+                                        if (_valid1 == true)
+                                        {
+                                            WindowWidth_ = (Int32.Parse(_num1));
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Invalid input: {_num1}");
+                                        }
+                                        break;
+                                    case "cursorx":
+                                        string _num2 = SetVariableValue(split_input[3].Trim());
+                                        bool _valid2 = IsNumeric(_num2);
+                                        if (_valid2 == true)
+                                        {
+                                            try
+                                            {
+                                                CursorX_ = (Int32.Parse(_num2));
+                                            }
+                                            catch (ArgumentOutOfRangeException ex)
+                                            {
+                                                Console.WriteLine("Cursor out of bounds.");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Invalid input: {_num2}");
+                                        }
+                                        break;
+                                    case "cursory":
+                                        string _num3 = SetVariableValue(split_input[3].Trim());
+                                        bool _valid3 = IsNumeric(_num3);
+                                        if (_valid3 == true)
+                                        {
+                                            try
+                                            {
+                                                CursorY_ = (Int32.Parse(_num3));
+                                            }
+                                            catch (ArgumentOutOfRangeException ex)
+                                            {
+                                                Console.WriteLine("Cursor out of bounds.");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Invalid input: {_num3}");
+                                        }
+                                        break;
+                                    case "backcolor":
+                                        if (keyConsoleColor.ContainsKey(split_input[3]))
+                                        {
+                                            ConsoleColor color = keyConsoleColor[split_input[3]];
+                                            backColor_ = color;
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Color not found: {split_input[3]}");
+                                        }
+                                        break;
+                                    case "forecolor":
+                                        if (keyConsoleColor.ContainsKey(split_input[3]))
+                                        {
+                                            ConsoleColor color = keyConsoleColor[split_input[3]];
+                                            foreColor_ = color;
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Color not found: {split_input[3]}");
+                                        }
+                                        break;
+                                    case "scriptdelay":
+                                        string _num4 = SetVariableValue(split_input[3]);
+                                        bool _valid4 = IsNumeric(_num4);
+                                        if (_valid4 == true)
+                                        {
+                                            try
+                                            {
+                                                ScriptDelay = (Int32.Parse(_num4));
+                                            }
+                                            catch (ArgumentOutOfRangeException ex)
+                                            {
+                                                Console.WriteLine("Error passing value.");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Invalid input: {_num4}");
+                                        }
+                                        break;
+                                    case "title":
+                                        string a_ = SetVariableValue(split_input[3]);
+                                        Console.Title = (a_);
+                                        break;
+                                    default:
+                                        Console.WriteLine($"{var_name} is invalid environmental variable.");
+                                        break;
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("Invalid format.");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format to modify environment.");
+                    }
+                }
+                if (split_input[0].Equals("pause", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 2)
+                    {
+                        string a_ = ConvertNumericalVariable(split_input[1]);
+                        bool valid = IsNumeric(a_);
+                        int b_ = Int32.Parse(split_input[1]);
+                        if (valid)
+                        {
+                            Thread.Sleep(b_);
+
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Invalid input: {a_}.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format to pause.");
+                    }
+                }
+                ///<summary>
+                /// Conditional statements and loops that will allow for the execution of code
+                /// if a specific condition is true or false, or until a specific condition
+                /// becomes true or false.
+                /// 
+                /// Example for If:
+                /// If variable = [variable2] then println correct|set variable = 0 else println incorrect|set variable = [variable2]
+                /// If variable's value = variable2's value, then the commands 'println correct' and 'set variable = 0' execute, otherwise 'println incorrect' and 'set variable = [variable2]' will execute
+                /// Multiple commands can be ran when separated by a | pipe
+                /// 
+                /// Example for While:
+                /// While variable1 < [variable2] do pause 500|set variable1 = [Calculate:{variable1}+1]|println Var1:[variable1] Var2:[variable2]
+                /// Assuming both variable1 and variable2 are integers, var1 = 0 and var2 = 5, the above code would pause for 500 miliseconds, increment var1 by 1, then print
+                /// both variables side-by-side 5 times until variable1 is no longer < to [variable2]
+                /// 
+                /// The 'do' statement is to 'while' what the 'then' statement is to 'if'
+                /// </summary>
+                if (split_input[0].Equals("if", StringComparison.OrdinalIgnoreCase))
+                {
+                    string first_value = split_input[1];
+                    bool first_value_exists = LocalVariableExists(first_value);
+                    if (first_value_exists == true)
+                    {
+                        OperatorTypes operator_ = new OperatorTypes();
+                        string operator_type = split_input[2];
+                        if (condition_checker.operationsDictionary.ContainsKey(operator_type))
+                        {
+                            operator_ = condition_checker.operationsDictionary[operator_type];
+                            string condition_ = ""; // we're going to recompile each string until we hit a 'Then' statement
+                            string proceeding_commands = "";
+                            bool then_exists = false;
+                            int x = 3; // This will mark when we switch from the condition to the proceeding commands
+                            foreach (string b in split_input.Skip(3))
+                            {
+                                if (b.Equals("then", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    x++;
+                                    then_exists = true;
+                                    break;
+                                }
+                                else
+                                {
+                                    condition_ += b + " ";
+                                    x++;
+                                }
+                            }
+                            bool else_statement_exists = false;
+                            string else_statement_commands = "";
+                            foreach (string c in split_input.Skip(x))
+                            {
+                                if (c.Equals("else", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    else_statement_exists = true; // toggle existence of else statement
+                                }
+                                else
+                                {
+                                    if (else_statement_exists == false)
+                                    {
+                                        proceeding_commands += c + " "; // this will amend what executes under 'then'
+                                    }
+                                    else
+                                    {
+                                        else_statement_commands += c + " "; // this will amend what executes under 'else'
+                                    }
+
+                                }
+                            }
+                            //DEBUG: Console.WriteLine($"Debug: {proceeding_commands}");
+                            string conditon_checkvariables = SetVariableValue(condition_).Trim();
+                            //DEBUG: Console.WriteLine($"Debug: {conditon_checkvariables}");
+                            string var_val = GrabVariableValue(first_value);
+                            //DEBUG: Console.WriteLine($"Going to check if '{var_val}' is {operator_.ToString()} to '{conditon_checkvariables}'");
+                            bool condition_is_met = false;
+                            if (then_exists == true)
+                            {
+                                if ((operator_ == OperatorTypes.EqualTo) || (operator_ == OperatorTypes.NotEqualTo))
+                                {
+                                    // We check to see if value 'a' and value 'b' are either equal to or not equal to each other
+                                    condition_is_met = condition_checker.ConditionChecked(operator_, var_val, conditon_checkvariables);
+                                }
+                                else
+                                {
+                                    // We must ensure var_cal and condition_checkvariables are numerical
+                                    bool a_ = IsNumeric(var_val);
+                                    bool b_ = IsNumeric(conditon_checkvariables);
+                                    if ((a_ == true) && (b_ == true))
+                                    {
+                                        // Since both are numerical, we can use an operator that compares their value by greater/less than
+                                        condition_is_met = condition_checker.ConditionChecked(operator_, var_val.Trim(), conditon_checkvariables.Trim());
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"Can only use numerical values for operator: {operator_type}");
+                                    }
+                                }
+                                if (condition_is_met == true)
+                                {
+                                    // Each command is seperated by the vertical pipe | allowing for multiple commands to execute
+                                    string[] commands_to_execute = proceeding_commands.Split('|');
+                                    try
+                                    {
+                                        foreach (string command in commands_to_execute)
+                                        {
+                                            try
+                                            {
+                                                parse(command.TrimEnd());
+                                            }
+                                            catch
+                                            {
+                                                //Error with specific command
+                                                Console.WriteLine($"Error running command {command}.");
+                                            }
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        // General error
+                                        Console.WriteLine("There was an error processing list of commands.");
+                                    }
+                                }
+                                else if ((condition_is_met == false) && (else_statement_exists == true))
+                                {
+                                    // Condition was false, so we execute the 'else' statement
+                                    string[] else_commands_to_execute = else_statement_commands.Split('|');
+                                    try
+                                    {
+                                        foreach (string command in else_commands_to_execute)
+                                        {
+                                            try
+                                            {
+                                                parse(command.TrimEnd());
+                                            }
+                                            catch
+                                            {
+                                                Console.WriteLine($"Error running command {command}.");
+                                            }
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        Console.WriteLine("There was an error processing list of commands.");
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"If statements must include 'then'.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"{operator_type} is not a valid operator.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{first_value} does not exist.");
+                    }
+                }
+                if (split_input[0].Equals("while", StringComparison.OrdinalIgnoreCase))
+                {
+                    string first_value = split_input[1];
+                    bool first_value_exists = LocalVariableExists(first_value);
+                    if (first_value_exists == true)
+                    {
+                        OperatorTypes operator_ = new OperatorTypes();
+                        string operator_type = split_input[2];
+                        if (condition_checker.operationsDictionary.ContainsKey(operator_type))
+                        {
+                            operator_ = condition_checker.operationsDictionary[operator_type];
+                            string condition_ = ""; // we're going to recompile each string until we hit a 'Do' statement
+                            string proceeding_commands = "";
+                            bool do_exists = false;
+                            int x = 3; // This will mark when we switch from the condition to the proceeding commands
+                            foreach (string b in split_input.Skip(3))
+                            {
+                                if (b.Equals("do", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    x++;
+                                    do_exists = true;
+                                    break;
+                                }
+                                else
+                                {
+                                    condition_ += b + " ";
+                                    x++;
+                                }
+                            }
+
+                            foreach (string c in split_input.Skip(x))
+                            {
+                                proceeding_commands += c + " "; // this will amend what executes under 'Do'
+                            }
+                            //DEBUG: Console.WriteLine($"Debug: {proceeding_commands}");
+                            string conditon_checkvariables = SetVariableValue(condition_).Trim();
+                            //DEBUG: Console.WriteLine($"Debug: {conditon_checkvariables}");
+                            string var_val = GrabVariableValue(first_value);
+                            //DEBUG: Console.WriteLine($"Going to check if '{var_val}' is {operator_.ToString()} to '{conditon_checkvariables}'");
+                            //DEBUG: Thread.Sleep(2000);
+                            bool condition_is_met = false; // We assume true for the while statement
+                            if (do_exists == true)
+                            {
+                                if ((operator_ == OperatorTypes.EqualTo) || (operator_ == OperatorTypes.NotEqualTo))
+                                {
+                                    // We check to see if value 'a' and value 'b' are either equal to or not equal to each other
+                                    // Since both are numerical, we can use an operator that compares their value by greater/less than
+                                    condition_is_met = condition_checker.ConditionChecked(operator_, var_val.Trim(), conditon_checkvariables.Trim());
+                                    if (condition_is_met == true)
+                                    {
+                                        bool keep_running = true;
+                                        while (keep_running)
+                                        {
+                                            string updated_var1 = GrabVariableValue(first_value); // We need to update the variable
+                                            string updated_var2 = SetVariableValue(condition_).Trim(); // We need to update the variable
+                                            bool condition_check = condition_checker.ConditionChecked(operator_, updated_var1, updated_var2);
+                                            if (condition_check == false) { keep_running = false; break; } // Redundancy never hurt anyone
+                                            else
+                                            {
+                                                string[] commands_to_execute = proceeding_commands.Split("|");
+                                                try
+                                                {
+                                                    foreach (string command in commands_to_execute)
+                                                    {
+                                                        try
+                                                        {
+                                                            parse(command.TrimEnd());
+                                                        }
+                                                        catch
+                                                        {
+                                                            //Error with specific command, exiting 'while' loop
+                                                            Console.WriteLine($"Error running command {command}.");
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                catch
+                                                {
+                                                    // General error, exiting 'while' loop
+                                                    Console.WriteLine("There was an error processing list of commands.");
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                }
+                                else
+                                {
+                                    // We must ensure var_cal and condition_checkvariables are numerical
+                                    bool a_ = IsNumeric(var_val);
+                                    bool b_ = IsNumeric(conditon_checkvariables);
+                                    if ((a_ == true) && (b_ == true))
+                                    {
+                                        condition_is_met = condition_checker.ConditionChecked(operator_, var_val, conditon_checkvariables);
+                                        if (condition_is_met == true)
+                                        {
+                                            bool keep_running = true;
+                                            while (keep_running)
+                                            {
+                                                string updated_var1 = GrabVariableValue(first_value); // We need to update the variable
+                                                string updated_var2 = SetVariableValue(condition_).Trim(); // We need to update the variable
+                                                bool condition_check = condition_checker.ConditionChecked(operator_, updated_var1, updated_var2);
+                                                if (condition_check == false) { keep_running = false; break; } // Redundancy is never a bad thing
+                                                else
+                                                {
+                                                    string[] commands_to_execute = proceeding_commands.Split('|');
+                                                    try
+                                                    {
+                                                        foreach (string command in commands_to_execute)
+                                                        {
+                                                            try
+                                                            {
+                                                                parse(command.TrimEnd());
+                                                            }
+                                                            catch
+                                                            {
+                                                                //Error with specific command, exiting 'while' loop
+                                                                Console.WriteLine($"Error running command {command}.");
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    catch
+                                                    {
+                                                        // General error, exiting 'while' loop
+                                                        Console.WriteLine("There was an error processing list of commands.");
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"Can only use numerical values for operator: {operator_type}");
+                                    }
+                                }
+
+
+                            }
+                            else
+                            {
+                                Console.WriteLine($"While statements must include 'do'.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"{operator_type} is not a valid operator.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{first_value} does not exist.");
+                    }
+                }
+                ///<summary>
+                /// Script specific commands that will only execute if running_script = true
+                /// These commands only have an impact on the flow of a script file and not on
+                /// code that is executed from the prompt manually.
+                /// </summary>
+                if (split_input[0].Equals("goto", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (running_script == true)
+                    {
+                        if (split_input.Length == 2)
+                        {
+                            bool valid = IsNumeric(split_input[1]);
+                            if (valid)
+                            {
+                                int a = Int32.Parse(split_input[1]);
+                                current_line = a;
+                            }
+                        }
+                        else { Console.WriteLine("Invalid format for line number."); }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Can only goto line number when running a script.");
+                    }
+                }
+                // Grab user input
+                if (split_input[0].Equals("readline", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length >= 3)
+                    {
+                        string var_ = split_input[1];
+                        string prompt_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
+                        bool validvar_ = LocalVariableExists(var_);
+                        if (validvar_ == true)
+                        {
+                            foreach (LocalVariable var in local_variables)
+                            {
+                                if (var.Name == var_)
+                                {
+                                    if (var.Type == VariableType.String)
+                                    {
+                                        Console.Write(prompt_);
+                                        string a_ = Console.ReadLine();
+                                        var.Value = a_;
+
+                                    } else
+                                    {
+                                        Console.WriteLine($"{var_} is not a string.");
+                                        break;
+                                    }
+
+                                }
+                            }
+                        } else
+                        {
+                            Console.WriteLine($"Could not locate variable {var_}");
+                        }
+                    } else
+                    {
+                        Console.WriteLine("Invalid format for readline.");
+                    }
+                }
+                if (split_input[0].Equals("readkey", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length >= 3)
+                    {
+                        string var_ = split_input[1];
+                        string prompt_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
+                        bool validvar_ = LocalVariableExists(var_);
+                        if (validvar_ == true)
+                        {
+                            foreach (LocalVariable var in local_variables)
+                            {
+                                if (var.Name == var_)
+                                {
+                                    if (var.Type == VariableType.String)
+                                    {
+                                        Console.Write(prompt_);
+                                        ConsoleKeyInfo ck = Console.ReadKey();
+                                        string a_ = ck.KeyChar.ToString();
+                                        var.Value = a_;
+
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"{var_} is not a string.");
+                                        break;
+                                    }
+
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {var_}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format for readline.");
+                    }
+                }
+                if (split_input[0].Equals("readint", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length >= 3)
+                    {
+                        string var_ = split_input[1];
+
+                        string[] prompt_ = new string[2];
+                        int separatorIndex = Array.IndexOf(split_input, "|");
+
+                        if (separatorIndex >= 0)
+                        {
+                            prompt_[0] = string.Join(" ", split_input.Skip(2).Take(separatorIndex - 2));
+                            prompt_[1] = string.Join(" ", split_input.Skip(separatorIndex + 1));
+                        }
+                        else
+                        {
+                            prompt_[0] = string.Join(" ", split_input.Skip(2));
+                        }
+
+
+                        bool validvar_ = LocalVariableExists(var_);
+                        if (validvar_ == true)
+                        {
+                            foreach (LocalVariable var in local_variables)
+                            {
+                                if (var.Name == var_)
+                                {
+                                    if ((var.Type == VariableType.Int) || (var.Type == VariableType.Float))
+                                    {
+                                        bool validUserInput = false;
+                                        while (validUserInput == false)
+                                        {
+                                            Console.Write(prompt_[0]);
+                                            string a = Console.ReadLine();
+                                            bool ok = IsNumeric(a);
+                                            if (ok == true)
+                                            {
+                                                validUserInput = true;
+                                                var.Value = a;
+                                                break;
+                                            } else if (ok == false)
+                                            {
+                                                Console.WriteLine(prompt_[1]);
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"{var_} is not a string.");
+                                        break;
+                                    }
+
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {var_}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format for readline.");
+                    }
+                }
+                // Check for hash or serialize
+                if (split_input[0].Equals("hash256", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length >= 3)
+                    {
+                        string inputVar = split_input[1];
+                        bool isValidVar = LocalVariableExists(inputVar);
+                        if (isValidVar == true)
+                        {
+                            string prompt = SetVariableValue(string.Join(" ", split_input.Skip(2)));
+                            string hashedprompt = datahasher.CalculateHash(prompt);
+                            foreach (LocalVariable variable in local_variables)
+                            {
+                                if (variable.Name == inputVar)
+                                {
+                                    if (variable.Type == VariableType.String)
+                                    {
+                                        variable.Value = hashedprompt;
+                                    } else
+                                    {
+                                        Console.WriteLine("Variable must be string.");
+                                    }
+                                }
+                            }
+                        } else
+                        {
+                            Console.WriteLine($"Could not locate variable {inputVar}");
+                        }
+
+                    } else
+                    {
+                        Console.WriteLine("Invalid format to hash.");
+                    }
+                }
+                if (split_input[0].Equals("json_serialize", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 3)
+                    {
+                        string inputVar = split_input[1];
+                        string objToSerialize = split_input[2];
+                        bool isValidVar = LocalVariableExists(inputVar);
+                        bool isValidObj = NameInUse(objToSerialize);
+
+                        if (isValidVar == true)
+                        {
+                            if (isValidObj == true)
+                            {
+                                string serializedprompt = "";
+                                switch (namesInUse[objToSerialize])
+                                {
+                                    case (objectClass.Variable):
+                                        foreach (LocalVariable variable in local_variables)
+                                        {
+                                            if (variable.Name == objToSerialize)
+                                            {
+                                                serializedprompt += dataserializer.serializeInput(variable);
+                                            }
+                                        }
+                                        break;
+                                    case (objectClass.List):
+                                        foreach (LocalList list in local_arrays)
+                                        {
+                                            if (list.Name == objToSerialize)
+                                            {
+                                                serializedprompt += dataserializer.serializeInput(list);
+                                            }
+                                        }
+                                        break;
+                                }
+
+                                foreach (LocalVariable variable in local_variables)
+                                {
+                                    if (variable.Name == inputVar)
+                                    {
+                                        if (variable.Type == VariableType.String)
+                                        {
+                                            variable.Value = serializedprompt;
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine("Variable must be string.");
+                                        }
+                                    }
+                                }
+                            } else
+                            {
+                                Console.WriteLine($"Could not locate object {objToSerialize}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {inputVar}");
+                        }
+
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format to serialize.");
+                    }
+                }
+                if (split_input[0].Equals("json_deserialize", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 3)
+                    {
+                        string inputVar = split_input[1];
+                        string objToSerialize = split_input[2];
+                        bool isValidVar = LocalVariableExists(inputVar);
+                        bool isValidObj = NameInUse(objToSerialize);
+
+                        if (isValidVar == true)
+                        {
+                            if (isValidObj == true)
+                            {
+                                string serializedprompt = "";
+                                switch (namesInUse[objToSerialize])
+                                {
+                                    case (objectClass.Variable):
+                                        foreach (LocalVariable variable in local_variables)
+                                        {
+                                            if (variable.Name == objToSerialize)
+                                            {
+                                                serializedprompt += dataserializer.serializeInput(variable);
+                                            }
+                                        }
+                                        break;
+                                    case (objectClass.List):
+                                        foreach (LocalList list in local_arrays)
+                                        {
+                                            if (list.Name == objToSerialize)
+                                            {
+                                                serializedprompt += dataserializer.serializeInput(list);
+                                            }
+                                        }
+                                        break;
+                                }
+
+                                foreach (LocalVariable variable in local_variables)
+                                {
+                                    if (variable.Name == inputVar)
+                                    {
+                                        if (variable.Type == VariableType.String)
+                                        {
+                                            variable.Value = serializedprompt;
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine("Variable must be string.");
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Could not locate object {objToSerialize}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {inputVar}");
+                        }
+
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format to serialize.");
+                    }
+                }
+
                 ///<summary>
                 /// GUI items can transform the application into a more robust Terminal User Interface. GUI items will only
                 /// display when top level bool GUIModeOn is set to true. 
                 /// 
                 /// Brief synopsis of syntax so far (may change)
-                /// gui_mode on/gui_mode off/gui_mode reset                       <- toggle GUIModeEnabled bool
-                /// new_gui_item button name tasklist x y width height          <- creates button named 'name' (name also becomes default text) which will execute tasklist when pressed, positioned at x, y with width, height
-                /// new_gui_item textfield name x y bool                       <- creates textfield named 'name', positioned at x,y and the bool determines if textfield is readonly
-                /// gui_item_setwidth name fillvalue number                   <- sets width of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes width value), Fill (number ignored, object will auto fill)
-                /// gui_item_setheight name fillvalue number                 <- sets height of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes height value), Fill (number ignored, object will auto fill)
-                /// gui_item_gettext name variable                          <- sets value of 'variable' to object 'name' text
-                /// gui_item_settext name value[...]                       <- sets text of object 'name' to value (reads like a string)
+                /// gui_mode on/gui_mode off/gui_mode reset                        <- toggle GUIModeEnabled bool
+                /// new_gui_item button name tasklist x y width height            <- creates button named 'name' (name also becomes default text) which will execute tasklist when pressed, positioned at x, y with width, height
+                /// new_gui_item textfield name x y width height bool text bool  <- creates textfield named 'name', positioned at x,y width and height, bool multiline, text, bool readonly
+                /// gui_item_setwidth name fillvalue number                     <- sets width of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes width value), Fill (number ignored, object will auto fill)
+                /// gui_item_setheight name fillvalue number                   <- sets height of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes height value), Fill (number ignored, object will auto fill)
+                /// gui_item_gettext name variable                            <- sets value of 'variable' to object 'name' text
+                /// gui_item_settext name value[...]                         <- sets text of object 'name' to value (reads like a string)
                 /// </summary>
                 if (split_input[0].Equals("gui_mode", StringComparison.OrdinalIgnoreCase))
                 {
@@ -509,151 +1527,320 @@ namespace GyroPrompt
                         // new_gui_item button Buttontext Tasklist x y width height
                         // This will create a new GUI button named 'Buttontext', when clicked will execute the tasklist 'Tasklist' by name
                         // The button's x y coordinates and width height are taken as the last 4 parameters (all integers)
-                        if (split_input.Length == 8)
+
+                        if (split_input.Length >= 4)
                         {
-                            bool validInputs = true;
-                            string tempStr = "";
-                            foreach (string s in split_input.Skip(2))
+                            //new_gui_item Button name Taslklist
+                            bool nameinuse = GUIObjectsInUse.ContainsKey(split_input[1]);
+                            string btnName = split_input[2];
+                            string assignedTask = split_input[3];
+                            bool validTask = false;
+                            if (nameinuse == false)
                             {
-                                bool temp_ = ContainsOnlyLettersAndNumbers(s);
-                                if (temp_ == false)
+                                foreach (TaskList tsklist in tasklists_inuse)
                                 {
-                                    validInputs = false; tempStr = s; break;
-                                }
-                            }
-                            if (validInputs == true)
-                            {
-                                if (!GUIObjectsInUse.ContainsKey(split_input[2]))
-                                {
-                                    bool numericProperties = true; // x, y, width, height
-                                                                   // Quick check to make sure last 4 parameters are numeric (x, y, width, height)
-                                    foreach (string s in split_input.Skip(4))
+                                    if (tsklist.taskName == assignedTask)
                                     {
-                                        bool temp_ = IsNumeric(s);
-                                        if (temp_ == false) { numericProperties = false; tempStr = s; break; }
-                                    }
-                                    if (numericProperties == true)
-                                    {
-                                        int xx = Int32.Parse(split_input[4]);
-                                        int yy = Int32.Parse(split_input[5]);
-                                        int wid = Int32.Parse(split_input[6]);
-                                        int hei = Int32.Parse(split_input[7]);
-                                        // Now we check if the tasklist exists
-                                        string taskListName = split_input[3];
-                                        foreach (TaskList tasklist in tasklists_inuse)
+                                        int x = 0;
+                                        int y = 0;
+                                        int wid = 4;
+                                        int hei = 2;
+                                        string text = "Button";
+                                        validTask = true;
+                                        bool extracting = false;
+                                        foreach(string s in split_input.Skip(4))
                                         {
-                                            if (tasklist.taskName == taskListName)
+                                            if (extracting == true)
                                             {
-                                                GUI_Button newbutton = new GUI_Button(split_input[2], tasklist, xx, yy, wid, hei);
-                                                consoleDirector.GUIButtonsToAdd.Add(newbutton);
-                                                GUIObjectsInUse.Add(newbutton.GUIObjName, newbutton);
+                                                string q = SetVariableValue(s);
+                                                foreach (char  c in q)
+                                                {
+                                                    if (c != '|')
+                                                    {
+                                                        text += c;
+                                                    } else
+                                                    {
+                                                        extracting = false;
+                                                    }
+                                                }
+                                                text += " ";
+                                            }
+                                            else
+                                            {
+                                                if (s.StartsWith("XY:", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    string _placeholder = s.Remove(0, 3);
+                                                    string a = ConvertNumericalVariable(_placeholder);
+                                                    string[] b = a.Split(',');
+                                                    if (b.Length == 2)
+                                                    {
+                                                        bool validx = IsNumeric(b[0]);
+                                                        bool validy = IsNumeric(b[1]);
+                                                        if (validx == true)
+                                                        {
+                                                            if (validy == true)
+                                                            {
+                                                                x = Int32.Parse(b[0]);
+                                                                y = Int32.Parse(b[1]);
+                                                            }
+                                                            else
+                                                            {
+                                                                Console.WriteLine($"Invalid value for Y: {b[1]}");
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            Console.WriteLine($"Invalid value for X: {b[0]}");
+                                                        }
+
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine("Expecting X coordinate and Y coordinate separated by comma.");
+                                                    }
+                                                }
+                                                if (s.StartsWith("HW:", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    string _placeholder = s.Remove(0, 3);
+                                                    string a = ConvertNumericalVariable(_placeholder);
+                                                    string[] b = a.Split(',');
+                                                    if (b.Length == 2)
+                                                    {
+                                                        bool validh
+                                                            = IsNumeric(b[0]);
+                                                        bool validw = IsNumeric(b[1]);
+                                                        if (validh == true)
+                                                        {
+                                                            if (validw == true)
+                                                            {
+                                                                hei = Int32.Parse(b[0]);
+                                                                wid = Int32.Parse(b[1]);
+                                                            }
+                                                            else
+                                                            {
+                                                                Console.WriteLine($"Invalid value for Y: {b[1]}");
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            Console.WriteLine($"Invalid value for X: {b[0]}");
+                                                        }
+
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine("Expecting height and width separated by comma.");
+                                                    }
+                                                }
+                                                if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    string _placeholder = s.Remove(0, 5);
+                                                    extracting = true;
+                                                    text = "";
+                                                }
                                             }
                                         }
-
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine($"Invalid input: {tempStr}");
+                                        GUI_Button newbutton = new GUI_Button(split_input[1], tsklist, text, x, y, wid, hei);
+                                        consoleDirector.GUIButtonsToAdd.Add(newbutton);
+                                        GUIObjectsInUse.Add(newbutton.GUIObjName, newbutton);
+                                        break;
                                     }
                                 }
-                                else
+                                if (validTask == false)
                                 {
-                                    Console.WriteLine($"{split_input[2]} name in use.");
+                                    Console.WriteLine($"Task named {assignedTask} not found");
                                 }
-                            }
-                            else
+                            } else
                             {
-                                Console.WriteLine($"Invalid input: {tempStr}");
+                                Console.WriteLine($"{btnName} name in use.");
                             }
-                        }
-                        else
+
+                        } else
                         {
                             Console.WriteLine("Invalid format for GUI button.");
                         }
+
                     }
                     if (split_input[1].Equals("Textfield", StringComparison.OrdinalIgnoreCase))
 
                     {
-                        if (split_input.Length == 6)
+                        if (split_input.Length >= 3)
                         {
-                            bool validInputs = true;
-                            string badstring = "";
-                            foreach (string s in split_input.Skip(1).Skip(5))
+                            bool validName = GUIObjectsInUse.ContainsKey(split_input[2]);
+                            string txtFieldName = split_input[2];
+                            if (validName == false)
                             {
-                                bool temp_ = ContainsOnlyLettersAndNumbers(s);
-                                if (temp_ == false) { validInputs = false; badstring = s; break; }
-                            }
-                            if (validInputs == true)
-                            {
-                                string textfieldName = split_input[2];
-                                string expectedBool = SetVariableValue(split_input[5].ToLower());
-                                if (!GUIObjectsInUse.ContainsKey(textfieldName))
-                                {
-                                    bool check1 = IsNumeric(split_input[3]);
-                                    bool check2 = IsNumeric(split_input[4]);
-                                    if ((check1 == true) && (check2 == true))
-                                    {
-                                        int x_ = Int32.Parse(split_input[3]);
-                                        int y_ = Int32.Parse(split_input[4]);
-                                        // Finally check to make sure a Bool value was given
-                                        bool boolToPass = false;
-                                        bool validBool = false;
-                                        switch (expectedBool)
-                                        {
-                                            case "false":
-                                                validBool = true;
-                                                boolToPass = false;
-                                                break;
-                                            case "False":
-                                                validBool = true;
-                                                boolToPass = false;
-                                                break;
-                                            case "true":
-                                                validBool = true;
-                                                boolToPass = true;
-                                                break;
-                                            case "True":
-                                                validBool = true;
-                                                boolToPass = true;
-                                                break;
-                                            case "0":
-                                                validBool = true;
-                                                boolToPass = false;
-                                                break;
-                                            case "1":
-                                                validBool = true;
-                                                boolToPass = true;
-                                                break;
-                                            default:
-                                                break;
-                                        }
-                                        if (validBool == true)
-                                        {
-                                            // Ok all values check out, we can make out text field now
-                                            GUI_textfield newtextfield = new GUI_textfield(textfieldName, x_, y_, boolToPass);
-                                            consoleDirector.GUITextFieldsToAdd.Add(newtextfield);
-                                            GUIObjectsInUse.Add(newtextfield.GUIObjName, newtextfield);
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine($"Invalid input: {expectedBool} Expect bool value of true or false.");
-                                        }
+                                int x = 0;
+                                int y = 0;
+                                int wid = 20;
+                                int hei = 20;
+                                string text = "Default text";
+                                bool isMultiline = true;
+                                bool isReadonly = false;
+                                bool extracting = false;
 
+                                foreach (string s in split_input)
+                                {
+                                    if (extracting == true)
+                                    {
+                                        string q = SetVariableValue(s);
+                                        foreach (char c in q)
+                                        {
+                                            if (c != '|')
+                                            {
+                                                text += c;
+                                            }
+                                            else
+                                            {
+                                                extracting = false;
+                                            }
+                                        }
+                                        text += " ";
                                     }
                                     else
                                     {
-                                        Console.WriteLine($"Invalid format: {check1} and/or {check2}. Expecting two integer values for X and Y.");
+                                        if (s.StartsWith("XY:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 3);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            string[] b = a.Split(',');
+                                            if (b.Length == 2)
+                                            {
+                                                bool validx = IsNumeric(b[0]);
+                                                bool validy = IsNumeric(b[1]);
+                                                if (validx == true)
+                                                {
+                                                    if (validy == true)
+                                                    {
+                                                        x = Int32.Parse(b[0]);
+                                                        y = Int32.Parse(b[1]);
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine($"Invalid value for Y: {b[1]}");
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine($"Invalid value for X: {b[0]}");
+                                                }
+
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("Expecting X coordinate and Y coordinate separated by comma.");
+                                            }
+                                        }
+                                        if (s.StartsWith("HW:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 3);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            string[] b = a.Split(',');
+                                            if (b.Length == 2)
+                                            {
+                                                bool validh = IsNumeric(b[0]);
+                                                bool validw = IsNumeric(b[1]);
+                                                if (validh == true)
+                                                {
+                                                    if (validw == true)
+                                                    {
+                                                        hei = Int32.Parse(b[0]);
+                                                        wid = Int32.Parse(b[1]);
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine($"Invalid value for Y: {b[1]}");
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine($"Invalid value for X: {b[0]}");
+                                                }
+
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("Expecting height and width separated by comma.");
+                                            }
+                                        }
+                                        if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 5);
+                                            extracting = true;
+                                            text = "";
+                                        }
+                                        if (s.StartsWith("Multiline:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 10);
+                                            string q = SetVariableValue(_placeholder).TrimEnd();
+                                            string[] validValues = { "False", "false", "0", "True", "true", "1" };
+                                            int val = 0;
+                                            bool correctValue = false;
+                                            for(val = 0; val < validValues.Length; val++)
+                                            {
+                                                if (q == validValues[val])
+                                                {
+                                                    if (val <= 2)
+                                                    {
+                                                        isMultiline = false;
+                                                    } else if (val >= 3)
+                                                    {
+                                                        isMultiline = true;
+                                                    }
+                                                    correctValue = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (correctValue == true)
+                                            {
+
+                                            } else
+                                            {
+                                                Console.WriteLine($"Invalid input: {q}. Expecting bool.");
+                                            }
+                                        }
+                                        if (s.StartsWith("Readonly:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 9);
+                                            string q = SetVariableValue(_placeholder).TrimEnd();
+                                            string[] validValues = { "False", "false", "0", "True", "true", "1" };
+                                            int val = 0;
+                                            bool correctValue = false;
+                                            for (val = 0; val < validValues.Length; val++)
+                                            {
+                                                if (q == validValues[val])
+                                                {
+                                                    if (val <= 2)
+                                                    {
+                                                        isReadonly = false;
+                                                    }
+                                                    else if (val >= 3)
+                                                    {
+                                                        isReadonly = true;
+                                                    }
+                                                    correctValue = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (correctValue == true)
+                                            {
+
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"Invalid input: {q}. Expecting bool.");
+                                            }
+                                        }
                                     }
                                 }
-                                else
-                                {
-                                    Console.WriteLine($"{textfieldName} name in use.");
-                                }
 
-                            }
-                            else
+                                GUI_textfield newtextfield = new GUI_textfield(txtFieldName, x, y, wid, hei, isMultiline, text, isReadonly);
+                                consoleDirector.GUITextFieldsToAdd.Add(newtextfield);
+                                GUIObjectsInUse.Add(newtextfield.GUIObjName, newtextfield);
+
+                            } else
                             {
-                                Console.WriteLine($"Invalid input: {badstring}");
+                                Console.WriteLine($"{txtFieldName} name in use.");
                             }
                         }
                         else
@@ -1159,6 +2346,7 @@ namespace GyroPrompt
                         Console.WriteLine("Invalid format to settext.");
                     }
                 }
+
                 /// <summary>
                 /// List items can hold multiple variable items. 
                 /// 
@@ -1211,7 +2399,7 @@ namespace GyroPrompt
                                 newArray.Name = listName;
                                 newArray.arrayType = new_arrayType;
                                 local_arrays.Add(newArray);
-                                namesInUse.Add(listName, true);
+                                namesInUse.Add(listName, objectClass.List);
                             }
                         }
                         else
@@ -2093,699 +3281,8 @@ namespace GyroPrompt
                         Console.WriteLine("Invalid format to execute task list.");
                     }
                 }
-                // Modify variable values
-                if (split_input[0].Equals("set", StringComparison.OrdinalIgnoreCase))
-                {
-                    string var_name = split_input[1];
-                    bool name_found = false;
-                    if (split_input.Length >= 3)
-                    {
-                        foreach (LocalVariable var in local_variables)
-                        {
-                            if (var.Name == var_name)
-                            {
-                                name_found = true;
-                                if (split_input[2] == "=")
-                                {
-                                    string a = "";
-                                    if (split_input.Length > 3)
-                                    {
-                                        // Recombine the string if necessary
 
-                                        foreach (string s in split_input.Skip(3))
-                                        {
-                                            a += s + " ";
-                                        }
-                                    }
-                                    switch (var.Type)
-                                    {
-                                        case VariableType.String:
-                                            var.Value = SetVariableValue(a);
-                                            break;
-                                        case VariableType.Int:
-                                            string placeholder = SetVariableValue(a);
-                                            string b = ConvertNumericalVariable(placeholder).Trim();
-                                            bool isnumber = IsNumeric(b);
-                                            if (isnumber == true)
-                                            {
-                                                var.Value = b;
-                                            }
-                                            else
-                                            {
-                                                Console.WriteLine($"Output is not valid integer: {b}");
-                                            }
-                                            break;
-                                        case VariableType.Float:
-                                            string placeholder2 = SetVariableValue(a);
-                                            string b_ = ConvertNumericalVariable(placeholder2).Trim();
-                                            bool isfloat = float.TryParse(b_, NumberStyles.Float, CultureInfo.InvariantCulture.NumberFormat, out float result);
-                                            if (isfloat == true)
-                                            {
-                                                var.Value = b_;
-                                            }
-                                            else
-                                            {
-                                                Console.WriteLine($"Output is not valid float: {b_}");
-                                            }
-                                            break;
-                                        case VariableType.Boolean:
-                                            string[] acceptableValue = { "true", "false", "1", "0" };
-                                            bool validInput = false;
-                                            foreach (string s in acceptableValue)
-                                            {
-                                                if (split_input[3].Equals(s, StringComparison.OrdinalIgnoreCase) == true)
-                                                {
-                                                    if ((s == "true") || (s == "1"))
-                                                    {
-                                                        validInput = true;
-                                                        var.Value = "True";
-                                                        break;
-                                                    }
-                                                    else if ((s == "0") || (s == "false"))
-                                                    {
-                                                        validInput = true;
-                                                        var.Value = "False";
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                            if (validInput == false)
-                                            {
-                                                Console.WriteLine($"Output is not valid boolean: {split_input[3]}");
-                                            }
-                                            break;
-
-                                    }
-
-                                }
-                                else
-                                {
-                                    Console.WriteLine("Invalid formatting to set variable value.");
-                                }
-                            }
-                        }
-                        if (name_found == false)
-                        {
-                            Console.WriteLine($"Could not locate variable {var_name}.");
-                        }
-                    }
-                }
-                if (split_input[0].Equals("toggle", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (split_input.Length == 2)
-                    {
-                        string var_name = split_input[1];
-                        bool valid_var = LocalVariableExists(var_name);
-
-                        if (valid_var == true)
-                        {
-                            foreach (LocalVariable local_var in local_variables)
-                            {
-                                if ((local_var.Name == var_name) && (local_var.Type == VariableType.Boolean))
-                                {
-                                    if (local_var.Value == "False") { local_var.Value = "True"; } else if (local_var.Value == "True") { local_var.Value = "False"; } // Switch the values
-                                }
-                                else if ((local_var.Name == var_name) && (local_var.Type != VariableType.Boolean))
-                                {
-                                    Console.WriteLine($"{local_var.Name} is not a boolean value.");
-                                    break;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Could not locate variable {var_name}.");
-                        }
-                    }
-                }
-                if (split_input[0].Equals("int+", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (split_input.Length == 2)
-                    {
-                        string var_name = split_input[1];
-                        bool var_exists = LocalVariableExists(var_name);
-                        if (var_exists == true)
-                        {
-                            foreach (LocalVariable localVar in local_variables)
-                            {
-                                if ((localVar.Name == var_name) && (localVar.Type == VariableType.Int))
-                                {
-                                    int a = Int32.Parse(localVar.Value);
-                                    a++; // increment it by 1
-                                    localVar.Value = a.ToString();
-                                }
-                                else if ((localVar.Name == var_name) && (localVar.Type != VariableType.Int))
-                                {
-                                    Console.WriteLine($"{localVar.Name} is not an integer value.");
-                                    break;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Could not locate variable {var_name}.");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("int+ can only take 1 value.");
-                    }
-                }
-                if (split_input[0].Equals("int-", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (split_input.Length == 2)
-                    {
-                        string var_name = split_input[1];
-                        bool var_exists = LocalVariableExists(var_name);
-                        if (var_exists == true)
-                        {
-                            foreach (LocalVariable localVar in local_variables)
-                            {
-                                if ((localVar.Name == var_name) && (localVar.Type == VariableType.Int))
-                                {
-                                    int a = Int32.Parse(localVar.Value);
-                                    a--; // decrease it by 1
-                                    localVar.Value = a.ToString();
-                                }
-                                else if ((localVar.Name == var_name) && (localVar.Type != VariableType.Int))
-                                {
-                                    Console.WriteLine($"{localVar.Name} is not an integer value.");
-                                    break;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Could not locate variable {var_name}.");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("int- can only take 1 value.");
-                    }
-                }
-                // Detect environmental variable modification
-                if (split_input[0].Equals("environment", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (split_input.Length > 3 && split_input.Length < 6)
-                    {
-                        if (split_input[1].Equals("set", StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (split_input.Length == 4)
-                            {
-                                string var_name = split_input[2].ToLower();
-                                switch (var_name)
-                                {
-                                    case "windowheight":
-                                        string _num = SetVariableValue(split_input[3].Trim());
-                                        bool _valid = IsNumeric(_num);
-                                        if (_valid == true)
-                                        {
-                                            WindowHeight_ = (Int32.Parse(_num));
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine($"Invalid input: {_num}");
-                                        }
-                                        break;
-                                    case "windowwidth":
-                                        string _num1 = SetVariableValue(split_input[3].Trim());
-                                        bool _valid1 = IsNumeric(_num1);
-                                        if (_valid1 == true)
-                                        {
-                                            WindowWidth_ = (Int32.Parse(_num1));
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine($"Invalid input: {_num1}");
-                                        }
-                                        break;
-                                    case "cursorx":
-                                        string _num2 = SetVariableValue(split_input[3].Trim());
-                                        bool _valid2 = IsNumeric(_num2);
-                                        if (_valid2 == true)
-                                        {
-                                            try
-                                            {
-                                                CursorX_ = (Int32.Parse(_num2));
-                                            }
-                                            catch (ArgumentOutOfRangeException ex)
-                                            {
-                                                Console.WriteLine("Cursor out of bounds.");
-                                            }
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine($"Invalid input: {_num2}");
-                                        }
-                                        break;
-                                    case "cursory":
-                                        string _num3 = SetVariableValue(split_input[3].Trim());
-                                        bool _valid3 = IsNumeric(_num3);
-                                        if (_valid3 == true)
-                                        {
-                                            try
-                                            {
-                                                CursorY_ = (Int32.Parse(_num3));
-                                            }
-                                            catch (ArgumentOutOfRangeException ex)
-                                            {
-                                                Console.WriteLine("Cursor out of bounds.");
-                                            }
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine($"Invalid input: {_num3}");
-                                        }
-                                        break;
-                                    case "backcolor":
-                                        if (keyConsoleColor.ContainsKey(split_input[3]))
-                                        {
-                                            ConsoleColor color = keyConsoleColor[split_input[3]];
-                                            backColor_ = color;
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine($"Color not found: {split_input[3]}");
-                                        }
-                                        break;
-                                    case "forecolor":
-                                        if (keyConsoleColor.ContainsKey(split_input[3]))
-                                        {
-                                            ConsoleColor color = keyConsoleColor[split_input[3]];
-                                            foreColor_ = color;
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine($"Color not found: {split_input[3]}");
-                                        }
-                                        break;
-                                    case "scriptdelay":
-                                        string _num4 = SetVariableValue(split_input[3]);
-                                        bool _valid4 = IsNumeric(_num4);
-                                        if (_valid4 == true)
-                                        {
-                                            try
-                                            {
-                                                ScriptDelay = (Int32.Parse(_num4));
-                                            }
-                                            catch (ArgumentOutOfRangeException ex)
-                                            {
-                                                Console.WriteLine("Error passing value.");
-                                            }
-                                        }
-                                        else
-                                        {
-                                            Console.WriteLine($"Invalid input: {_num4}");
-                                        }
-                                        break;
-                                    case "title":
-                                        string a_ = SetVariableValue(split_input[3]);
-                                        Console.Title = (a_);
-                                        break;
-                                    default:
-                                        Console.WriteLine($"{var_name} is invalid environmental variable.");
-                                        break;
-                                }
-                            }
-                            else
-                            {
-                                Console.WriteLine("Invalid format.");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("Invalid format to modify environment.");
-                    }
-                }
-                if (split_input[0].Equals("pause", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (split_input.Length == 2)
-                    {
-                        string a_ = ConvertNumericalVariable(split_input[1]);
-                        bool valid = IsNumeric(a_);
-                        int b_ = Int32.Parse(split_input[1]);
-                        if (valid)
-                        {
-                            Thread.Sleep(b_);
-
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Invalid input: {a_}.");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("Invalid format to pause.");
-                    }
-                }
-
-                ///<summary>
-                /// Conditional statements and loops that will allow for the execution of code
-                /// if a specific condition is true or false, or until a specific condition
-                /// becomes true or false.
-                /// 
-                /// Example for If:
-                /// If variable = [variable2] then println correct|set variable = 0 else println incorrect|set variable = [variable2]
-                /// If variable's value = variable2's value, then the commands 'println correct' and 'set variable = 0' execute, otherwise 'println incorrect' and 'set variable = [variable2]' will execute
-                /// Multiple commands can be ran when separated by a | pipe
-                /// 
-                /// Example for While:
-                /// While variable1 < [variable2] do pause 500|set variable1 = [Calculate:{variable1}+1]|println Var1:[variable1] Var2:[variable2]
-                /// Assuming both variable1 and variable2 are integers, var1 = 0 and var2 = 5, the above code would pause for 500 miliseconds, increment var1 by 1, then print
-                /// both variables side-by-side 5 times until variable1 is no longer < to [variable2]
-                /// 
-                /// The 'do' statement is to 'while' what the 'then' statement is to 'if'
-                /// </summary>
-                if (split_input[0].Equals("if", StringComparison.OrdinalIgnoreCase))
-                {
-                    string first_value = split_input[1];
-                    bool first_value_exists = LocalVariableExists(first_value);
-                    if (first_value_exists == true)
-                    {
-                        OperatorTypes operator_ = new OperatorTypes();
-                        string operator_type = split_input[2];
-                        if (condition_checker.operationsDictionary.ContainsKey(operator_type))
-                        {
-                            operator_ = condition_checker.operationsDictionary[operator_type];
-                            string condition_ = ""; // we're going to recompile each string until we hit a 'Then' statement
-                            string proceeding_commands = "";
-                            bool then_exists = false;
-                            int x = 3; // This will mark when we switch from the condition to the proceeding commands
-                            foreach (string b in split_input.Skip(3))
-                            {
-                                if (b.Equals("then", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    x++;
-                                    then_exists = true;
-                                    break;
-                                }
-                                else
-                                {
-                                    condition_ += b + " ";
-                                    x++;
-                                }
-                            }
-                            bool else_statement_exists = false;
-                            string else_statement_commands = "";
-                            foreach (string c in split_input.Skip(x))
-                            {
-                                if (c.Equals("else", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    else_statement_exists = true; // toggle existence of else statement
-                                }
-                                else
-                                {
-                                    if (else_statement_exists == false)
-                                    {
-                                        proceeding_commands += c + " "; // this will amend what executes under 'then'
-                                    }
-                                    else
-                                    {
-                                        else_statement_commands += c + " "; // this will amend what executes under 'else'
-                                    }
-
-                                }
-                            }
-                            //DEBUG: Console.WriteLine($"Debug: {proceeding_commands}");
-                            string conditon_checkvariables = SetVariableValue(condition_).Trim();
-                            //DEBUG: Console.WriteLine($"Debug: {conditon_checkvariables}");
-                            string var_val = GrabVariableValue(first_value);
-                            //DEBUG: Console.WriteLine($"Going to check if '{var_val}' is {operator_.ToString()} to '{conditon_checkvariables}'");
-                            bool condition_is_met = false;
-                            if (then_exists == true)
-                            {
-                                if ((operator_ == OperatorTypes.EqualTo) || (operator_ == OperatorTypes.NotEqualTo))
-                                {
-                                    // We check to see if value 'a' and value 'b' are either equal to or not equal to each other
-                                    condition_is_met = condition_checker.ConditionChecked(operator_, var_val, conditon_checkvariables);
-                                }
-                                else
-                                {
-                                    // We must ensure var_cal and condition_checkvariables are numerical
-                                    bool a_ = IsNumeric(var_val);
-                                    bool b_ = IsNumeric(conditon_checkvariables);
-                                    if ((a_ == true) && (b_ == true))
-                                    {
-                                        // Since both are numerical, we can use an operator that compares their value by greater/less than
-                                        condition_is_met = condition_checker.ConditionChecked(operator_, var_val.Trim(), conditon_checkvariables.Trim());
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine($"Can only use numerical values for operator: {operator_type}");
-                                    }
-                                }
-                                if (condition_is_met == true)
-                                {
-                                    // Each command is seperated by the vertical pipe | allowing for multiple commands to execute
-                                    string[] commands_to_execute = proceeding_commands.Split('|');
-                                    try
-                                    {
-                                        foreach (string command in commands_to_execute)
-                                        {
-                                            try
-                                            {
-                                                parse(command);
-                                            }
-                                            catch
-                                            {
-                                                //Error with specific command
-                                                Console.WriteLine($"Error running command {command}.");
-                                            }
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        // General error
-                                        Console.WriteLine("There was an error processing list of commands.");
-                                    }
-                                }
-                                else if ((condition_is_met == false) && (else_statement_exists == true))
-                                {
-                                    // Condition was false, so we execute the 'else' statement
-                                    string[] else_commands_to_execute = else_statement_commands.Split('|');
-                                    try
-                                    {
-                                        foreach (string command in else_commands_to_execute)
-                                        {
-                                            try
-                                            {
-                                                parse(command);
-                                            }
-                                            catch
-                                            {
-                                                Console.WriteLine($"Error running command {command}.");
-                                            }
-                                        }
-                                    }
-                                    catch
-                                    {
-                                        Console.WriteLine("There was an error processing list of commands.");
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                Console.WriteLine($"If statements must include 'then'.");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"{operator_type} is not a valid operator.");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"{first_value} does not exist.");
-                    }
-                }
-                if (split_input[0].Equals("while", StringComparison.OrdinalIgnoreCase))
-                {
-                    string first_value = split_input[1];
-                    bool first_value_exists = LocalVariableExists(first_value);
-                    if (first_value_exists == true)
-                    {
-                        OperatorTypes operator_ = new OperatorTypes();
-                        string operator_type = split_input[2];
-                        if (condition_checker.operationsDictionary.ContainsKey(operator_type))
-                        {
-                            operator_ = condition_checker.operationsDictionary[operator_type];
-                            string condition_ = ""; // we're going to recompile each string until we hit a 'Do' statement
-                            string proceeding_commands = "";
-                            bool do_exists = false;
-                            int x = 3; // This will mark when we switch from the condition to the proceeding commands
-                            foreach (string b in split_input.Skip(3))
-                            {
-                                if (b.Equals("do", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    x++;
-                                    do_exists = true;
-                                    break;
-                                }
-                                else
-                                {
-                                    condition_ += b + " ";
-                                    x++;
-                                }
-                            }
-
-                            foreach (string c in split_input.Skip(x))
-                            {
-                                proceeding_commands += c + " "; // this will amend what executes under 'Do'
-                            }
-                            //DEBUG: Console.WriteLine($"Debug: {proceeding_commands}");
-                            string conditon_checkvariables = SetVariableValue(condition_).Trim();
-                            //DEBUG: Console.WriteLine($"Debug: {conditon_checkvariables}");
-                            string var_val = GrabVariableValue(first_value);
-                            //DEBUG: Console.WriteLine($"Going to check if '{var_val}' is {operator_.ToString()} to '{conditon_checkvariables}'");
-                            //DEBUG: Thread.Sleep(2000);
-                            bool condition_is_met = false; // We assume true for the while statement
-                            if (do_exists == true)
-                            {
-                                if ((operator_ == OperatorTypes.EqualTo) || (operator_ == OperatorTypes.NotEqualTo))
-                                {
-                                    // We check to see if value 'a' and value 'b' are either equal to or not equal to each other
-                                    // Since both are numerical, we can use an operator that compares their value by greater/less than
-                                    condition_is_met = condition_checker.ConditionChecked(operator_, var_val.Trim(), conditon_checkvariables.Trim());
-                                    if (condition_is_met == true)
-                                    {
-                                        bool keep_running = true;
-                                        while (keep_running)
-                                        {
-                                            string updated_var1 = GrabVariableValue(first_value); // We need to update the variable
-                                            string updated_var2 = SetVariableValue(condition_).Trim(); // We need to update the variable
-                                            bool condition_check = condition_checker.ConditionChecked(operator_, updated_var1, updated_var2);
-                                            if (condition_check == false) { keep_running = false; break; } // Redundancy never hurt anyone
-                                            else
-                                            {
-                                                string[] commands_to_execute = proceeding_commands.Split("|");
-                                                try
-                                                {
-                                                    foreach (string command in commands_to_execute)
-                                                    {
-                                                        try
-                                                        {
-                                                            parse(command.TrimEnd());
-                                                        }
-                                                        catch
-                                                        {
-                                                            //Error with specific command, exiting 'while' loop
-                                                            Console.WriteLine($"Error running command {command}.");
-                                                            break;
-                                                        }
-                                                    }
-                                                }
-                                                catch
-                                                {
-                                                    // General error, exiting 'while' loop
-                                                    Console.WriteLine("There was an error processing list of commands.");
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                }
-                                else
-                                {
-                                    // We must ensure var_cal and condition_checkvariables are numerical
-                                    bool a_ = IsNumeric(var_val);
-                                    bool b_ = IsNumeric(conditon_checkvariables);
-                                    if ((a_ == true) && (b_ == true))
-                                    {
-                                        condition_is_met = condition_checker.ConditionChecked(operator_, var_val, conditon_checkvariables);
-                                        if (condition_is_met == true)
-                                        {
-                                            bool keep_running = true;
-                                            while (keep_running)
-                                            {
-                                                string updated_var1 = GrabVariableValue(first_value); // We need to update the variable
-                                                string updated_var2 = SetVariableValue(condition_).Trim(); // We need to update the variable
-                                                bool condition_check = condition_checker.ConditionChecked(operator_, updated_var1, updated_var2);
-                                                if (condition_check == false) { keep_running = false; break; } // Redundancy is never a bad thing
-                                                else
-                                                {
-                                                    string[] commands_to_execute = proceeding_commands.Split('|');
-                                                    try
-                                                    {
-                                                        foreach (string command in commands_to_execute)
-                                                        {
-                                                            try
-                                                            {
-                                                                parse(command.TrimEnd());
-                                                            }
-                                                            catch
-                                                            {
-                                                                //Error with specific command, exiting 'while' loop
-                                                                Console.WriteLine($"Error running command {command}.");
-                                                                break;
-                                                            }
-                                                        }
-                                                    }
-                                                    catch
-                                                    {
-                                                        // General error, exiting 'while' loop
-                                                        Console.WriteLine("There was an error processing list of commands.");
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine($"Can only use numerical values for operator: {operator_type}");
-                                    }
-                                }
-
-
-                            }
-                            else
-                            {
-                                Console.WriteLine($"While statements must include 'do'.");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"{operator_type} is not a valid operator.");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"{first_value} does not exist.");
-                    }
-                }
-                ///<summary>
-                /// Script specific commands that will only execute if running_script = true
-                /// These commands only have an impact on the flow of a script file and not on
-                /// code that is executed from the prompt manually.
-                /// </summary>
-                if (split_input[0].Equals("goto", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (running_script == true)
-                    {
-                        if (split_input.Length == 2)
-                        {
-                            bool valid = IsNumeric(split_input[1]);
-                            if (valid)
-                            {
-                                int a = Int32.Parse(split_input[1]);
-                                current_line = a;
-                            }
-                        }
-                        else { Console.WriteLine("Invalid format for line number."); }
-                    }
-                    else
-                    {
-                        Console.WriteLine("Can only goto line number when running a script.");
-                    }
-                }
-
-
-                //DO NOT INCLUDE, UNDER CONSTRUCTION: if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(); }
+                if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(split_input[1]); }
 
                 if (split_input[0].Equals("SETUP"))
                 {
@@ -2992,6 +3489,13 @@ namespace GyroPrompt
                         Console.WriteLine("Must have comma separated values to define range.");
                     }
 
+                }
+                // Then check for date and time
+                if (capturedText.StartsWith("Date:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string _placeholder = capturedText.Remove(0, 5);
+                    string processedTimeDate = timedate_handler.returnDateTime(_placeholder);
+                    a += processedTimeDate;
                 }
                 // Then check for list items
                 if (capturedText.StartsWith("List:"))
@@ -3224,6 +3728,13 @@ namespace GyroPrompt
                         Console.WriteLine("Must have comma separated values to define range.");
                     }
 
+                }
+                // Then check for date and time
+                if (capturedText.StartsWith("Date:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string _placeholder = capturedText.Remove(0, 5);
+                    string processedTimeDate = timedate_handler.returnDateTime(_placeholder);
+                    Console.Write(processedTimeDate);
                 }
                 // Then check for a list reference
                 if (capturedText.StartsWith("List:"))

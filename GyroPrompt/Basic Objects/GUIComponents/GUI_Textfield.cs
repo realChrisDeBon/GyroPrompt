@@ -12,19 +12,20 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         public TextView textView;
         public string textfieldtext { get; set; }
         public int LineNumber { get; set; }
-        public GUI_textfield(string objname, int x_ = 0, int y_ = 0, bool isReadOnly = false) 
+        public GUI_textfield(string objname, int x_ = 0, int y_ = 0, int width_ = 20, int height_ = 20, bool multiline_ = true, string text_ = "Default test", bool isReadOnly = false) 
         {
 
             GUIObjName = objname;
             GUIObjectType = GUIObjectType.Textfield;
             textView = new TextView()
             {
-                X = 0,
-                Y = 0,
-                Width = 20,
-                Height = 20,
-                Text = "Default text",
+                X = x_,
+                Y = y_,
+                Width = width_,
+                Height = height_,
+                Text = text_,
                 ReadOnly = isReadOnly,
+                Multiline = multiline_,
                 RightOffset = 1,
             };
             textView.KeyUp += (e) =>

@@ -14,7 +14,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         public Button newButton;
         public TaskList onClick;
 
-        public GUI_Button(string name_, TaskList commandsOnClick, int x_ = 0, int y_ = 0, int width_ = 4, int height_ = 2)
+        public GUI_Button(string name_, TaskList commandsOnClick, string text_ = "Button", int x_ = 0, int y_ = 0, int width_ = 4, int height_ = 2)
         {
             GUIObjName = name_;
             GUIObjectType = GUIObjectType.Button;
@@ -25,7 +25,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 Y = y_,
                 Width = width_,
                 Height = height_,
-                Text = name_
+                Text = text_,
             };
             onClick = commandsOnClick;
 
@@ -34,8 +34,6 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 executeTask(onClick.taskList, onClick.taskType, onClick.scriptDelay);
             };
         }
-
-
         public override void SetWidth(int x_, coordVal filler)
         {
             try

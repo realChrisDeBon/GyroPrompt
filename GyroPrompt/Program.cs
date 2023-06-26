@@ -1,4 +1,6 @@
-﻿using Terminal.Gui;
+﻿using GyroPrompt.Compiler;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Terminal.Gui;
 
 namespace GyroPrompt
 {
@@ -24,8 +26,19 @@ namespace GyroPrompt
                     }
                     catch (Exception error) { Console.WriteLine("Unable to execute " + path + ", please make sure the file isn't opened or being used!)"); }
                 }
+            } else if (args.Length == 2)
+            {
+                if (args[0] == "-compile")
+                {
+                    string path = args[1];
+                    if (File.Exists(path))
+                    {
+                        ScriptCompiler compiler = new ScriptCompiler();
+                        compiler.Compile(path);
+                    }
+                }
             }
-            else if (args.Length > 1)
+            else if (args.Length > 2)
             {
                 Console.WriteLine("GyroPrompt instance initiated with invalid argument count.\nCan only utilize valid script as argument.\n");
                 Console.Write("Press any key to continue...");
