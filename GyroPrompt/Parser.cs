@@ -1848,6 +1848,20 @@ namespace GyroPrompt
                             Console.WriteLine("Invalid format for GUI text field.");
                         }
                     }
+                    if (split_input[1].Equals("Menubar", StringComparison.OrdinalIgnoreCase))
+                    {
+                        List<LocalList> localList = new List<LocalList>();
+                        foreach(LocalList list in local_arrays){
+                            if (split_input[3] == list.Name)
+                            {
+                                localList.Add(list);
+                                GUI_Menubar newmenubar = new GUI_Menubar("poop", localList);
+                                consoleDirector.GUIMenuBarsToAdd.Add(newmenubar);
+                                GUIObjectsInUse.Add(newmenubar.GUIObjName, newmenubar);
+                            }
+                        }
+                    }
+
                 }
                 if (split_input[0].Equals("gui_item_setwidth"))
                 {
@@ -2415,11 +2429,11 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("list_add", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (split_input.Length > 3)
+                    if (split_input.Length >= 3)
                     {
                         string listName = split_input[1];
                         string varName = split_input[2];
-                        bool varExists = LocalVariableExists(varName);
+                        bool varExists = LocalVariableExists(varName.TrimEnd());
                         bool arrayExists = false;
                         if (split_input.Length > 3)
                         {

@@ -11,36 +11,41 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
     {
         public List<GUI_Button> GUIButtonsToAdd = new List<GUI_Button>();
         public List<GUI_textfield> GUITextFieldsToAdd = new List<GUI_textfield>();
+        public List<GUI_Menubar> GUIMenuBarsToAdd = new List<GUI_Menubar>();
         public bool runningPermision = true;
         public Window mainWindow;
         public void InitializeGUIWindow(string windowTitle = "GUIMode", int x_ = 0, int y_ = 0)
         {
-                Application.Init();
-                var top = Application.Top;
+            Application.Init();
+            var top = Application.Top;
 
             // Set the default color scheme
             mainWindow = new Window($"{windowTitle}")
+            {
+                X = x_,
+                Y = y_,
+                Width = Dim.Fill(),
+                Height = Dim.Fill(),
+                Border = new Border()
                 {
-                    X = x_,
-                    Y = y_,
-                    Width = Dim.Fill(),
-                    Height = Dim.Fill(),
-                    Border = new Border()
-                    {
-                        BorderStyle = BorderStyle.Single,
-                        DrawMarginFrame = true,
-                        Padding = new Thickness(1),
-                        BorderBrush = Color.White
-                    }
-                };
-                mainWindow.ColorScheme = new ColorScheme()
-                {
-                    Normal = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
-                    Focus = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
-                    HotNormal = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
-                    HotFocus = Terminal.Gui.Attribute.Make(Color.White, Color.Black)
-                };
+                    BorderStyle = BorderStyle.Single,
+                    DrawMarginFrame = true,
+                    Padding = new Thickness(1),
+                    BorderBrush = Color.White
+                }
+            };
+            mainWindow.ColorScheme = new ColorScheme()
+            {
+                Normal = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
+                Focus = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
+                HotNormal = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
+                HotFocus = Terminal.Gui.Attribute.Make(Color.White, Color.Black)
+            };
             // Take every GUI object within GUIItemsToAdd and add it to mainWindow
+            foreach (GUI_Menubar item in GUIMenuBarsToAdd )
+            {
+                mainWindow.Add(item.menuBar);
+            }
             foreach (GUI_Button item in GUIButtonsToAdd)
             {
                 mainWindow.Add(item.newButton);
@@ -60,6 +65,16 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 // Expect error to be thrown when Application.Shutdown() and Application.RequestStop() execute from parser
             }
         }
+        public void genMessage(string msg, string title = "Message", string btntxt = "OK")
+        {
+            MessageBox.Query($"{title}", $"{msg}", $"{btntxt}");
+        }
 
+        public void showsaveDialog()
+        {
+            
+
+        }
     }
 }
+
