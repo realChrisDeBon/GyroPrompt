@@ -12,7 +12,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         public TextView textView;
         public string textfieldtext { get; set; }
         public int LineNumber { get; set; }
-        public GUI_textfield(string objname, int x_ = 0, int y_ = 0, int width_ = 20, int height_ = 20, bool multiline_ = true, string text_ = "Default test", bool isReadOnly = false) 
+        public GUI_textfield(string objname, int x_ = 0, int y_ = 0, int width_ = 20, int height_ = 20, bool multiline_ = true, string text_ = "Default test", bool isReadOnly = false, Color textcolor = Color.White, Color background = Color.DarkGray) 
         {
 
             GUIObjName = objname;
@@ -27,6 +27,13 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 ReadOnly = isReadOnly,
                 Multiline = multiline_,
                 RightOffset = 1,
+                ColorScheme = new ColorScheme()
+                {
+                    Normal = Terminal.Gui.Attribute.Make(textcolor, background),
+                    Focus = Terminal.Gui.Attribute.Make(textcolor, background),
+                    HotNormal = Terminal.Gui.Attribute.Make(textcolor, background),
+                    HotFocus = Terminal.Gui.Attribute.Make(textcolor, background)
+                },
             };
             textView.KeyUp += (e) =>
             {
@@ -41,6 +48,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 textfieldtext = textView.Text.ToString();
                 LineNumber = textView.CurrentRow; // Enable linenumber tracking
             };
+
 
         }
         public string GetText()
@@ -95,6 +103,17 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
+        public override void SetToLeftOrRight(View obj, coordValue fillval)
+        {
+            if (fillval == coordValue.LeftOf)
+            {
+                textView.X = Pos.Left(obj);
+            }
+            else if (fillval == coordValue.RightOf)
+            {
+                textView.X = Pos.Right(obj);
+            }
+        }
         public void SetXCoord(int x_, coordValue filler)
         {
             try
@@ -139,42 +158,9 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
-        
         public void AddScrollbars()
         {
-            var _scrollBar = new ScrollBarView(textView, false, true);
-
-            _scrollBar.ChangedPosition += () => {
-                textView.TopRow = _scrollBar.Position;
-                if (textView.TopRow != _scrollBar.Position)
-                {
-                    _scrollBar.Position = textView.TopRow;
-                }
-                textView.SetNeedsDisplay();
-                if (textView.HasFocus == true)
-                {
-                    textView.SetFocus();
-                }
-            };
-
-            _scrollBar.OtherScrollBarView.ChangedPosition += () => {
-                textView.LeftColumn = _scrollBar.OtherScrollBarView.Position;
-                if (textView.LeftColumn != _scrollBar.OtherScrollBarView.Position)
-                {
-                    _scrollBar.OtherScrollBarView.Position = textView.LeftColumn;
-                }
-                textView.SetNeedsDisplay();
-            };
-
-
-            textView.DrawContent += (e) => {
-
-                _scrollBar.Size = textView.Frame.Width;
-                _scrollBar.Position = textView.TopRow;
-                _scrollBar.OtherScrollBarView.Size = textView.Maxlength;
-                _scrollBar.OtherScrollBarView.Position = textView.LeftColumn;
-                _scrollBar.Refresh();
-            };
+            
         }
     }
 }

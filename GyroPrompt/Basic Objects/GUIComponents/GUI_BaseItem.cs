@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Terminal.Gui;
 
 namespace GyroPrompt.Basic_Objects.GUIComponents
 {
@@ -10,6 +11,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
     {
         Button,
         Textfield,
+        Label,
         Menubar,
         Statusbar,
         Dialog
@@ -43,6 +45,10 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
         }
         public virtual void SetHeight(int xx, coordVal fillval){
+
+        }
+        public virtual void SetToLeftOrRight(View obj, coordValue fillval)
+        {
 
         }
     }

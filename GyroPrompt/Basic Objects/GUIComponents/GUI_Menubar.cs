@@ -13,11 +13,15 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
     public class GUI_Menubar : GUI_BaseItem
     {
         public MenuBar menuBar;
+        public List<TaskList> onClick;
+        private Parser topLevelParser;
 
-        public GUI_Menubar(string name_, List<LocalList> menuItemstoadd) 
+        public GUI_Menubar(Parser toplvlParser, string name_, List<LocalList> menuItemstoadd, List<TaskList> taskItems) 
         {
             GUIObjName = name_;
             GUIObjectType = GUIObjectType.Menubar;
+            topLevelParser = toplvlParser;
+            onClick = taskItems;
 
             menuBar = new MenuBar()
             {
@@ -29,10 +33,11 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 MenuItem[] menuItems = new MenuItem[list.numberOfElements];
                 for (int y = 0; y < list.numberOfElements; y++)
                 {
-                    menuItems[y] = new MenuItem(list.items[y].Value, "", () => { });
+                    string menuText = list.items[y].Value.ToString().TrimEnd();
+                    menuItems[y] = new MenuItem(menuText, "", () => { TaskList exec = onClick.Find(z => z.taskName == menuText); bool itemFound = exec != null; if (itemFound == true) { try { topLevelParser.executeTask(exec.taskList, exec.taskType, exec.scriptDelay); } catch { } } });
                 }
                 var menuBarItem = new MenuBarItem(list.Name, menuItems);
-                menuBar.Menus.SetValue(menuBarItem, x);
+                menuBar.Menus = menuBar.Menus.Concat(new MenuBarItem[] { menuBarItem }).ToArray();
                 x++;
             }
 

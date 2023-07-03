@@ -86,7 +86,8 @@ namespace GyroPrompt
             info.status_backcolor = _background;
             return info;
         }
-        IDictionary<string, ConsoleColor> keyConsoleColor = new Dictionary<string, ConsoleColor>();
+        public IDictionary<string, ConsoleColor> keyConsoleColor = new Dictionary<string, ConsoleColor>();
+        public IDictionary<string, Color> terminalColor = new Dictionary<string, Color>();
         public void setConsoleStatus(ConsoleInfo _consoleinfo)
         {
             Console.ForegroundColor = _consoleinfo.status_forecolor;
@@ -182,14 +183,26 @@ namespace GyroPrompt
             keyConsoleColor.Add("Yellow", ConsoleColor.Yellow);
             keyConsoleColor.Add("White", ConsoleColor.White);
 
-            
+            terminalColor.Add("Black", Color.Black);
+            terminalColor.Add("DarkBlue", Color.Blue);
+            terminalColor.Add("DarkGreen", Color.Green);
+            terminalColor.Add("DarkCyan", Color.Cyan);
+            terminalColor.Add("DarkRed", Color.Red);
+            terminalColor.Add("DarkMagenta", Color.Magenta);
+            terminalColor.Add("Gray", Color.Gray);
+            terminalColor.Add("DarkGray", Color.DarkGray);
+            terminalColor.Add("Blue", Color.BrightBlue);
+            terminalColor.Add("Green", Color.BrightGreen);
+            terminalColor.Add("Cyan", Color.BrightCyan);
+            terminalColor.Add("Red", Color.BrightRed);
+            terminalColor.Add("Magenta", Color.BrightMagenta);
+            terminalColor.Add("White", Color.White);
+
             foreach (string envvar_name in environmentalVars.Keys)
             {
                 namesInUse.Add(envvar_name, objectClass.EnvironmentalVariable); // All encompassing name reserve system
             }
-
             condition_checker.LoadOperations(); // Load enum types for operators
-            
         }
         /// <summary>
         /// Parser will handle input looped as opposed to the program entry point's Main()
@@ -1478,6 +1491,7 @@ namespace GyroPrompt
                 /// gui_mode on/gui_mode off/gui_mode reset                        <- toggle GUIModeEnabled bool
                 /// new_gui_item button name tasklist x y width height            <- creates button named 'name' (name also becomes default text) which will execute tasklist when pressed, positioned at x, y with width, height
                 /// new_gui_item textfield name x y width height bool text bool  <- creates textfield named 'name', positioned at x,y width and height, bool multiline, text, bool readonly
+                /// new_gui_item menubar name list:menuitems list:tasklist       <- creates a menubar where each List becomes a menubar and each tasklist is matched to the menuitem where the text matches the tasklist's name
                 /// gui_item_setwidth name fillvalue number                     <- sets width of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes width value), Fill (number ignored, object will auto fill)
                 /// gui_item_setheight name fillvalue number                   <- sets height of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes height value), Fill (number ignored, object will auto fill)
                 /// gui_item_gettext name variable                            <- sets value of 'variable' to object 'name' text
@@ -1531,7 +1545,7 @@ namespace GyroPrompt
                         if (split_input.Length >= 4)
                         {
                             //new_gui_item Button name Taslklist
-                            bool nameinuse = GUIObjectsInUse.ContainsKey(split_input[1]);
+                            bool nameinuse = GUIObjectsInUse.ContainsKey(split_input[2]);
                             string btnName = split_input[2];
                             string assignedTask = split_input[3];
                             bool validTask = false;
@@ -1546,6 +1560,8 @@ namespace GyroPrompt
                                         int wid = 4;
                                         int hei = 2;
                                         string text = "Button";
+                                        Color backgrn = Color.Black;
+                                        Color foregrn = Color.White;
                                         validTask = true;
                                         bool extracting = false;
                                         foreach(string s in split_input.Skip(4))
@@ -1563,7 +1579,10 @@ namespace GyroPrompt
                                                         extracting = false;
                                                     }
                                                 }
-                                                text += " ";
+                                                if(extracting == true)
+                                                {
+                                                    text += " ";
+                                                }
                                             }
                                             else
                                             {
@@ -1636,13 +1655,39 @@ namespace GyroPrompt
                                                 {
                                                     string _placeholder = s.Remove(0, 5);
                                                     extracting = true;
-                                                    text = "";
+                                                    text = _placeholder + " ";
+                                                }
+                                                if (s.StartsWith("Textcolor:", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    string _placeholder = s.Remove(0, 10);
+                                                    string a = ConvertNumericalVariable(_placeholder);
+                                                    if (terminalColor.ContainsKey(a))
+                                                    {
+                                                        foregrn = terminalColor[a];
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine($"{a} is not valid color.");
+                                                    }
+                                                }
+                                                if (s.StartsWith("Backcolor:", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    string _placeholder = s.Remove(0, 10);
+                                                    string a = ConvertNumericalVariable(_placeholder);
+                                                    if (terminalColor.ContainsKey(a))
+                                                    {
+                                                        backgrn = terminalColor[a];
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine($"{a} is not valid color.");
+                                                    }
                                                 }
                                             }
                                         }
-                                        GUI_Button newbutton = new GUI_Button(split_input[1], tsklist, text, x, y, wid, hei);
+                                        GUI_Button newbutton = new GUI_Button(this, btnName, tsklist, text, x, y, wid, hei, foregrn, backgrn);
                                         consoleDirector.GUIButtonsToAdd.Add(newbutton);
-                                        GUIObjectsInUse.Add(newbutton.GUIObjName, newbutton);
+                                        GUIObjectsInUse.Add(btnName, newbutton);
                                         break;
                                     }
                                 }
@@ -1678,6 +1723,8 @@ namespace GyroPrompt
                                 bool isMultiline = true;
                                 bool isReadonly = false;
                                 bool extracting = false;
+                                Color backgrn = Color.Black;
+                                Color foregrn = Color.White;
 
                                 foreach (string s in split_input)
                                 {
@@ -1695,7 +1742,10 @@ namespace GyroPrompt
                                                 extracting = false;
                                             }
                                         }
-                                        text += " ";
+                                        if (extracting == true)
+                                        {
+                                            text += " ";
+                                        }
                                     }
                                     else
                                     {
@@ -1767,7 +1817,7 @@ namespace GyroPrompt
                                         {
                                             string _placeholder = s.Remove(0, 5);
                                             extracting = true;
-                                            text = "";
+                                            text = _placeholder + " ";
                                         }
                                         if (s.StartsWith("Multiline:", StringComparison.OrdinalIgnoreCase))
                                         {
@@ -1831,10 +1881,36 @@ namespace GyroPrompt
                                                 Console.WriteLine($"Invalid input: {q}. Expecting bool.");
                                             }
                                         }
+                                        if (s.StartsWith("Textcolor:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 10);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            if (terminalColor.ContainsKey(a))
+                                            {
+                                                foregrn = terminalColor[a];
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"{a} is not valid color.");
+                                            }
+                                        }
+                                        if (s.StartsWith("Backcolor:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 10);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            if (terminalColor.ContainsKey(a))
+                                            {
+                                                backgrn = terminalColor[a];
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"{a} is not valid color.");
+                                            }
+                                        }
                                     }
                                 }
 
-                                GUI_textfield newtextfield = new GUI_textfield(txtFieldName, x, y, wid, hei, isMultiline, text, isReadonly);
+                                GUI_textfield newtextfield = new GUI_textfield(txtFieldName, x, y, wid, hei, isMultiline, text, isReadonly, foregrn, backgrn);
                                 consoleDirector.GUITextFieldsToAdd.Add(newtextfield);
                                 GUIObjectsInUse.Add(newtextfield.GUIObjName, newtextfield);
 
@@ -1850,18 +1926,225 @@ namespace GyroPrompt
                     }
                     if (split_input[1].Equals("Menubar", StringComparison.OrdinalIgnoreCase))
                     {
-                        List<LocalList> localList = new List<LocalList>();
-                        foreach(LocalList list in local_arrays){
-                            if (split_input[3] == list.Name)
+                        if (split_input.Length >= 3)
+                        {
+                            bool minimumList = false;
+                            string menuBarName = split_input[2];
+                            List<LocalList> menuItemsToPass = new List<LocalList>();
+                            List<TaskList> taskListToPass = new List<TaskList>();
+                            bool validName = GUIObjectsInUse.ContainsKey(menuBarName);
+                            if (validName == false)
                             {
-                                localList.Add(list);
-                                GUI_Menubar newmenubar = new GUI_Menubar("poop", localList);
-                                consoleDirector.GUIMenuBarsToAdd.Add(newmenubar);
-                                GUIObjectsInUse.Add(newmenubar.GUIObjName, newmenubar);
+                                foreach (string s in split_input.Skip(3))
+                                {
+                                    if (s.StartsWith("Menuitems:", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string _placeholder = s.Remove(0, 10);
+                                        string[] _listname = _placeholder.Split(',');
+                                        foreach(string r in _listname)
+                                        {
+                                            LocalList newmenu = local_arrays.Find(j => j.Name == r.TrimEnd());
+                                            if (newmenu != null)
+                                            {
+                                                if (newmenu.arrayType == ArrayType.String)
+                                                {
+                                                    menuItemsToPass.Add(newmenu);
+                                                    minimumList = true;
+                                                } else
+                                                {
+                                                    Console.WriteLine($"{newmenu.Name} is not string list.");
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (s.StartsWith("Menutasks:", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string _placeholder = s.Remove(0, 10);
+                                        string[] _listname = _placeholder.Split(',');
+                                        foreach (string r in _listname)
+                                        {
+                                            TaskList newtasklist = tasklists_inuse.Find(j => j.taskName == r.TrimEnd());
+                                            if (newtasklist != null)
+                                            {
+                                                taskListToPass.Add(newtasklist);
+                                            }
+                                        }
+                                    }
+
+                                }
+                                if (minimumList == true)
+                                {
+                                    GUI_Menubar newmenubar = new GUI_Menubar(this, menuBarName, menuItemsToPass, taskListToPass);
+                                    consoleDirector.GUIMenuBarsToAdd.Add(newmenubar);
+                                    GUIObjectsInUse.Add(newmenubar.GUIObjName, newmenubar);
+                                } else
+                                {
+                                    Console.WriteLine("Menubar requires minimum 1 list with 1 item.");
+                                }
                             }
+                            else
+                            {
+                                Console.WriteLine($"{menuBarName} name in use.");
+                            }
+
+                        } else
+                        {
+                            Console.WriteLine("Invalid format for GUI menubar.");
                         }
                     }
+                    if (split_input[1].Equals("Label", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (split_input.Length >= 3)
+                        {
+                            bool nameinuse = GUIObjectsInUse.ContainsKey(split_input[2]);
+                            string labelName = split_input[2];
+                            if (nameinuse == false)
+                            {
+                                int x = 0;
+                                int y = 0;
+                                int wid = 4;
+                                int hei = 1;
+                                string text = "Label";
+                                Color backgrn = Color.Black;
+                                Color foregrn = Color.White;
+                                bool extracting = false;
+                                foreach (string s in split_input.Skip(3))
+                                {
+                                    if (extracting == true)
+                                    {
+                                        string q = SetVariableValue(s);
+                                        foreach (char c in q)
+                                        {
+                                            if (c != '|')
+                                            {
+                                                text += c;
+                                            }
+                                            else
+                                            {
+                                                extracting = false;
+                                            }
+                                        }
+                                        if (extracting == true)
+                                        {
+                                            text += " ";
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (s.StartsWith("XY:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 3);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            string[] b = a.Split(',');
+                                            if (b.Length == 2)
+                                            {
+                                                bool validx = IsNumeric(b[0]);
+                                                bool validy = IsNumeric(b[1]);
+                                                if (validx == true)
+                                                {
+                                                    if (validy == true)
+                                                    {
+                                                        x = Int32.Parse(b[0]);
+                                                        y = Int32.Parse(b[1]);
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine($"Invalid value for Y: {b[1]}");
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine($"Invalid value for X: {b[0]}");
+                                                }
 
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("Expecting X coordinate and Y coordinate separated by comma.");
+                                            }
+                                        }
+                                        if (s.StartsWith("HW:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 3);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            string[] b = a.Split(',');
+                                            if (b.Length == 2)
+                                            {
+                                                bool validh
+                                                    = IsNumeric(b[0]);
+                                                bool validw = IsNumeric(b[1]);
+                                                if (validh == true)
+                                                {
+                                                    if (validw == true)
+                                                    {
+                                                        hei = Int32.Parse(b[0]);
+                                                        wid = Int32.Parse(b[1]);
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine($"Invalid value for Y: {b[1]}");
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine($"Invalid value for X: {b[0]}");
+                                                }
+
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("Expecting height and width separated by comma.");
+                                            }
+                                        }
+                                        if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 5);
+                                            extracting = true;
+                                            text = _placeholder + " ";
+                                        }
+                                        if (s.StartsWith("Textcolor:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 10);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            if (terminalColor.ContainsKey(a.TrimEnd()))
+                                            {
+                                                foregrn = terminalColor[a.TrimEnd()];
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"{a} is not valid color.");
+                                            }
+                                        }
+                                        if (s.StartsWith("Backcolor:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 10);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            if (terminalColor.ContainsKey(a.TrimEnd()))
+                                            {
+                                                backgrn = terminalColor[a.TrimEnd()];
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"{a} is not valid color.");
+                                            }
+                                        }
+                                    }
+                                }
+                                GUI_Label newlabel = new GUI_Label(labelName, text, x, y, wid, hei, foregrn, backgrn);
+                                consoleDirector.GUILabelsToAdd.Add(newlabel);
+                                GUIObjectsInUse.Add(newlabel.GUIObjName, newlabel);
+
+                            }
+                            else
+                            {
+                                Console.WriteLine($"{labelName} name in use.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid format for GUI label.");
+                        }
+                    }
                 }
                 if (split_input[0].Equals("gui_item_setwidth"))
                 {
@@ -1919,6 +2202,17 @@ namespace GyroPrompt
                                                 if (guitxt.GUIObjName == guiObjectName)
                                                 {
                                                     guitxt.SetWidth(xx, filval);
+                                                    foundAndChangedWidth = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        case GUIObjectType.Label:
+                                            foreach (GUI_Label guilbl in consoleDirector.GUILabelsToAdd)
+                                            {
+                                                if (guilbl.GUIObjName == guiObjectName)
+                                                {
+                                                    guilbl.SetWidth(xx, filval);
                                                     foundAndChangedWidth = true;
                                                     break;
                                                 }
@@ -2016,6 +2310,17 @@ namespace GyroPrompt
                                                 }
                                             }
                                             break;
+                                        case GUIObjectType.Label:
+                                            foreach (GUI_Label guilbl in consoleDirector.GUILabelsToAdd)
+                                            {
+                                                if (guilbl.GUIObjName == guiObjectName)
+                                                {
+                                                    guilbl.SetHeight(xx, filval);
+                                                    foundAndChangedHeight = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
                                         default:
                                             // Object not found but somehow a quantum misfire of code happened and we ended up here
                                             foundAndChangedHeight = false;
@@ -2072,55 +2377,180 @@ namespace GyroPrompt
                                     validFill = true;
                                     filval = coordValue.Center;
                                     break;
+                                case "leftof":
+                                    validFill = true;
+                                    filval = coordValue.LeftOf;
+                                    break;
+                                case "rightof":
+                                    validFill = true;
+                                    filval = coordValue.RightOf;
+                                    break;
                                 default:
                                     validFill = false;
                                     break;
                             }
                             if (validFill == true)
                             {
-                                bool validNumber = IsNumeric(split_input[3]);
-                                int xx = Int32.Parse(split_input[3]);
-                                if (validNumber == true)
+                                if ((filval != coordValue.RightOf) && (filval != coordValue.LeftOf))
                                 {
-                                    bool foundAndChangedHeight = false;
-                                    switch (guiobjecttype)
+                                    bool validNumber = IsNumeric(split_input[3]);
+                                    int xx = Int32.Parse(split_input[3]);
+                                    if (validNumber == true)
                                     {
-                                        case GUIObjectType.Button:
-                                            foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
-                                            {
-                                                if (guibtn.GUIObjName == guiObjectName)
+                                        bool foundAndChangedHeight = false;
+                                        switch (guiobjecttype)
+                                        {
+                                            case GUIObjectType.Button:
+                                                foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
                                                 {
-                                                    guibtn.SetXCoord(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
+                                                    if (guibtn.GUIObjName == guiObjectName)
+                                                    {
+                                                        guibtn.SetXCoord(xx, filval);
+                                                        foundAndChangedHeight = true;
+                                                        break;
+                                                    }
                                                 }
-                                            }
-                                            break;
-                                        case GUIObjectType.Textfield:
-                                            foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
-                                            {
-                                                if (guitxt.GUIObjName == guiObjectName)
+                                                break;
+                                            case GUIObjectType.Textfield:
+                                                foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
                                                 {
-                                                    guitxt.SetXCoord(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
+                                                    if (guitxt.GUIObjName == guiObjectName)
+                                                    {
+                                                        guitxt.SetXCoord(xx, filval);
+                                                        foundAndChangedHeight = true;
+                                                        break;
+                                                    }
                                                 }
-                                            }
-                                            break;
-                                        default:
-                                            // Object not found but somehow a quantum misfire of code happened and we ended up here
-                                            foundAndChangedHeight = false;
-                                            break;
-                                    }
-                                    if (foundAndChangedHeight == false)
-                                    {
-                                        Console.WriteLine("Object type cannot accept argument for setx.");
-                                    }
+                                                break;
+                                            case GUIObjectType.Label:
+                                                foreach (GUI_Label guilbl in consoleDirector.GUILabelsToAdd)
+                                                {
+                                                    if (guilbl.GUIObjName == guiObjectName)
+                                                    {
+                                                        guilbl.SetXCoord(xx, filval);
+                                                        foundAndChangedHeight = true;
+                                                        break;
+                                                    }
+                                                }
+                                                break;
+                                            default:
+                                                // Object not found but somehow a quantum misfire of code happened and we ended up here
+                                                foundAndChangedHeight = false;
+                                                break;
+                                        }
+                                        if (foundAndChangedHeight == false)
+                                        {
+                                            Console.WriteLine("Object type cannot accept argument for setx.");
+                                        }
 
-                                }
-                                else
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"Invalid input: {split_input[3]}. Expected integer.");
+                                    }
+                                } else
                                 {
-                                    Console.WriteLine($"Invalid input: {split_input[3]}. Expected integer.");
+                                    string guidingObject = split_input[3];
+                                    bool guidingObjExists = GUIObjectsInUse.ContainsKey(guidingObject);
+                                    if (guidingObjExists == true)
+                                    {
+                                        GUI_textfield textitem_ = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName ==  guidingObject);
+                                        GUI_Button buttonitem_ = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guidingObject);
+                                        GUI_Label labelitem_ = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guidingObject);
+                                        if (textitem_ != null)
+                                        {
+                                            switch (guiobjecttype)
+                                            {
+                                                case GUIObjectType.Button:
+                                                    GUI_Button positioningButton = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningButton != null)
+                                                    {
+                                                        positioningButton.SetToLeftOrRight(textitem_.textView, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Textfield:
+                                                    GUI_textfield positioningTextfield = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningTextfield != null)
+                                                    {
+                                                        positioningTextfield.SetToLeftOrRight(textitem_.textView, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Label:
+                                                    GUI_Label positioningLabel = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningLabel != null)
+                                                    {
+                                                        positioningLabel.SetToLeftOrRight(textitem_.textView, filval);
+                                                    }
+                                                    break;
+                                                default:
+                                                    break;
+                                            }
+                                        } else if (buttonitem_!= null)
+                                        {
+                                            switch (guiobjecttype)
+                                            {
+                                                case GUIObjectType.Button:
+                                                    GUI_Button positioningButton = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningButton != null)
+                                                    {
+                                                        positioningButton.SetToLeftOrRight(buttonitem_.newButton, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Textfield:
+                                                    GUI_textfield positioningTextfield = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningTextfield != null)
+                                                    {
+                                                        positioningTextfield.SetToLeftOrRight(buttonitem_.newButton, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Label:
+                                                    GUI_Label positioningLabel = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningLabel != null)
+                                                    {
+                                                        positioningLabel.SetToLeftOrRight(buttonitem_.newButton, filval);
+                                                    }
+                                                    break;
+                                                default:
+                                                    break;
+                                            }
+                                        } else if (labelitem_ != null)
+                                        {
+                                            switch (guiobjecttype)
+                                            {
+                                                case GUIObjectType.Button:
+                                                    GUI_Button positioningButton = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningButton != null)
+                                                    {
+                                                        positioningButton.SetToLeftOrRight(labelitem_.newlabel, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Textfield:
+                                                    GUI_textfield positioningTextfield = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningTextfield != null)
+                                                    {
+                                                        positioningTextfield.SetToLeftOrRight(labelitem_.newlabel, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Label:
+                                                    GUI_Label positioningLabel = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningLabel != null)
+                                                    {
+                                                        positioningLabel.SetToLeftOrRight(labelitem_.newlabel, filval);
+                                                    }
+                                                    break;
+                                                default:
+                                                    break;
+                                            }
+                                        } else
+                                        {
+                                            Console.WriteLine($"{guidingObject} is not a valid reference point item.");
+                                        }
+
+
+                                    } else
+                                    {
+                                        Console.WriteLine($"{guidingObject} name not in use.");
+                                    }
                                 }
                             }
                             else
@@ -2198,6 +2628,17 @@ namespace GyroPrompt
                                                 }
                                             }
                                             break;
+                                        case GUIObjectType.Label:
+                                            foreach (GUI_Label guilbl in consoleDirector.GUILabelsToAdd)
+                                            {
+                                                if (guilbl.GUIObjName == guiObjectName)
+                                                {
+                                                    guilbl.SetYCoord(xx, filval);
+                                                    foundAndChangedHeight = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
                                         default:
                                             // Object not found but somehow a quantum misfire of code happened and we ended up here
                                             foundAndChangedHeight = false;
@@ -2233,13 +2674,16 @@ namespace GyroPrompt
                 {
                     if (split_input.Length == 3)
                     {
-                        string guiObjectName = split_input[1];
-                        string variableName = split_input[2];
-                        bool validVriable = LocalVariableExists(variableName);
-                        bool guiObjectExists = (GUIObjectsInUse.ContainsKey(guiObjectName));
+                        bool validVriable = false;
+                        bool guiObjectExists = false;
+                        string guiObjectName = split_input[1].TrimEnd();
+                        string variableName = split_input[2].TrimEnd();
+                        validVriable = LocalVariableExists(variableName);
+                        guiObjectExists = GUIObjectsInUse.ContainsKey(guiObjectName);
+
                         if ((validVriable == true) && ( guiObjectExists == true))
                         {
-                            
+                           
                             GUIObjectType objtype = GUIObjectsInUse[guiObjectName].GUIObjectType;
                             switch (objtype)
                             {
@@ -2254,16 +2698,15 @@ namespace GyroPrompt
                                                 {
                                                     if (var.Type == VariableType.String)
                                                     {
-                                                        var.Value = txtfield.GetText();
+                                                        var.Value = txtfield.textfieldtext;
+                                                        break;
                                                     } else
                                                     {
                                                         Console.WriteLine($"{var.Name} is not a string.");
+                                                        break;
                                                     }
-                                                    
-                                                    break;
                                                 }
                                             }
-                                            break;
                                         }
                                     }
                                     break;
@@ -2278,15 +2721,40 @@ namespace GyroPrompt
                                                 {
                                                     if (var.Type == VariableType.String)
                                                     {
-                                                        var.Value = buttonobj.GetText();
+                                                        var.Value = buttonobj.newButton.Text.ToString();
+                                                        break;
                                                     } else
                                                     {
                                                         Console.WriteLine($"{var.Name} is not a string.");
+                                                        break;
                                                     }
-                                                    break;
                                                 }
                                             }
-                                            break;
+                                        }
+                                    }
+                                    break;
+                                case GUIObjectType.Label:
+                                    foreach (GUI_Label lbltxt in consoleDirector.GUILabelsToAdd)
+                                    {
+                                        if (lbltxt.GUIObjName == guiObjectName)
+                                        {
+                                            foreach (LocalVariable var in local_variables)
+                                            {
+                                                if (var.Name == variableName)
+                                                {
+                                                    if (var.Type == VariableType.String)
+                                                    {
+                                                        var.Value = lbltxt.newlabel.Text.ToString();
+                                                        break;
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine($"{var.Name} is not a string.");
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            
                                         }
                                     }
                                     break;
@@ -2345,6 +2813,15 @@ namespace GyroPrompt
                                         }
                                     }
                                     break;
+                                case GUIObjectType.Label:
+                                    foreach (GUI_Label labelobj in consoleDirector.GUILabelsToAdd)
+                                    {
+                                        if (labelobj.GUIObjName == guiObjectName)
+                                        {
+                                            labelobj.SetText(textToSetTo);
+                                        }
+                                    }
+                                    break;
                                 default:
                                     Console.WriteLine($"Cannot set text to {guiObjectName}");
                                     break;
@@ -2358,6 +2835,31 @@ namespace GyroPrompt
                     else
                     {
                         Console.WriteLine("Invalid format to settext.");
+                    }
+                }
+                if (split_input[0].Equals("TEST1", StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Query("Logging In", "Login Successful", "Ok");
+                }
+                if (split_input[0].Equals("TEST2", StringComparison.OrdinalIgnoreCase))
+                {
+                    SaveDialog newdiag = new SaveDialog("Save File As", "Select a location to save the file");
+                    Application.Run(newdiag);
+                    string a = "";
+                    if (!string.IsNullOrEmpty(newdiag.FilePath.ToString()))
+                    {
+                        try
+                        {
+                            a = newdiag.FilePath.ToString();
+                        }
+                        catch
+                        {
+
+                        }
+                    }
+                    else
+                    {
+
                     }
                 }
 
@@ -3296,7 +3798,7 @@ namespace GyroPrompt
                     }
                 }
 
-                if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(split_input[1]); }
+                //if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(split_input[1]); }
 
                 if (split_input[0].Equals("SETUP"))
                 {

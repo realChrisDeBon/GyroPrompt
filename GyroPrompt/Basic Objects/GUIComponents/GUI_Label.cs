@@ -9,19 +9,15 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GyroPrompt.Basic_Objects.GUIComponents
 {
-    public class GUI_Button : GUI_BaseItem
+    public class GUI_Label : GUI_BaseItem
     {
-        public Button newButton;
-        public TaskList onClick;
-        private Parser topLevelParser;
+        public Label newlabel;
 
-        public GUI_Button(Parser topparse, string name_, TaskList commandsOnClick, string text_ = "Button", int x_ = 0, int y_ = 0, int width_ = 4, int height_ = 2, Color textcolor = Color.White, Color background = Color.DarkGray)
+        public GUI_Label (string name_, string text_ = "Label", int x_ = 0, int y_ = 0, int width_ = 4, int height_ = 2, Color textcolor = Color.White, Color background = Color.DarkGray)
         {
             GUIObjName = name_;
-            GUIObjectType = GUIObjectType.Button;
-            topLevelParser = topparse;
-
-            newButton = new Button()
+            GUIObjectType = GUIObjectType.Label;
+            newlabel = new Label()
             {
                 X = x_,
                 Y = y_,
@@ -35,18 +31,12 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                     HotNormal = Terminal.Gui.Attribute.Make(textcolor, background),
                     HotFocus = Terminal.Gui.Attribute.Make(textcolor, background)
                 },
-               
             };
-            onClick = commandsOnClick;
 
-            newButton.Clicked += () =>
+            newlabel.DrawContent += (e) =>
             {
-                btnClicked();
+                
             };
-        }
-        public void btnClicked()
-        {
-            topLevelParser.executeTask(onClick.taskList, onClick.taskType, onClick.scriptDelay);
         }
         public override void SetWidth(int x_, coordVal filler)
         {
@@ -55,13 +45,13 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 switch (filler)
                 {
                     case coordVal.Fill:
-                        newButton.Width = Dim.Fill();
+                        newlabel.Width = Dim.Fill();
                         break;
                     case coordVal.Percentage:
-                        newButton.Width = Dim.Percent(x_);
+                        newlabel.Width = Dim.Percent(x_);
                         break;
                     case coordVal.Number:
-                        newButton.Width = x_;
+                        newlabel.Width = x_;
                         break;
                 }
             }
@@ -77,13 +67,13 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 switch (filler)
                 {
                     case coordVal.Fill:
-                        newButton.Height = Dim.Fill();
+                        newlabel.Height = Dim.Fill();
                         break;
                     case coordVal.Percentage:
-                        newButton.Height = Dim.Percent(x_);
+                        newlabel.Height = Dim.Percent(x_);
                         break;
                     case coordVal.Number:
-                        newButton.Height = x_;
+                        newlabel.Height = x_;
                         break;
                 }
             }
@@ -96,20 +86,20 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         {
             if (fillval == coordValue.LeftOf)
             {
-                newButton.X = Pos.Left(obj);
-            }
-            else if (fillval == coordValue.RightOf)
+                newlabel.X = Pos.Left(obj);
+            } else if (fillval == coordValue.RightOf)
             {
-                newButton.X = Pos.Right(obj);
+                newlabel.X = Pos.Right(obj);
             }
         }
-        public void SetText (string text)
+        public void SetText(string text)
         {
-            newButton.Text = text;
+            newlabel.Text = text;
+            newlabel.SetNeedsDisplay();
         }
         public string GetText()
         {
-            return newButton.Text.ToString();
+            return newlabel.Text.ToString();
         }
         public void SetXCoord(int x_, coordValue filler)
         {
@@ -118,13 +108,13 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 switch (filler)
                 {
                     case coordValue.Number:
-                        newButton.X = x_;
+                        newlabel.X = x_;
                         break;
                     case coordValue.Center:
-                        newButton.X = Pos.Center();
+                        newlabel.X = Pos.Center();
                         break;
                     case coordValue.Percent:
-                        newButton.X = Pos.Percent(x_);
+                        newlabel.X = Pos.Percent(x_);
                         break;
                 }
             }
@@ -140,13 +130,13 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 switch (filler)
                 {
                     case coordValue.Number:
-                        newButton.Y = x_;
+                        newlabel.Y = x_;
                         break;
                     case coordValue.Center:
-                        newButton.Y = Pos.Center();
+                        newlabel.Y = Pos.Center();
                         break;
                     case coordValue.Percent:
-                        newButton.Y = Pos.Percent(x_);
+                        newlabel.Y = Pos.Percent(x_);
                         break;
                 }
             }
@@ -154,10 +144,6 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             {
 
             }
-        }
-        public void SetToDefault()
-        {
-            newButton.IsDefault = true;
         }
     }
 }
