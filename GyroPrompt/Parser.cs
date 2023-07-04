@@ -22,6 +22,8 @@ using GyroPrompt.Basic_Objects.Data_Management;
 using GyroPrompt.Basic_Functions.Object_Modifiers;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using static System.Net.Mime.MediaTypeNames;
+using System.Threading;
 
 public enum objectClass
 {
@@ -65,11 +67,13 @@ namespace GyroPrompt
         /// to GUI components (text fields, labels, etc). When the GUIModeEnabled is set to false, the console output reverts to its original state and output directly to
         /// the console like normally (Eventually).
         /// </summary>
-        
+
+        static TaskScheduler uiTaskScheduler;
         public bool GUIModeEnabled = false;
         public string ConsoleOutCatcher = "";
         ConsoleOutputDirector consoleDirector = new ConsoleOutputDirector();
         public IDictionary<string, GUI_BaseItem> GUIObjectsInUse = new Dictionary<string, GUI_BaseItem>();
+        
         /// <summary>
         /// Below are environmental variables. These are meant for the users to be able to interact with the console settings and modify the environment.
         /// The ConsoleInfo struct/method and keyConsoleKey IDictionary enable easier manipulation of console colors and to save current settings to be recalled.
@@ -204,12 +208,15 @@ namespace GyroPrompt
             }
             condition_checker.LoadOperations(); // Load enum types for operators
         }
+        
+
         /// <summary>
         /// Parser will handle input looped as opposed to the program entry point's Main()
         /// This will allow us to get a slightly higher degree of control in the future.
         /// </summary>
         public void beginInputLoop()
         {
+            
             TextWriter originOut = Console.Out;
             while (true)
             {
@@ -1524,8 +1531,8 @@ namespace GyroPrompt
                     {
                         try
                         {
-                            Application.Shutdown();
-                            Application.RequestStop();
+                            Terminal.Gui.Application.Shutdown();
+                            Terminal.Gui.Application.RequestStop();
                         }
                         catch
                         {
@@ -2837,14 +2844,163 @@ namespace GyroPrompt
                         Console.WriteLine("Invalid format to settext.");
                     }
                 }
-                if (split_input[0].Equals("TEST1", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("msgbox", StringComparison.OrdinalIgnoreCase))
                 {
-                    MessageBox.Query("Logging In", "Login Successful", "Ok");
+                    if (GUIModeEnabled == true)
+                    {
+
+                    bool extracting = false;
+                    bool extractingTitle = false;
+                    bool hasText = false;
+                    bool hasTitle = false;
+                    int[] hasButtons = { 0, 1, 2 }; // 0 is no, 1 is button "OK", 2 is button "YES,NO" which returns a value
+                    int selectedButton = 0;
+
+                    string expected_variable = "";
+                    LocalVariable bool_forYesNo = null;
+
+                    string text = "";
+                    string title = "";
+                    foreach(string s in split_input)
+                    {
+                        if (extracting == true)
+                        {
+                            string q = SetVariableValue(s);
+                            foreach (char c in q)
+                            {
+                                if (c != '|')
+                                {
+                                    if (extractingTitle == true)
+                                    {
+                                        title += c;
+                                    } else
+                                    {
+                                        text += c;
+                                    }
+                                }
+                                else
+                                {
+                                    extracting = false;
+                                    extractingTitle = false;
+                                }
+                            }
+                            if (extracting == true)
+                            {
+                                    if (extractingTitle == true)
+                                    {
+                                        title += " ";
+                                    }
+                                    else
+                                    {
+                                        text += " ";
+                                    }
+                                }
+                        }
+                        else
+                        {
+                            if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                string _placeholder = s.Remove(0, 5);
+                                extracting = true;
+                                text = _placeholder + " ";
+                                hasText = true;
+                            }
+                            if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                string _placeholder = s.Remove(0, 6);
+                                extractingTitle = true;
+                                extracting = true;
+                                title = _placeholder + " ";
+                                hasTitle = true;
+                            }
+                            if (s.StartsWith("Buttons:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                string _placeholder = s.Remove(0, 8);
+                                string a = ConvertNumericalVariable(_placeholder);
+                                if (a.StartsWith("YESNO,", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    selectedButton = 2;
+                                    expected_variable = s.Remove(0, 6).TrimEnd();
+                                    bool validValue = LocalVariableExists(expected_variable);
+                                    if (validValue == true)
+                                    {
+                                        LocalVariable var_totakevalue = local_variables.Find(locvar => locvar.Name == expected_variable);
+                                        if (var_totakevalue != null)
+                                        {
+                                            if (var_totakevalue.Type != VariableType.Boolean)
+                                            {
+                                                Console.WriteLine($"{expected_variable} variable not a bool.");
+                                                break;
+                                            } else
+                                            {
+                                                bool_forYesNo = var_totakevalue;
+                                            }
+                                        }
+                                    } else
+                                    {
+                                        Console.WriteLine($"{expected_variable} variable not found.");
+                                        break;
+                                    }
+                                }
+                                if (a.StartsWith("OK", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    selectedButton = 1;
+                                }
+                            }
+                        }
+                    }
+
+                    if (hasText == true)
+                    {
+                        if (hasTitle == true)
+                        {
+                            if (selectedButton != 0)
+                            {
+                                switch(selectedButton)
+                                {
+                                    case 1:
+                                        Terminal.Gui.Application.MainLoop.Invoke(() => MessageBox.Query(title, text, "Ok"));
+                                        break;
+                                    case 2:
+                                            int result = -1;
+                                            Terminal.Gui.Application.MainLoop.Invoke(() =>
+                                            {
+                                                result = MessageBox.Query(title, text, "YES", "NO");
+                                            });
+
+                                            if (result == 0)
+                                            {
+                                                bool_forYesNo.Value = "True";
+                                            } else if (result == 1)
+                                            {
+                                                bool_forYesNo.Value = "False";
+                                            }
+                                        break;
+                                }
+                            } else
+                            {
+                                Console.WriteLine("Message box requires buttons to be defined: OK, YESNO");
+                            }
+                        } else
+                        {
+                            Console.WriteLine("Message box requires title");
+                        }
+                    } else
+                    {
+                        Console.WriteLine("Message box requires text.");
+                    }
+
+                    
+                    } else
+                    {
+                        Console.WriteLine("GUI mode must be on.");
+                    }
                 }
+
                 if (split_input[0].Equals("TEST2", StringComparison.OrdinalIgnoreCase))
                 {
                     SaveDialog newdiag = new SaveDialog("Save File As", "Select a location to save the file");
-                    Application.Run(newdiag);
+                    //Application.Run(newdiag);
                     string a = "";
                     if (!string.IsNullOrEmpty(newdiag.FilePath.ToString()))
                     {
@@ -4140,12 +4296,9 @@ namespace GyroPrompt
                         }
                     }
                 }
-
-                if (capturedText.Equals("\\n", StringComparison.OrdinalIgnoreCase)) { a = a + "\n"; }
-
+                // Finally, check for newline
+                if (capturedText.Equals("nl", StringComparison.OrdinalIgnoreCase)) { a = a + "\n"; }
             }
-
-
             return a;
         }
         // Print message 'input' to console
@@ -4402,7 +4555,7 @@ namespace GyroPrompt
                     }
                 }
 
-                if (capturedText.Equals("\\n", StringComparison.OrdinalIgnoreCase)) { Console.WriteLine(); }
+                if (capturedText.Equals("nl", StringComparison.OrdinalIgnoreCase)) { Console.WriteLine(); }
                 // Check for the foreground color
                 if (capturedText.StartsWith("Color:", StringComparison.OrdinalIgnoreCase))
                 {
