@@ -12,6 +12,8 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         Button,
         Textfield,
         Label,
+        Checkbox,
+        Radiobutton,
         Menubar,
         Statusbar,
         Dialog

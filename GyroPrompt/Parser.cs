@@ -18,7 +18,6 @@ using GyroPrompt.Basic_Objects.Collections;
 using GyroPrompt.Setup;
 using GyroPrompt.Basic_Objects.GUIComponents;
 using Terminal.Gui;
-using GyroPrompt.Basic_Objects.Data_Management;
 using GyroPrompt.Basic_Functions.Object_Modifiers;
 using System.Diagnostics;
 using System.Security.Cryptography;
@@ -52,7 +51,6 @@ namespace GyroPrompt
         public FilesystemInterface filesystem = new FilesystemInterface();
         public DataHasher datahasher = new DataHasher();
         public DataSerializer dataserializer = new DataSerializer();
-
         
         public IDictionary<string, objectClass> namesInUse = new Dictionary<string, objectClass>();
         public bool running_script = false; // Used for determining if a script is being ran
@@ -1235,6 +1233,22 @@ namespace GyroPrompt
                                         Console.Write(prompt_);
                                         ConsoleKeyInfo ck = Console.ReadKey();
                                         string a_ = ck.KeyChar.ToString();
+                                        if (ck.Key == ConsoleKey.DownArrow)
+                                        {
+                                            a_ = "DownArrow";
+                                        }
+                                        if (ck.Key == ConsoleKey.UpArrow)
+                                        {
+                                            a_ = "UpArrow";
+                                        }
+                                        if (ck.Key == ConsoleKey.LeftArrow)
+                                        {
+                                            a_ = "LeftArrow";
+                                        }
+                                        if (ck.Key == ConsoleKey.RightArrow)
+                                        {
+                                            a_ = "RightArrow";
+                                        }
                                         var.Value = a_;
 
                                     }
@@ -1254,7 +1268,7 @@ namespace GyroPrompt
                     }
                     else
                     {
-                        Console.WriteLine("Invalid format for readline.");
+                        Console.WriteLine("Invalid format for readkey.");
                     }
                 }
                 if (split_input[0].Equals("readint", StringComparison.OrdinalIgnoreCase))
@@ -2152,6 +2166,225 @@ namespace GyroPrompt
                             Console.WriteLine("Invalid format for GUI label.");
                         }
                     }
+                    if (split_input[1].Equals("Checkbox", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (split_input.Length >= 3)
+                        {
+                            string expectedName = split_input[2];
+                            bool nameInUse = GUIObjectsInUse.ContainsKey(expectedName);
+                            if (nameInUse == false)
+                            {
+                                int x = 0;
+                                int y = 0;
+                                int wid = 4;
+                                int hei = 1;
+                                string text = "Checkbox";
+                                Color backgrn = Color.Black;
+                                Color foregrn = Color.White;
+                                bool isChecked = false;
+                                bool hasLinkedBools = false;
+                                List<string> listOfBools_ = new List<string>();
+                                bool extracting = false;
+
+                                foreach (string s in split_input)
+                                {
+                                    if (extracting == true)
+                                    {
+                                        string q = SetVariableValue(s);
+                                        foreach (char c in q)
+                                        {
+                                            if (c != '|')
+                                            {
+                                                text += c;
+                                            }
+                                            else
+                                            {
+                                                extracting = false;
+                                            }
+                                        }
+                                        if (extracting == true)
+                                        {
+                                            text += " ";
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (s.StartsWith("LinkBool:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 9);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            string[] b = a.Split(',');
+                                            if (b.Length >= 1)
+                                            {
+                                                foreach (string expectedBoolVar in b)
+                                                {
+                                                    expectedBoolVar.TrimEnd(); // Redundancy
+                                                    expectedBoolVar.TrimStart(); // Redundancy
+                                                    LocalVariable temp = local_variables.Find(z => z.Name == expectedBoolVar.TrimEnd());
+                                                    if (temp != null)
+                                                    {
+                                                        if (temp.Type == VariableType.Boolean)
+                                                        {
+                                                            listOfBools_.Add(temp.Name);
+                                                            hasLinkedBools = true;
+                                                        } else
+                                                        {
+                                                            Console.WriteLine($"{expectedBoolVar} is not a bool.");
+                                                        }
+                                                    } else
+                                                    {
+                                                        Console.WriteLine($"Could not locate variable {expectedBoolVar}");
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("Expecting atleast 1 bool value.");
+                                            }
+                                        }
+                                        if (s.StartsWith("XY:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 3);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            string[] b = a.Split(',');
+                                            if (b.Length == 2)
+                                            {
+                                                bool validx = IsNumeric(b[0]);
+                                                bool validy = IsNumeric(b[1]);
+                                                if (validx == true)
+                                                {
+                                                    if (validy == true)
+                                                    {
+                                                        x = Int32.Parse(b[0]);
+                                                        y = Int32.Parse(b[1]);
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine($"Invalid value for Y: {b[1]}");
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine($"Invalid value for X: {b[0]}");
+                                                }
+
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("Expecting X coordinate and Y coordinate separated by comma.");
+                                            }
+                                        }
+                                        if (s.StartsWith("HW:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 3);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            string[] b = a.Split(',');
+                                            if (b.Length == 2)
+                                            {
+                                                bool validh = IsNumeric(b[0]);
+                                                bool validw = IsNumeric(b[1]);
+                                                if (validh == true)
+                                                {
+                                                    if (validw == true)
+                                                    {
+                                                        hei = Int32.Parse(b[0]);
+                                                        wid = Int32.Parse(b[1]);
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine($"Invalid value for Y: {b[1]}");
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine($"Invalid value for X: {b[0]}");
+                                                }
+
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("Expecting height and width separated by comma.");
+                                            }
+                                        }
+                                        if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 5);
+                                            extracting = true;
+                                            text = _placeholder + " ";
+                                        }
+                                        if (s.StartsWith("Checked:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 9);
+                                            string q = SetVariableValue(_placeholder).TrimEnd();
+                                            string[] validValues = { "False", "false","No", "no", "0", "True", "true","Yes","yes", "1" };
+                                            int val = 0;
+                                            bool correctValue = false;
+                                            for (val = 0; val < validValues.Length; val++)
+                                            {
+                                                if (q.Equals(validValues[val], StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    if (val <= 4)
+                                                    {
+                                                        isChecked = false;
+                                                    }
+                                                    else if (val >= 5)
+                                                    {
+                                                        isChecked = true;
+                                                    }
+                                                    correctValue = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (correctValue == true)
+                                            {
+
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"Invalid input: {q}. Expecting bool.");
+                                            }
+                                        }
+                                        if (s.StartsWith("Textcolor:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 10);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            if (terminalColor.ContainsKey(a))
+                                            {
+                                                foregrn = terminalColor[a];
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"{a} is not valid color.");
+                                            }
+                                        }
+                                        if (s.StartsWith("Backcolor:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 10);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            if (terminalColor.ContainsKey(a))
+                                            {
+                                                backgrn = terminalColor[a];
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"{a} is not valid color.");
+                                            }
+                                        }
+                                    }
+                                }
+                                GUI_Checkbox newcheckbox = new GUI_Checkbox(this, expectedName, text, x, y, wid, hei, isChecked, hasLinkedBools, listOfBools_, foregrn, backgrn);
+                                consoleDirector.GUICheckboxToAdd.Add(newcheckbox);
+                                GUIObjectsInUse.Add(expectedName, newcheckbox);
+
+                            } else
+                            {
+                                Console.WriteLine($"{expectedName} name in use.");
+                            }
+                        } else
+                        {
+                            Console.WriteLine("Invalid format for GUI checkbox.");
+                        }
+                    }
                 }
                 if (split_input[0].Equals("gui_item_setwidth"))
                 {
@@ -2220,6 +2453,17 @@ namespace GyroPrompt
                                                 if (guilbl.GUIObjName == guiObjectName)
                                                 {
                                                     guilbl.SetWidth(xx, filval);
+                                                    foundAndChangedWidth = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        case GUIObjectType.Checkbox:
+                                            foreach (GUI_Checkbox guichbx in consoleDirector.GUICheckboxToAdd)
+                                            {
+                                                if (guichbx.GUIObjName == guiObjectName)
+                                                {
+                                                    guichbx.SetWidth(xx, filval);
                                                     foundAndChangedWidth = true;
                                                     break;
                                                 }
@@ -2325,6 +2569,16 @@ namespace GyroPrompt
                                                     guilbl.SetHeight(xx, filval);
                                                     foundAndChangedHeight = true;
                                                     break;
+                                                }
+                                            }
+                                            break;
+                                        case GUIObjectType.Checkbox:
+                                            foreach (GUI_Checkbox guichbx in consoleDirector.GUICheckboxToAdd)
+                                            {
+                                                if (guichbx.GUIObjName == guiObjectName)
+                                                {
+                                                    guichbx.SetHeight(xx, filval);
+                                                    foundAndChangedHeight = true;
                                                 }
                                             }
                                             break;
@@ -2440,6 +2694,17 @@ namespace GyroPrompt
                                                     }
                                                 }
                                                 break;
+                                            case GUIObjectType.Checkbox:
+                                                foreach (GUI_Checkbox guichbx in consoleDirector.GUICheckboxToAdd)
+                                                {
+                                                    if (guichbx.GUIObjName == guiObjectName)
+                                                    {
+                                                        guichbx.SetXCoord(xx, filval);
+                                                        foundAndChangedHeight = true;
+                                                        break;
+                                                    }
+                                                }
+                                                break;
                                             default:
                                                 // Object not found but somehow a quantum misfire of code happened and we ended up here
                                                 foundAndChangedHeight = false;
@@ -2459,11 +2724,13 @@ namespace GyroPrompt
                                 {
                                     string guidingObject = split_input[3];
                                     bool guidingObjExists = GUIObjectsInUse.ContainsKey(guidingObject);
+                                    // Holy shit I could have just used GUIObjectType guiobj = GUIObjectsInUse[guidingObject].GUIObjectType; and skipped this retarded ass nesting I did wtf I need to fix this later
                                     if (guidingObjExists == true)
                                     {
                                         GUI_textfield textitem_ = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName ==  guidingObject);
                                         GUI_Button buttonitem_ = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guidingObject);
                                         GUI_Label labelitem_ = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guidingObject);
+                                        GUI_Checkbox checkboxitem = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == guidingObject);
                                         if (textitem_ != null)
                                         {
                                             switch (guiobjecttype)
@@ -2487,6 +2754,13 @@ namespace GyroPrompt
                                                     if (positioningLabel != null)
                                                     {
                                                         positioningLabel.SetToLeftOrRight(textitem_.textView, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Checkbox:
+                                                    GUI_Checkbox positioningCheckbox = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningCheckbox != null)
+                                                    {
+                                                        positioningCheckbox.SetToLeftOrRight(textitem_.textView, filval);
                                                     }
                                                     break;
                                                 default:
@@ -2517,6 +2791,13 @@ namespace GyroPrompt
                                                         positioningLabel.SetToLeftOrRight(buttonitem_.newButton, filval);
                                                     }
                                                     break;
+                                                case GUIObjectType.Checkbox:
+                                                    GUI_Checkbox positioningCheckbox = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningCheckbox != null)
+                                                    {
+                                                        positioningCheckbox.SetToLeftOrRight(buttonitem_.newButton, filval);
+                                                    }
+                                                    break;
                                                 default:
                                                     break;
                                             }
@@ -2543,6 +2824,48 @@ namespace GyroPrompt
                                                     if (positioningLabel != null)
                                                     {
                                                         positioningLabel.SetToLeftOrRight(labelitem_.newlabel, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Checkbox:
+                                                    GUI_Checkbox positioningCheckbox = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningCheckbox != null)
+                                                    {
+                                                        positioningCheckbox.SetToLeftOrRight(labelitem_.newlabel, filval);
+                                                    }
+                                                    break;
+                                                default:
+                                                    break;
+                                            }
+                                        } else if (checkboxitem != null)
+                                        {
+                                            switch(guiobjecttype)
+                                            {
+                                                case GUIObjectType.Button:
+                                                    GUI_Button positioningButton = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningButton != null)
+                                                    {
+                                                        positioningButton.SetToLeftOrRight(checkboxitem.newCheckbox, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Textfield:
+                                                    GUI_textfield positioningTextfield = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningTextfield != null)
+                                                    {
+                                                        positioningTextfield.SetToLeftOrRight(checkboxitem.newCheckbox, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Label:
+                                                    GUI_Label positioningLabel = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningLabel != null)
+                                                    {
+                                                        positioningLabel.SetToLeftOrRight(checkboxitem.newCheckbox, filval);
+                                                    }
+                                                    break;
+                                                case GUIObjectType.Checkbox:
+                                                    GUI_Checkbox positioningCheckbox = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == guiObjectName);
+                                                    if (positioningCheckbox != null)
+                                                    {
+                                                        positioningCheckbox.SetToLeftOrRight(checkboxitem.newCheckbox, filval);
                                                     }
                                                     break;
                                                 default:
@@ -2641,6 +2964,17 @@ namespace GyroPrompt
                                                 if (guilbl.GUIObjName == guiObjectName)
                                                 {
                                                     guilbl.SetYCoord(xx, filval);
+                                                    foundAndChangedHeight = true;
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        case GUIObjectType.Checkbox:
+                                            foreach (GUI_Checkbox guichbx in consoleDirector.GUICheckboxToAdd)
+                                            {
+                                                if (guichbx.GUIObjName == guiObjectName)
+                                                {
+                                                    guichbx.SetYCoord(xx, filval);
                                                     foundAndChangedHeight = true;
                                                     break;
                                                 }
@@ -2765,6 +3099,30 @@ namespace GyroPrompt
                                         }
                                     }
                                     break;
+                                case GUIObjectType.Checkbox:
+                                    foreach (GUI_Checkbox chkbox in consoleDirector.GUICheckboxToAdd)
+                                    {
+                                        if (chkbox.GUIObjName == guiObjectName)
+                                        {
+                                            foreach (LocalVariable var in local_variables)
+                                            {
+                                                if (var.Name == variableName)
+                                                {
+                                                    if (var.Type == VariableType.String)
+                                                    {
+                                                        var.Value = chkbox.newCheckbox.Text.ToString();
+                                                        break;
+                                                    }
+                                                    else
+                                                    {
+                                                        Console.WriteLine($"{var.Name} is not a string.");
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    break;
                             }
                         } else if ((validVriable == true) && (guiObjectExists == false)){
                             Console.WriteLine($"Could not locate GUI object {guiObjectName}.");
@@ -2829,6 +3187,15 @@ namespace GyroPrompt
                                         }
                                     }
                                     break;
+                                case GUIObjectType.Checkbox:
+                                    foreach (GUI_Checkbox chkbox in consoleDirector.GUICheckboxToAdd)
+                                    {
+                                        if (chkbox.GUIObjName == guiObjectName)
+                                        {
+                                            chkbox.SetText(textToSetTo);
+                                        }
+                                    }
+                                    break;
                                 default:
                                     Console.WriteLine($"Cannot set text to {guiObjectName}");
                                     break;
@@ -2848,175 +3215,167 @@ namespace GyroPrompt
                 {
                     if (GUIModeEnabled == true)
                     {
+              
+                            bool extracting = false;
+                            bool extractingTitle = false;
+                            bool hasText = false;
+                            bool hasTitle = false;
+                            int[] hasButtons = { 0, 1, 2 }; // 0 is no, 1 is button "OK", 2 is button "YES,NO" which returns a value
+                            int selectedButton = 0;
 
-                    bool extracting = false;
-                    bool extractingTitle = false;
-                    bool hasText = false;
-                    bool hasTitle = false;
-                    int[] hasButtons = { 0, 1, 2 }; // 0 is no, 1 is button "OK", 2 is button "YES,NO" which returns a value
-                    int selectedButton = 0;
+                            string expected_variable = "";
+                            LocalVariable bool_forYesNo = null;
 
-                    string expected_variable = "";
-                    LocalVariable bool_forYesNo = null;
-
-                    string text = "";
-                    string title = "";
-                    foreach(string s in split_input)
-                    {
-                        if (extracting == true)
-                        {
-                            string q = SetVariableValue(s);
-                            foreach (char c in q)
+                            string text = "";
+                            string title = "";
+                            foreach (string s in split_input)
                             {
-                                if (c != '|')
+                                if (extracting == true)
                                 {
-                                    if (extractingTitle == true)
+                                    string q = SetVariableValue(s);
+                                    foreach (char c in q)
                                     {
-                                        title += c;
-                                    } else
+                                        if (c != '|')
+                                        {
+                                            if (extractingTitle == true)
+                                            {
+                                                title += c;
+                                            } else if (extractingTitle == false)
+                                            {
+                                                text += c;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            extracting = false;
+                                            extractingTitle = false;
+                                        }
+                                    }
+                                    if (extracting == true)
                                     {
-                                        text += c;
+                                        if (extractingTitle == true)
+                                        {
+                                            title += " ";
+                                        }
+                                        else if (extractingTitle == false)
+                                        {
+                                            text += " ";
+                                        }
                                     }
                                 }
                                 else
                                 {
-                                    extracting = false;
-                                    extractingTitle = false;
-                                }
-                            }
-                            if (extracting == true)
-                            {
-                                    if (extractingTitle == true)
+                                    if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        title += " ";
+                                        string _placeholder = s.Remove(0, 5);
+                                        extracting = true;
+                                        extractingTitle = false;
+                                        text = _placeholder + " ";
+                                        hasText = true;
                                     }
-                                    else
+                                    if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        text += " ";
+                                        string _placeholder = s.Remove(0, 6);
+                                        extractingTitle = true;
+                                        extracting = true;
+                                        title = _placeholder + " ";
+                                        hasTitle = true;
                                     }
-                                }
-                        }
-                        else
-                        {
-                            if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
-                            {
-                                string _placeholder = s.Remove(0, 5);
-                                extracting = true;
-                                text = _placeholder + " ";
-                                hasText = true;
-                            }
-                            if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
-                            {
-                                string _placeholder = s.Remove(0, 6);
-                                extractingTitle = true;
-                                extracting = true;
-                                title = _placeholder + " ";
-                                hasTitle = true;
-                            }
-                            if (s.StartsWith("Buttons:", StringComparison.OrdinalIgnoreCase))
-                            {
-                                string _placeholder = s.Remove(0, 8);
-                                string a = ConvertNumericalVariable(_placeholder);
-                                if (a.StartsWith("YESNO,", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    selectedButton = 2;
-                                    expected_variable = s.Remove(0, 6).TrimEnd();
-                                    bool validValue = LocalVariableExists(expected_variable);
-                                    if (validValue == true)
+                                    if (s.StartsWith("Buttons:", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        LocalVariable var_totakevalue = local_variables.Find(locvar => locvar.Name == expected_variable);
-                                        if (var_totakevalue != null)
+                                        string _placeholder = s.Remove(0, 8);
+                                        string a = ConvertNumericalVariable(_placeholder);
+                                        if (a.StartsWith("YESNO,", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            if (var_totakevalue.Type != VariableType.Boolean)
+                                            selectedButton = 2;
+                                            expected_variable = s.Remove(0, 6).TrimEnd();
+                                            bool validValue = LocalVariableExists(expected_variable);
+                                            if (validValue == true)
                                             {
-                                                Console.WriteLine($"{expected_variable} variable not a bool.");
-                                                break;
+                                                LocalVariable var_totakevalue = local_variables.Find(locvar => locvar.Name == expected_variable);
+                                                if (var_totakevalue != null)
+                                                {
+                                                    if (var_totakevalue.Type != VariableType.Boolean)
+                                                    {
+                                                        Console.WriteLine($"{expected_variable} variable not a bool.");
+                                                        break;
+                                                    } else
+                                                    {
+                                                        bool_forYesNo = var_totakevalue;
+                                                    }
+                                                }
                                             } else
                                             {
-                                                bool_forYesNo = var_totakevalue;
+                                                Console.WriteLine($"{expected_variable} variable not found.");
+                                                break;
                                             }
                                         }
-                                    } else
-                                    {
-                                        Console.WriteLine($"{expected_variable} variable not found.");
-                                        break;
+                                        if (a.StartsWith("OK", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            selectedButton = 1;
+                                        }
                                     }
                                 }
-                                if (a.StartsWith("OK", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    selectedButton = 1;
-                                }
                             }
-                        }
-                    }
 
-                    if (hasText == true)
-                    {
-                        if (hasTitle == true)
-                        {
-                            if (selectedButton != 0)
+                            if (hasText == true)
                             {
-                                switch(selectedButton)
+                                if (hasTitle == true)
                                 {
-                                    case 1:
-                                        Terminal.Gui.Application.MainLoop.Invoke(() => MessageBox.Query(title, text, "Ok"));
-                                        break;
-                                    case 2:
-                                            int result = -1;
+                                    if (selectedButton != 0)
+                                    {
+                                        switch (selectedButton)
+                                        {
+                                            case 1:
                                             Terminal.Gui.Application.MainLoop.Invoke(() =>
                                             {
-                                                result = MessageBox.Query(title, text, "YES", "NO");
+                                                consoleDirector.ok_msgbox(title, text);
                                             });
-
-                                            if (result == 0)
-                                            {
-                                                bool_forYesNo.Value = "True";
-                                            } else if (result == 1)
-                                            {
-                                                bool_forYesNo.Value = "False";
-                                            }
-                                        break;
+                                                break;
+                                            case 2:
+                                            int result = -1;
+                                                Terminal.Gui.Application.MainLoop.Invoke(() =>
+                                                {
+                                                    result = consoleDirector.yesno_msgbox(title, text);
+                                                });
+                                                if (result == 0)
+                                                {
+                                                    bool_forYesNo.Value = "True";
+                                                }
+                                                else if (result == 1)
+                                                {
+                                                    bool_forYesNo.Value = "False";
+                                                }
+                                                break;
+                                        }
+                                        
+                                    } else
+                                    {
+                                        Console.WriteLine("Message box requires buttons to be defined: OK, YESNO");
+                                    }
+                                } else
+                                {
+                                    Console.WriteLine("Message box requires title");
                                 }
                             } else
                             {
-                                Console.WriteLine("Message box requires buttons to be defined: OK, YESNO");
+                                Console.WriteLine("Message box requires text.");
                             }
-                        } else
-                        {
-                            Console.WriteLine("Message box requires title");
-                        }
+
                     } else
                     {
-                        Console.WriteLine("Message box requires text.");
+                            Console.WriteLine("GUI mode must be on.");
                     }
-
                     
-                    } else
-                    {
-                        Console.WriteLine("GUI mode must be on.");
-                    }
+                    
                 }
-
-                if (split_input[0].Equals("TEST2", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("savedialog", StringComparison.OrdinalIgnoreCase))
                 {
-                    SaveDialog newdiag = new SaveDialog("Save File As", "Select a location to save the file");
-                    //Application.Run(newdiag);
-                    string a = "";
-                    if (!string.IsNullOrEmpty(newdiag.FilePath.ToString()))
+                    Terminal.Gui.Application.MainLoop.Invoke(() =>
                     {
-                        try
-                        {
-                            a = newdiag.FilePath.ToString();
-                        }
-                        catch
-                        {
-
-                        }
-                    }
-                    else
-                    {
-
-                    }
+                        string newtitle = consoleDirector.showsaveDialog();
+                        Console.Title = newtitle;
+                    });
                 }
 
                 /// <summary>
@@ -4170,10 +4529,10 @@ namespace GyroPrompt
                     a += processedTimeDate;
                 }
                 // Then check for list items
-                if (capturedText.StartsWith("List:"))
+                if (capturedText.StartsWith("List:", StringComparison.OrdinalIgnoreCase))
                 {
                     string _placeholder = capturedText.Remove(0, 5);
-                    if (_placeholder.StartsWith("At:"))
+                    if (_placeholder.StartsWith("At:", StringComparison.OrdinalIgnoreCase))
                     {
                         // Referencing an index position within the list
                         string place_ = _placeholder.Remove(0, 3);
@@ -4267,7 +4626,7 @@ namespace GyroPrompt
                     }
                 }
                 // Then check for filesystem conditions
-                if (capturedText.StartsWith("Filesystem:"))
+                if (capturedText.StartsWith("Filesystem:", StringComparison.OrdinalIgnoreCase))
                 {
                     string placeholder_ = capturedText.Remove(0, 11);
                     if (placeholder_.StartsWith("FileExists:", StringComparison.OrdinalIgnoreCase))
@@ -4294,6 +4653,186 @@ namespace GyroPrompt
                         {
                             a += "False";
                         }
+                    }
+                }
+                // Then check for references to GUI items
+                if (capturedText.StartsWith("GUIItem:", StringComparison.OrdinalIgnoreCase))
+                {
+                    // text, x, y, width, height
+                    string placeholder_ = capturedText.Remove(0, 8);
+                    bool validProperty = false;
+                    int returnProperty = 0;
+                    if (placeholder_.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 5).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 0;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+                    if (placeholder_.StartsWith("X:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 2).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 1;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+                    if (placeholder_.StartsWith("Y:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 2).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 2;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+                    if (placeholder_.StartsWith("Height:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 7).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 3;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+                    if (placeholder_.StartsWith("Width:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 6).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 4;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+                    if (placeholder_.StartsWith("IsChecked:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 10).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 5;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+
+                    void gotoGUIObject(string expectedGUIObjName, int expectedReturnProperty)
+                    {
+                        if (GUIObjectsInUse.ContainsKey(expectedGUIObjName))
+                        {
+                            GUIObjectType guiObjType = GUIObjectsInUse[expectedGUIObjName].GUIObjectType;
+                            switch(guiObjType)
+                            {
+                                case GUIObjectType.Button:
+                                    GUI_Button buttonitem_ = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == expectedGUIObjName);
+                                    if (buttonitem_ != null)
+                                    {
+                                        switch (expectedReturnProperty)
+                                        {
+                                            case 0:
+                                                a += buttonitem_.newButton.Text.ToString();
+                                                break;
+                                            case 1:
+                                                string x_ = buttonitem_.newButton.X.ToString();
+                                                string filteredString = new string(x_.Where(char.IsDigit).ToArray());
+                                                a += filteredString;
+                                                break;
+                                            case 2:
+                                                string y_ = buttonitem_.newButton.Y.ToString();
+                                                string filteredString1 = new string(y_.Where(char.IsDigit).ToArray());
+                                                a += filteredString1;
+                                                break;
+                                            case 3:
+                                                string hei_ = buttonitem_.newButton.Height.ToString();
+                                                string filteredString2 = new string(hei_.Where(char.IsDigit).ToArray());
+                                                a += filteredString2;
+                                                break;
+                                            case 4:
+                                                string wid_ = buttonitem_.newButton.Width.ToString();
+                                                string filteredString3 = new string(wid_.Where(char.IsDigit).ToArray());
+                                                a += filteredString3;
+                                                break;
+                                            case 5:
+                                                Console.WriteLine("IsChecked only applies to toggle items: checkbox and radiobutton");
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case GUIObjectType.Textfield:
+                                    GUI_textfield textitem_ = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName == expectedGUIObjName);
+                                    if (textitem_ != null)
+                                    {
+                                        switch (expectedReturnProperty)
+                                        {
+                                            case 0:
+                                                a += textitem_.textView.Text.ToString();
+                                                break;
+                                            case 1:
+                                                string x_ = textitem_.textView.X.ToString();
+                                                string filteredString = new string(x_.Where(char.IsDigit).ToArray());
+                                                a += filteredString;
+                                                break;
+                                            case 2:
+                                                string y_ = textitem_.textView.Y.ToString();
+                                                string filteredString1 = new string(y_.Where(char.IsDigit).ToArray());
+                                                a += filteredString1;
+                                                break;
+                                            case 3:
+                                                string hei_ = textitem_.textView.Height.ToString();
+                                                string filteredString2 = new string(hei_.Where(char.IsDigit).ToArray());
+                                                a += filteredString2;
+                                                break;
+                                            case 4:
+                                                string wid = textitem_.textView.Width.ToString();
+                                                string filteredString3 = new string(wid.Where(char.IsDigit).ToArray());
+                                                a += filteredString3;
+                                                break;
+                                            case 5:
+                                                Console.WriteLine("IsChecked only applies to toggle items: checkbox and radiobutton");
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case GUIObjectType.Label:
+                                    GUI_Label labelitem_ = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == expectedGUIObjName);
+                                    if (labelitem_ != null)
+                                    {
+                                        switch (expectedReturnProperty)
+                                        {
+                                            case 0:
+                                                a += labelitem_.newlabel.Text.ToString();
+                                                break;
+                                            case 1:
+                                                string x_ = labelitem_.newlabel.X.ToString();
+                                                string filteredString = new string(x_.Where(char.IsDigit).ToArray());
+                                                a += filteredString;
+                                                break;
+                                            case 2:
+                                                string y_ = labelitem_.newlabel.Y.ToString();
+                                                string filteredString1 = new string(y_.Where(char.IsDigit).ToArray());
+                                                a += filteredString1;
+                                                break;
+                                            case 3:
+                                                string hei_ = labelitem_.newlabel.Height.ToString();
+                                                string filteredString2 = new string(hei_.Where(char.IsDigit).ToArray());
+                                                a += filteredString2;
+                                                break;
+                                            case 4:
+                                                string wid_ = labelitem_.newlabel.Width.ToString();
+                                                string filteredString3 = new string(wid_.Where(char.IsDigit).ToArray());
+                                                a += filteredString3;
+                                                break;
+                                            case 5:
+                                                Console.WriteLine("IsChecked only applies to toggle items: checkbox and radiobutton");
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case GUIObjectType.Checkbox:
+                                    // To be populated
+                                    break;
+                                case GUIObjectType.Radiobutton:
+                                    // To be populated
+                                    break;
+                            }
+
+                        } else
+                        {
+                            Console.WriteLine($"Could not locate GUI object {expectedGUIObjName}.");
+                        }
+                    }
+                    if (validProperty == false)
+                    {
+                        Console.WriteLine("Invalid property type. Expected Text, X, Y, Height, or Width");
                     }
                 }
                 // Finally, check for newline
@@ -4554,7 +5093,189 @@ namespace GyroPrompt
                         }
                     }
                 }
+                // Check for GUI object property
+                // Then check for references to GUI items
+                if (capturedText.StartsWith("GUIItem:", StringComparison.OrdinalIgnoreCase))
+                {
+                    // text, x, y, width, height
+                    string placeholder_ = capturedText.Remove(0, 8).TrimEnd();
+                    bool validProperty = false;
+                    int returnProperty = 0;
+                    if (placeholder_.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 5).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 0;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+                    if (placeholder_.StartsWith("X:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 2).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 1;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+                    if (placeholder_.StartsWith("Y:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 2).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 2;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+                    if (placeholder_.StartsWith("Height:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 7).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 3;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+                    if (placeholder_.StartsWith("Width:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 6).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 4;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
+                    if (placeholder_.StartsWith("IsChecked:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string _placeholder = placeholder_.Remove(0, 10).TrimEnd();
+                        validProperty = true;
+                        returnProperty = 5;
+                        gotoGUIObject(_placeholder, returnProperty);
+                    }
 
+                    void gotoGUIObject(string expectedGUIObjName, int expectedReturnProperty)
+                    {
+                        if (GUIObjectsInUse.ContainsKey(expectedGUIObjName))
+                        {
+                            GUIObjectType guiObjType = GUIObjectsInUse[expectedGUIObjName].GUIObjectType;
+                            switch (guiObjType)
+                            {
+                                case GUIObjectType.Button:
+                                    GUI_Button buttonitem_ = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == expectedGUIObjName);
+                                    if (buttonitem_ != null)
+                                    {
+                                        switch (expectedReturnProperty)
+                                        {
+                                            case 0:
+                                                Console.Write(buttonitem_.newButton.Text.ToString());
+                                                break;
+                                            case 1:
+                                                string x_ = buttonitem_.newButton.X.ToString();
+                                                string filteredString = new string(x_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString);
+                                                break;
+                                            case 2:
+                                                string y_ = buttonitem_.newButton.Y.ToString();
+                                                string filteredString1 = new string(y_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString1);
+                                                break;
+                                            case 3:
+                                                string hei_ = buttonitem_.newButton.Height.ToString();
+                                                string filteredString2 = new string(hei_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString2);
+                                                break;
+                                            case 4:
+                                                string wid_ = buttonitem_.newButton.Width.ToString();
+                                                string filteredString3 = new string(wid_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString3);
+                                                break;
+                                            case 5:
+                                                Console.WriteLine("IsChecked only applies to toggle items: checkbox and radiobutton");
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case GUIObjectType.Textfield:
+                                    GUI_textfield textitem_ = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName == expectedGUIObjName);
+                                    if (textitem_ != null)
+                                    {
+                                        switch (expectedReturnProperty)
+                                        {
+                                            case 0:
+                                                Console.Write(textitem_.textView.Text.ToString());
+                                                break;
+                                            case 1:
+                                                string x_ = textitem_.textView.X.ToString();
+                                                string filteredString = new string(x_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString);
+                                                break;
+                                            case 2:
+                                                string y_ = textitem_.textView.Y.ToString();
+                                                string filteredString1 = new string(y_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString1);
+                                                break;
+                                            case 3:
+                                                string hei_ = textitem_.textView.Height.ToString();
+                                                string filteredString2 = new string(hei_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString2);
+                                                break;
+                                            case 4:
+                                                string wid = textitem_.textView.Width.ToString();
+                                                string filteredString3 = new string(wid.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString3);
+                                                break;
+                                            case 5:
+                                                Console.WriteLine("IsChecked only applies to toggle items: checkbox and radiobutton");
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case GUIObjectType.Label:
+                                    GUI_Label labelitem_ = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == expectedGUIObjName);
+                                    if (labelitem_ != null)
+                                    {
+                                        switch (expectedReturnProperty)
+                                        {
+                                            case 0:
+                                                Console.Write(labelitem_.newlabel.Text.ToString());
+                                                break;
+                                            case 1:
+                                                string x_ = labelitem_.newlabel.X.ToString();
+                                                string filteredString = new string(x_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString);
+                                                break;
+                                            case 2:
+                                                string y_ = labelitem_.newlabel.Y.ToString();
+                                                string filteredString1 = new string(y_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString1);
+                                                break;
+                                            case 3:
+                                                string hei_ = labelitem_.newlabel.Height.ToString();
+                                                string filteredString2 = new string(hei_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString2);
+                                                break;
+                                            case 4:
+                                                string wid_ = labelitem_.newlabel.Width.ToString();
+                                                string filteredString3 = new string(wid_.Where(char.IsDigit).ToArray());
+                                                Console.Write(filteredString3);
+                                                break;
+                                            case 5:
+                                                Console.WriteLine("IsChecked only applies to toggle items: checkbox and radiobutton");
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case GUIObjectType.Checkbox:
+                                    // To be populated
+                                    break;
+                                case GUIObjectType.Radiobutton:
+                                    // To be populated
+                                    break;
+                            }
+
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate GUI object {expectedGUIObjName}.");
+                        }
+                    }
+                    if (validProperty == false)
+                    {
+                        Console.WriteLine("Invalid property type. Expected Text, X, Y, Height, or Width");
+                    }
+                }
+                // Check for newline
                 if (capturedText.Equals("nl", StringComparison.OrdinalIgnoreCase)) { Console.WriteLine(); }
                 // Check for the foreground color
                 if (capturedText.StartsWith("Color:", StringComparison.OrdinalIgnoreCase))
@@ -4613,7 +5334,6 @@ namespace GyroPrompt
             }
             else { return false; }
         }
-
         // Returns string containing value of variable 'name'
         public string GrabVariableValue(string name)
         {

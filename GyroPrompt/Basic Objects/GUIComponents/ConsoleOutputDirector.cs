@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Terminal.Gui;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace GyroPrompt.Basic_Objects.GUIComponents
 {
@@ -14,14 +15,15 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         public List<GUI_textfield> GUITextFieldsToAdd = new List<GUI_textfield>();
         public List<GUI_Menubar> GUIMenuBarsToAdd = new List<GUI_Menubar>();
         public List<GUI_Label> GUILabelsToAdd = new List<GUI_Label>();
+        public List<GUI_Checkbox> GUICheckboxToAdd = new List<GUI_Checkbox>();
         public bool runningPermision = true;
         public Window mainWindow;
         public SaveDialog saveDialog;
 
         public void InitializeGUIWindow(string windowTitle = "GUIMode", int x_ = 0, int y_ = 0)
         {
-            Application.Init();
-            var top = Application.Top;
+            Terminal.Gui.Application.Init();
+            var top = Terminal.Gui.Application.Top;
 
             // Set the default color scheme
             mainWindow = new Window($"{windowTitle}")
@@ -62,28 +64,39 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             {
                 mainWindow.Add(item.newButton);
             }
+            foreach (GUI_Checkbox item in GUICheckboxToAdd)
+            {
+                mainWindow.Add(item.newCheckbox);
+            }
             try
             {
                 // Execute application
                 top.Add(mainWindow);
-                Application.Run();
+                Terminal.Gui.Application.Run();
             }
             catch
             {
                 // Expect error to be thrown when Application.Shutdown() and Application.RequestStop() execute from parser
             }
         }
-        public void genMessage(string msg, string title = "Message", string btntxt = "OK")
+        
+        public int yesno_msgbox(string title, string msg)
         {
-
+            int result = MessageBox.Query(title, msg, "YES", "NO");
+            return result;
+        }
+        public void ok_msgbox(string title, string msg)
+        {
+            MessageBox.Query(title, msg, "Ok");
         }
 
         public string showsaveDialog()
         {
             saveDialog = new SaveDialog("Save File As", "Select a location to save the file");
 
-            Application.Run(saveDialog);
-
+            Terminal.Gui.Application.Run(saveDialog);
+            MessageBox.Query("result", saveDialog.FilePath.ToString(), "OK");
+            
             if (!string.IsNullOrEmpty(saveDialog.FilePath.ToString()))
             {
                 try
