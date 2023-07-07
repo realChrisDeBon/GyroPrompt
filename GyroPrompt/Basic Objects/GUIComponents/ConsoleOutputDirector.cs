@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualBasic.FileIO;
+﻿using GyroPrompt.Basic_Objects.Collections;
+using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,9 +20,12 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         public bool runningPermision = true;
         public Window mainWindow;
         public SaveDialog saveDialog;
+        public Parser topLevelParser;
+        private IDictionary<Key, TaskList> keyFunctionList = new Dictionary<Key, TaskList>();
 
-        public void InitializeGUIWindow(string windowTitle = "GUIMode", int x_ = 0, int y_ = 0)
+        public void InitializeGUIWindow(Parser topparser, string windowTitle = "GUIMode", int x_ = 0, int y_ = 0)
         {
+            topLevelParser = topparser;
             Terminal.Gui.Application.Init();
             var top = Terminal.Gui.Application.Top;
 
@@ -47,6 +51,16 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 HotNormal = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
                 HotFocus = Terminal.Gui.Attribute.Make(Color.White, Color.Black)
             };
+
+            mainWindow.KeyPress += (e) =>
+            {
+                if (keyFunctionList.ContainsKey(e.KeyEvent.Key))
+                {
+                    topLevelParser.executeTask(keyFunctionList[e.KeyEvent.Key].taskList, keyFunctionList[e.KeyEvent.Key].taskType, keyFunctionList[e.KeyEvent.Key].scriptDelay);
+                }
+            };
+
+
             // Take every GUI object within GUIItemsToAdd and add it to mainWindow
             foreach (GUI_Menubar item in GUIMenuBarsToAdd)
             {
@@ -80,6 +94,11 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             }
         }
         
+        public void addKeyPressFunction(TaskList taskList_, Key keyPressed_)
+        {
+            keyFunctionList.Add(keyPressed_, taskList_);
+
+        }
         public int yesno_msgbox(string title, string msg)
         {
             int result = MessageBox.Query(title, msg, "YES", "NO");

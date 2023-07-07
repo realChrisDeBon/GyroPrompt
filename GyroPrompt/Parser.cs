@@ -123,6 +123,12 @@ namespace GyroPrompt
             set { WindowHeight = value; if (Console.BufferHeight < value) { Console.BufferHeight = (value * 2); } Console.WindowHeight = value; Console.SetWindowSize(WindowWidth_, WindowHeight_); }
         }
         public int WindowWidth = Console.WindowWidth;
+        public bool PromptOn = true;
+        public bool PromptOn_
+        {
+            get { return PromptOn; }
+            set { PromptOn = value; }
+        }
         public int WindowWidth_
         {
             get { return WindowWidth; }
@@ -158,6 +164,7 @@ namespace GyroPrompt
             environmental_variables.Add(backColor_);
             environmental_variables.Add(ScriptDelay_);
             environmental_variables.Add(Title_);
+            environmental_variables.Add(PromptOn_);
 
             environmentalVars.Add("CursorX", CursorX_);
             environmentalVars.Add("CursorY", CursorY_);
@@ -167,6 +174,7 @@ namespace GyroPrompt
             environmentalVars.Add("Backcolor", backColor_);
             environmentalVars.Add("ScriptDelay", ScriptDelay_);
             environmentalVars.Add("Title", Title_);
+            environmentalVars.Add("PromptOn", PromptOn_);
 
             keyConsoleColor.Add("Black", ConsoleColor.Black);
             keyConsoleColor.Add("DarkBlue", ConsoleColor.DarkBlue);
@@ -236,7 +244,7 @@ namespace GyroPrompt
                     {
                         Console.SetOut(originOut);
                     }
-                    Console.Write("GyroPrompt > ");
+                    if (PromptOn == true) { Console.Write("GyroPrompt > "); }
                     string command = Console.ReadLine();
                     parse(command);
                 }
@@ -277,6 +285,10 @@ namespace GyroPrompt
                     }
                     print(input_to_print);
                     Console.WriteLine(); // end with new line
+                }
+                if (split_input[0].Equals("clear", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.Clear();
                 }
                 // Detect a new variable declaration
                 if (split_input[0].Equals("bool", StringComparison.OrdinalIgnoreCase))
@@ -799,6 +811,31 @@ namespace GyroPrompt
                                         string a_ = SetVariableValue(split_input[3]);
                                         Console.Title = (a_);
                                         break;
+                                    case "prompt":
+                                        string a__ = SetVariableValue(split_input[3]);
+                                        string[] validValues = {"True", "On", "False", "Off" };
+                                        bool validinput = false;
+                                        int x = 0;
+                                        foreach (string ss in validValues)
+                                        {
+                                            if (a__.Equals(ss, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                validinput = true;
+                                                if (x <= 1)
+                                                {
+                                                    PromptOn_ = true;
+                                                } else if (x >= 2)
+                                                {
+                                                    PromptOn_ = false;
+                                                }
+                                            }
+                                            x++;
+                                        }
+                                        if (validinput == false)
+                                        {
+                                            Console.WriteLine("Invalid input.");
+                                        }
+                                        break;
                                     default:
                                         Console.WriteLine($"{var_name} is invalid environmental variable.");
                                         break;
@@ -1217,7 +1254,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("readkey", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (split_input.Length >= 3)
+                    if (split_input.Length >= 2)
                     {
                         string var_ = split_input[1];
                         string prompt_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
@@ -1230,7 +1267,7 @@ namespace GyroPrompt
                                 {
                                     if (var.Type == VariableType.String)
                                     {
-                                        Console.Write(prompt_);
+                                        if (split_input.Length > 2) { Console.Write(prompt_); }
                                         ConsoleKeyInfo ck = Console.ReadKey();
                                         string a_ = ck.KeyChar.ToString();
                                         if (ck.Key == ConsoleKey.DownArrow)
@@ -1524,7 +1561,7 @@ namespace GyroPrompt
                     {
                         consoleDirector.runningPermision = true;
                         GUIModeEnabled = true;
-                        consoleDirector.InitializeGUIWindow();
+                        consoleDirector.InitializeGUIWindow(this);
                     }
                     else if (split_input[1].Equals("off", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1674,9 +1711,29 @@ namespace GyroPrompt
                                                 }
                                                 if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
                                                 {
+                                                    text = "";
                                                     string _placeholder = s.Remove(0, 5);
+                                                    string b = SetVariableValue(_placeholder);
                                                     extracting = true;
-                                                    text = _placeholder + " ";
+                                                    bool pipefound = false;
+                                                    foreach(char c in b)
+                                                    {
+                                                        if (c != '|')
+                                                        {
+                                                            text += c;
+                                                        } else
+                                                        {
+                                                            pipefound = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                    if (pipefound == true)
+                                                    {
+                                                        extracting = false;
+                                                    } else
+                                                    {
+                                                        text += " ";
+                                                    }
                                                 }
                                                 if (s.StartsWith("Textcolor:", StringComparison.OrdinalIgnoreCase))
                                                 {
@@ -1740,7 +1797,7 @@ namespace GyroPrompt
                                 int y = 0;
                                 int wid = 20;
                                 int hei = 20;
-                                string text = "Default text";
+                                string text = "Text";
                                 bool isMultiline = true;
                                 bool isReadonly = false;
                                 bool extracting = false;
@@ -1836,9 +1893,31 @@ namespace GyroPrompt
                                         }
                                         if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
                                         {
+                                            text = "";
                                             string _placeholder = s.Remove(0, 5);
+                                            string b = SetVariableValue(_placeholder);
                                             extracting = true;
-                                            text = _placeholder + " ";
+                                            bool pipefound = false;
+                                            foreach (char c in b)
+                                            {
+                                                if (c != '|')
+                                                {
+                                                    text += c;
+                                                }
+                                                else
+                                                {
+                                                    pipefound = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (pipefound == true)
+                                            {
+                                                extracting = false;
+                                            }
+                                            else
+                                            {
+                                                text += " ";
+                                            }
                                         }
                                         if (s.StartsWith("Multiline:", StringComparison.OrdinalIgnoreCase))
                                         {
@@ -2119,9 +2198,31 @@ namespace GyroPrompt
                                         }
                                         if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
                                         {
+                                            text = "";
                                             string _placeholder = s.Remove(0, 5);
+                                            string b = SetVariableValue(_placeholder);
                                             extracting = true;
-                                            text = _placeholder + " ";
+                                            bool pipefound = false;
+                                            foreach (char c in b)
+                                            {
+                                                if (c != '|')
+                                                {
+                                                    text += c;
+                                                }
+                                                else
+                                                {
+                                                    pipefound = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (pipefound == true)
+                                            {
+                                                extracting = false;
+                                            }
+                                            else
+                                            {
+                                                text += " ";
+                                            }
                                         }
                                         if (s.StartsWith("Textcolor:", StringComparison.OrdinalIgnoreCase))
                                         {
@@ -2308,9 +2409,31 @@ namespace GyroPrompt
                                         }
                                         if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
                                         {
+                                            text = "";
                                             string _placeholder = s.Remove(0, 5);
+                                            string b = SetVariableValue(_placeholder);
                                             extracting = true;
-                                            text = _placeholder + " ";
+                                            bool pipefound = false;
+                                            foreach (char c in b)
+                                            {
+                                                if (c != '|')
+                                                {
+                                                    text += c;
+                                                }
+                                                else
+                                                {
+                                                    pipefound = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (pipefound == true)
+                                            {
+                                                extracting = false;
+                                            }
+                                            else
+                                            {
+                                                text += " ";
+                                            }
                                         }
                                         if (s.StartsWith("Checked:", StringComparison.OrdinalIgnoreCase))
                                         {
@@ -2654,8 +2777,9 @@ namespace GyroPrompt
                             {
                                 if ((filval != coordValue.RightOf) && (filval != coordValue.LeftOf))
                                 {
-                                    bool validNumber = IsNumeric(split_input[3]);
-                                    int xx = Int32.Parse(split_input[3]);
+                                    string a_ = SetVariableValue(split_input[3]);
+                                    bool validNumber = IsNumeric(a_);
+                                    int xx = Int32.Parse(a_);
                                     if (validNumber == true)
                                     {
                                         bool foundAndChangedHeight = false;
@@ -2929,8 +3053,9 @@ namespace GyroPrompt
                             }
                             if (validFill == true)
                             {
-                                bool validNumber = IsNumeric(split_input[3]);
-                                int xx = Int32.Parse(split_input[3]);
+                                string a_ = SetVariableValue(split_input[3]);
+                                bool validNumber = IsNumeric(a_);
+                                int xx = Int32.Parse(a_);
                                 if (validNumber == true)
                                 {
                                     bool foundAndChangedHeight = false;
@@ -3209,6 +3334,241 @@ namespace GyroPrompt
                     else
                     {
                         Console.WriteLine("Invalid format to settext.");
+                    }
+                }
+                if (split_input[0].Equals("gui_keypress_event", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 3)
+                    {
+                        string expectedTaskName = split_input[1];
+                        string keyInput = split_input[2].ToLower().TrimEnd();
+                        Key keyToPass;
+                        bool validTask = false;
+                        bool validKey = true;
+                        TaskList templist = tasklists_inuse.Find(x => x.taskName  == expectedTaskName);
+                        if (templist != null)
+                        {
+                            validTask = true;
+                            switch (keyInput)
+                            {
+                                case "space":
+                                    keyToPass = Key.Space;
+                                    break;
+                                case "enter":
+                                    keyToPass = Key.Enter;
+                                    break;
+                                case "escape":
+                                    keyToPass = Key.Esc;
+                                    break;
+                                case "tab":
+                                    keyToPass = Key.Tab;
+                                    break;
+                                case "backspace":
+                                    keyToPass = Key.Backspace;
+                                    break;
+                                case "delete":
+                                    keyToPass = Key.DeleteChar;
+                                    break;
+                                case "insert":
+                                    keyToPass = Key.InsertChar;
+                                    break;
+                                case "home":
+                                    keyToPass = Key.Home;
+                                    break;
+                                case "end":
+                                    keyToPass = Key.End;
+                                    break;
+                                case "pageup":
+                                    keyToPass = Key.PageUp;
+                                    break;
+                                case "pagedown":
+                                    keyToPass = Key.PageDown;
+                                    break;
+                                case "up":
+                                    keyToPass = Key.CursorUp;
+                                    break;
+                                case "down":
+                                    keyToPass = Key.CursorDown;
+                                    break;
+                                case "left":
+                                    keyToPass = Key.CursorLeft;
+                                    break;
+                                case "right":
+                                    keyToPass = Key.CursorRight;
+                                    break;
+                                case "f1":
+                                    keyToPass = Key.F1;
+                                    break;
+                                case "f2":
+                                    keyToPass = Key.F2;
+                                    break;
+                                case "f3":
+                                    keyToPass = Key.F3;
+                                    break;
+                                case "f4":
+                                    keyToPass = Key.F4;
+                                    break;
+                                case "f5":
+                                    keyToPass = Key.F5;
+                                    break;
+                                case "f6":
+                                    keyToPass = Key.F6;
+                                    break;
+                                case "f7":
+                                    keyToPass = Key.F7;
+                                    break;
+                                case "f8":
+                                    keyToPass = Key.F8;
+                                    break;
+                                case "f9":
+                                    keyToPass = Key.F9;
+                                    break;
+                                case "f10":
+                                    keyToPass = Key.F10;
+                                    break;
+                                case "f11":
+                                    keyToPass = Key.F11;
+                                    break;
+                                case "f12":
+                                    keyToPass = Key.F12;
+                                    break;
+                                case "f13":
+                                    keyToPass = Key.F13;
+                                    break;
+                                case "f14":
+                                    keyToPass = Key.F14;
+                                    break;
+                                case "f15":
+                                    keyToPass = Key.F15;
+                                    break;
+                                case "a":
+                                    keyToPass = Key.A;
+                                    break;
+                                case "b":
+                                    keyToPass = Key.B;
+                                    break;
+                                case "c":
+                                    keyToPass = Key.C;
+                                    break;
+                                case "d":
+                                    keyToPass = Key.D;
+                                    break;
+                                case "e":
+                                    keyToPass = Key.E;
+                                    break;
+                                case "f":
+                                    keyToPass = Key.F;
+                                    break;
+                                case "g":
+                                    keyToPass = Key.G;
+                                    break;
+                                case "h":
+                                    keyToPass = Key.H;
+                                    break;
+                                case "i":
+                                    keyToPass = Key.I;
+                                    break;
+                                case "j":
+                                    keyToPass = Key.J;
+                                    break;
+                                case "k":
+                                    keyToPass = Key.K;
+                                    break;
+                                case "l":
+                                    keyToPass = Key.L;
+                                    break;
+                                case "m":
+                                    keyToPass = Key.M;
+                                    break;
+                                case "n":
+                                    keyToPass = Key.N;
+                                    break;
+                                case "o":
+                                    keyToPass = Key.O;
+                                    break;
+                                case "p":
+                                    keyToPass = Key.P;
+                                    break;
+                                case "q":
+                                    keyToPass = Key.Q;
+                                    break;
+                                case "r":
+                                    keyToPass = Key.R;
+                                    break;
+                                case "s":
+                                    keyToPass = Key.S;
+                                    break;
+                                case "t":
+                                    keyToPass = Key.T;
+                                    break;
+                                case "u":
+                                    keyToPass = Key.U;
+                                    break;
+                                case "v":
+                                    keyToPass = Key.V;
+                                    break;
+                                case "w":
+                                    keyToPass = Key.W;
+                                    break;
+                                case "x":
+                                    keyToPass = Key.X;
+                                    break;
+                                case "y":
+                                    keyToPass = Key.Y;
+                                    break;
+                                case "z":
+                                    keyToPass = Key.Z;
+                                    break;
+                                case "0":
+                                    keyToPass = Key.D0;
+                                    break;
+                                case "1":
+                                    keyToPass = Key.D1;
+                                    break;
+                                case "2":
+                                    keyToPass = Key.D2;
+                                    break;
+                                case "3":
+                                    keyToPass = Key.D3;
+                                    break;
+                                case "4":
+                                    keyToPass = Key.D4;
+                                    break;
+                                case "5":
+                                    keyToPass = Key.D5;
+                                    break;
+                                case "6":
+                                    keyToPass = Key.D6;
+                                    break;
+                                case "7":
+                                    keyToPass = Key.D7;
+                                    break;
+                                case "8":
+                                    keyToPass = Key.D8;
+                                    break;
+                                case "9":
+                                    keyToPass = Key.D9;
+                                    break;
+                                default:
+                                    // Handle unknown key
+                                    keyToPass = Key.Null;
+                                    validKey = false;
+                                    break;
+                            }
+
+                            if (validTask == true && validKey == true)
+                            {
+                                consoleDirector.addKeyPressFunction(templist, keyToPass);
+                            }
+
+                        } else
+                        {
+                            Console.WriteLine($"Could not locate task list {expectedTaskName}");
+                        }
+
+                    } else
+                    {
+                        Console.WriteLine("Invalid format for GUI keypress event.");
                     }
                 }
                 if (split_input[0].Equals("msgbox", StringComparison.OrdinalIgnoreCase))
@@ -5392,6 +5752,26 @@ namespace GyroPrompt
                     if (var.Name == capturedText && var.Type != VariableType.String)
                     {
                         a += var.Value;
+                    }
+                }
+                if (environmentalVars.ContainsKey(capturedText))
+                {
+                    bool validInt = true;
+                    switch (capturedText) 
+                    {
+                        case "Backcolor":
+                            validInt = false;
+                            break;
+                        case "Forecolor":
+                            validInt = false;
+                            break;
+                        case "Title":
+                            validInt = false;
+                            break;
+                    }
+                    if (validInt == true)
+                    {
+                        a += environmentalVars[capturedText];
                     }
                 }
             }
