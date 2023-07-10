@@ -23,12 +23,16 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using static System.Net.Mime.MediaTypeNames;
 using System.Threading;
+using GyroPrompt.Network_Objects;
+using GyroPrompt.Network_Objects.TCPSocket;
 
 public enum objectClass
 {
     Variable,
     EnvironmentalVariable,
-    List
+    List,
+    TCPNetObj,
+    DataPacket
 }
 
 namespace GyroPrompt
@@ -43,6 +47,8 @@ namespace GyroPrompt
         public List<object> environmental_variables = new List<object>();
         public List<LocalList> local_arrays = new List<LocalList>();
         public List<TaskList> tasklists_inuse = new List<TaskList>();
+        public List<ServerSide> activeTCPservers = new List<ServerSide>();
+        public List<dataPacket> datapacketStack = new List<dataPacket>();
 
         public Calculate calculate = new Calculate();
         public TimeDateHandler timedate_handler = new TimeDateHandler();
@@ -55,7 +61,6 @@ namespace GyroPrompt
         public IDictionary<string, objectClass> namesInUse = new Dictionary<string, objectClass>();
         public bool running_script = false; // Used for determining if a script is being ran
         public int current_line = 0; // Used for reading scripts
-        ScriptCompiler compiler = new ScriptCompiler(); // UNDER CONSTRUCTION!
 
         /// <summary>
         /// These variables and methods are used for handling the GUI components. If the user enables the GUI layer, due to the nature of how the Terminal.GUI NuGet
@@ -893,7 +898,7 @@ namespace GyroPrompt
                 /// </summary>
                 if (split_input[0].Equals("if", StringComparison.OrdinalIgnoreCase))
                 {
-                    string first_value = split_input[1];
+                    string first_value = SetVariableValue(split_input[1]).TrimEnd();
                     bool first_value_exists = LocalVariableExists(first_value);
                     if (first_value_exists == true)
                     {
@@ -1035,7 +1040,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("while", StringComparison.OrdinalIgnoreCase))
                 {
-                    string first_value = split_input[1];
+                    string first_value = SetVariableValue(split_input[1]).TrimEnd();
                     bool first_value_exists = LocalVariableExists(first_value);
                     if (first_value_exists == true)
                     {
@@ -1441,6 +1446,15 @@ namespace GyroPrompt
                                             }
                                         }
                                         break;
+                                    case (objectClass.DataPacket):
+                                        foreach (dataPacket datapckt in datapacketStack)
+                                        {
+                                            if (datapckt.ID == objToSerialize)
+                                            {
+                                                serializedprompt += dataserializer.serializeInput(datapckt);
+                                            }
+                                        }
+                                        break;
                                 }
 
                                 foreach (LocalVariable variable in local_variables)
@@ -1494,7 +1508,7 @@ namespace GyroPrompt
                                         {
                                             if (variable.Name == objToSerialize)
                                             {
-                                                serializedprompt += dataserializer.serializeInput(variable);
+                                                serializedprompt += dataserializer.deserializeInput(variable);
                                             }
                                         }
                                         break;
@@ -1503,7 +1517,16 @@ namespace GyroPrompt
                                         {
                                             if (list.Name == objToSerialize)
                                             {
-                                                serializedprompt += dataserializer.serializeInput(list);
+                                                serializedprompt += dataserializer.deserializeInput(list);
+                                            }
+                                        }
+                                        break;
+                                    case (objectClass.DataPacket):
+                                        foreach (dataPacket datapckt in datapacketStack)
+                                        {
+                                            if (datapckt.ID == objToSerialize)
+                                            {
+                                                serializedprompt += dataserializer.deserializeInput(datapckt);
                                             }
                                         }
                                         break;
@@ -3729,14 +3752,7 @@ namespace GyroPrompt
                     
                     
                 }
-                if (split_input[0].Equals("savedialog", StringComparison.OrdinalIgnoreCase))
-                {
-                    Terminal.Gui.Application.MainLoop.Invoke(() =>
-                    {
-                        string newtitle = consoleDirector.showsaveDialog();
-                        Console.Title = newtitle;
-                    });
-                }
+
 
                 /// <summary>
                 /// List items can hold multiple variable items. 
@@ -4343,6 +4359,7 @@ namespace GyroPrompt
                     }
                 }
 
+                /// <summary>
                 /// Tasks are a list of commands than can be executed as a background task (on a separate thread) or in-line with the main code.
                 /// Tasks will run once in chronological order (unless a loop in the task keeps it alive)
                 /// 
@@ -4609,10 +4626,11 @@ namespace GyroPrompt
                     {
                         string taskname = split_input[1];
                         bool foundtasklist = false;
-                        bool validInteger = IsNumeric(split_input[2]);
+                        string expectedNumber = SetVariableValue(split_input[2]).TrimEnd();
+                        bool validInteger = IsNumeric(expectedNumber);
                         if (validInteger == true)
                         {
-                            int a_ = Int32.Parse(split_input[2]);
+                            int a_ = Int32.Parse(expectedNumber);
                             foreach (TaskList ts in tasklists_inuse)
                             {
                                 if (ts.taskName == taskname)
@@ -4672,6 +4690,29 @@ namespace GyroPrompt
                         Console.WriteLine("Invalid format to execute task list.");
                     }
                 }
+
+                /// TCP Client and Server 
+                if (split_input[0].Equals("new_tcp_server", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length == 2)
+                    {
+                        string expectedName = split_input[1];
+                        bool nameInUse = namesInUse.ContainsKey(expectedName);
+                        if (nameInUse == false)
+                        {
+                            ServerSide newTCPServer = new ServerSide(this, expectedName);
+
+                        }
+                        else
+                        {
+                            Console.WriteLine($"{expectedName} name in use.");
+                        }
+                    } else
+                    {
+                        Console.WriteLine("Invalid format for TCP server.");
+                    }
+                }
+
 
                 //if (split_input[0].Equals("compile", StringComparison.OrdinalIgnoreCase)) { compiler.Compile(split_input[1]); }
 
@@ -4812,9 +4853,7 @@ namespace GyroPrompt
                     capturedText.Append(currentChar);
 
                 }
-
                 if (capturing == false) { a = a + currentChar; }
-
             }
 
             void ProcessCapturedText(string capturedText)
@@ -4847,17 +4886,19 @@ namespace GyroPrompt
                     {
                         string run_vars = ConvertNumericalVariable(_placeholder);
                         string[] value_ = run_vars.Split(',');
+                        string c = ConvertNumericalVariable(value_[0]);
+                        string b = ConvertNumericalVariable(value_[1].TrimEnd());
                         if (value_.Length == 2)
                         {
-                            bool first_valid = IsNumeric(value_[0]);
-                            bool second_valid = IsNumeric(value_[1]);
+                            bool first_valid = IsNumeric(c);
+                            bool second_valid = IsNumeric(b);
                             if (first_valid && second_valid)
                             {
-                                int a_ = Int32.Parse(value_[0]);
-                                int b_ = Int32.Parse(value_[1]);
+                                int a_ = Int32.Parse(c);
+                                int b_ = Int32.Parse(b);
                                 if (a_ < b_)
                                 {
-                                    string random_int = randomizer.randomizeInt(value_[0], value_[1]);
+                                    string random_int = randomizer.randomizeInt(c, b);
                                     a = a + random_int;
                                 }
                                 else
@@ -4892,10 +4933,21 @@ namespace GyroPrompt
                 if (capturedText.StartsWith("List:", StringComparison.OrdinalIgnoreCase))
                 {
                     string _placeholder = capturedText.Remove(0, 5);
-                    if (_placeholder.StartsWith("At:", StringComparison.OrdinalIgnoreCase))
+                    if ((_placeholder.StartsWith("NameAt:", StringComparison.OrdinalIgnoreCase)) || (_placeholder.StartsWith("ValueAt:", StringComparison.OrdinalIgnoreCase)))
                     {
-                        // Referencing an index position within the list
-                        string place_ = _placeholder.Remove(0, 3);
+                        int charsToRemove = 7;
+                        int nameOrValue = -1;
+                        if (_placeholder.StartsWith("NameAt:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            nameOrValue = 1;
+                        } else if (_placeholder.StartsWith("ValueAt:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            charsToRemove++;
+                            nameOrValue = 2;
+                        }
+
+                            // Referencing an index position within the list
+                        string place_ = _placeholder.Remove(0, charsToRemove);
                         string[] items_ = place_.Split(',');
                         if (items_.Length == 2)
                         {
@@ -4911,7 +4963,19 @@ namespace GyroPrompt
                                 {
                                     if (list.Name == items_[0])
                                     {
-                                        string b = list.GetValueAtIndex(indexednumber);
+                                        string b = "";
+                                        switch (nameOrValue)
+                                        {
+                                            case 1:
+                                                b += list.GetNameAtIndex(indexednumber);
+                                                break;
+                                            case 2:
+                                                b += list.GetValueAtIndex(indexednumber);
+                                                break;
+                                            default:
+                                                break;
+                                        }
+                                        
                                         a += b;
                                         validName = true;
                                         break;
@@ -4922,6 +4986,9 @@ namespace GyroPrompt
                                     Console.WriteLine($"Could not locate list: {items_[0]}.");
                                 }
                             }
+
+                        } else if (_placeholder.StartsWith("ValueAt:", StringComparison.OrdinalIgnoreCase))
+                        {
 
                         } else
                         {
@@ -5178,7 +5245,40 @@ namespace GyroPrompt
                                     }
                                     break;
                                 case GUIObjectType.Checkbox:
-                                    // To be populated
+                                    GUI_Checkbox checkboxitem = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == expectedGUIObjName);
+                                    if (checkboxitem != null)
+                                    {
+                                        switch (expectedReturnProperty)
+                                        {
+                                            case 0:
+                                                a += checkboxitem.newCheckbox.Text.ToString();
+                                                break;
+                                            case 1:
+                                                string x_ = checkboxitem.newCheckbox.X.ToString();
+                                                string filteredString = new string(x_.Where(char.IsDigit).ToArray());
+                                                a += filteredString;
+                                                break;
+                                            case 2:
+                                                string y_ = checkboxitem.newCheckbox.Y.ToString();
+                                                string filteredString1 = new string(y_.Where(char.IsDigit).ToArray());
+                                                a += filteredString1;
+                                                break;
+                                            case 3:
+                                                string hei_ = checkboxitem.newCheckbox.Height.ToString();
+                                                string filteredString2 = new string(hei_.Where(char.IsDigit).ToArray());
+                                                a += filteredString2;
+                                                break;
+                                            case 4:
+                                                string wid_ = checkboxitem.newCheckbox.Width.ToString();
+                                                string filteredString3 = new string(wid_.Where(char.IsDigit).ToArray());
+                                                a += filteredString3;
+                                                break;
+                                            case 5:
+                                                string checked_ = checkboxitem.newCheckbox.Checked.ToString();
+                                                a += checked_;
+                                                break;
+                                        }
+                                    }
                                     break;
                                 case GUIObjectType.Radiobutton:
                                     // To be populated
@@ -5308,10 +5408,22 @@ namespace GyroPrompt
                 if (capturedText.StartsWith("List:"))
                 {
                     string _placeholder = capturedText.Remove(0, 5);
-                    if (_placeholder.StartsWith("At:"))
+                    if ((_placeholder.StartsWith("NameAt:", StringComparison.OrdinalIgnoreCase)) || (_placeholder.StartsWith("ValueAt:", StringComparison.OrdinalIgnoreCase)))
                     {
+                        int charsToRemove = 7;
+                        int nameOrValue = -1;
+                        if (_placeholder.StartsWith("NameAt:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            nameOrValue = 1;
+                        }
+                        else if (_placeholder.StartsWith("ValueAt:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            charsToRemove++;
+                            nameOrValue = 2;
+                        }
+
                         // Referencing an index position within the list
-                        string place_ = _placeholder.Remove(0, 3);
+                        string place_ = _placeholder.Remove(0, charsToRemove);
                         string converints = ConvertNumericalVariable(place_);
                         string[] items_ = converints.Split(',');
                         if (items_.Length == 2)
@@ -5328,7 +5440,18 @@ namespace GyroPrompt
                                 {
                                     if (list.Name == items_[0])
                                     {
-                                        string b = list.GetValueAtIndex(indexednumber);
+                                        string b = "";
+                                        switch (nameOrValue)
+                                        {
+                                            case 1:
+                                                b += list.GetNameAtIndex(indexednumber);
+                                                break;
+                                            case 2:
+                                                b += list.GetValueAtIndex(indexednumber);
+                                                break;
+                                            default:
+                                                break;
+                                        }
                                         Console.Write(b);
                                         validName = true;
                                         break;

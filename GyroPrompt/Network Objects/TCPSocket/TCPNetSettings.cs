@@ -31,18 +31,13 @@ namespace GyroPrompt.Network_Objects.TCPSocket
         protocols_broadcastDatapacket,
         protocols_broadcastAllOutgoing,
     }
-    public class TCPNetSettings : Parser
+    public class TCPNetSettings
     {
         // An IPAddressBook that blacklists and whitelists IP address (some basic security settings)
         public IDictionary<IPAddress, IPStatus> IPAddressBook = new Dictionary<IPAddress, IPStatus>();
         public bool WhitelistConnectionsOnly = false;
         // Compartmentalize the data going over the network
-        public class dataPacket
-        {
-            public string senderAddress {get; set;}
-            public NetObjType objType { get; set; }
-            public object sentData { get; set;}
-        }
+        
         public void addtoWhitelist(string input, LocalList list = default)
         {
             IPAddress ipAddress;

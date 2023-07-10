@@ -124,6 +124,19 @@ namespace GyroPrompt.Basic_Objects.Collections
             }
             return a;
         }
+        public string GetNameAtIndex(int index)
+        {
+            string a = "";
+            if (index <= numberOfElements)
+            {
+                a = items[index].Name;
+            }
+            else if (index > numberOfElements)
+            {
+                Console.WriteLine($"Array does not have item at index {index}.");
+            }
+            return a;
+        }
         public string GetValueWithName(string name)
         {
             foreach(LocalVariable localVariable in items)

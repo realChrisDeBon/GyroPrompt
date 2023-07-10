@@ -7,12 +7,14 @@ using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
 using static GyroPrompt.Network_Objects.TCPSocket.TCPNetSettings;
+using GyroPrompt.Basic_Objects.Collections;
 
 namespace GyroPrompt.Network_Objects
 {
     public class ServerSide : TCPNetSettings
     {
         public string serverIP;
+        public string serverName;
         public TcpListener listener;
         public List<TcpClient> connectedClients = new List<TcpClient>();
         public List<ClientHandler> clients = new List<ClientHandler>();
@@ -20,15 +22,23 @@ namespace GyroPrompt.Network_Objects
         public List<dataPacket> incomingDataPackets = new List<dataPacket>();
         public List<dataPacket> outgoingDataPackets = new List<dataPacket>();
         // Defines the logic and rules for handling incoming and outgoing data packets
-        public List<string> protocols_serverStarted = new List<string>();
-        public List<string> protocols_receiveDataPacket = new List<string>();
-        public List<string> protocols_clientConnected = new List<string>();
-        public List<string> protocols_clientRejected = new List<string>();
-        public List<string> protocols_broadcastDatapacket = new List<string>();
+        public IDictionary<TCPServerProtocols, TaskList> serverProtocols = new Dictionary<TCPServerProtocols, TaskList>();
+        private Parser toplevelParser;
+
+
+        public ServerSide (Parser toplvlparser, string name_)
+        {
+            toplevelParser = toplvlparser;
+            serverName = name_;
+            serverIP = GetLocalIPAddress();
+        }
 
         public async Task runProtocol(TCPServerProtocols protocol, string eventMessage)
         {
-
+            if (serverProtocols.ContainsKey(protocol))
+            {
+                toplevelParser.executeTask(serverProtocols[protocol].taskList, serverProtocols[protocol].taskType, serverProtocols[protocol].scriptDelay);
+            }
         }
 
         public string GetLocalIPAddress()
@@ -76,7 +86,7 @@ namespace GyroPrompt.Network_Objects
                             clients.Add(clientHandler);
                             Thread clientThread = new Thread(clientHandler.HandleClient);
                             clientThread.Start();
-                            runProtocol(TCPServerProtocols.protocols_clientConnected, $"{clientIpAddress.ToString}-connected");
+                            runProtocol(TCPServerProtocols.protocols_clientConnected, $"Connected:{clientIpAddress.ToString}");
                         }
                     }
                 }
@@ -86,18 +96,16 @@ namespace GyroPrompt.Network_Objects
                     clients.Add(clientHandler);
                     Thread clientThread = new Thread(clientHandler.HandleClient);
                     clientThread.Start();
-                    runProtocol(TCPServerProtocols.protocols_clientConnected, $"{clientIpAddress.ToString}-connected");
+                    runProtocol(TCPServerProtocols.protocols_clientConnected, $"Connected:{clientIpAddress.ToString}");
                 }
             }
         }
-
- 
 
         public void AddDataPacket(dataPacket newDataPacket)
         {
             newDataPacket.senderAddress = serverIP;
             outgoingDataPackets.Add(newDataPacket);
-            runProtocol(TCPServerProtocols.protocols_addDataPacket, $"Outgoing datapacket added: {newDataPacket.objType} Sender: {newDataPacket.senderAddress}");
+            runProtocol(TCPServerProtocols.protocols_addDataPacket, $"Outgoing_datapacket_added:{newDataPacket.objType} Sender:{newDataPacket.senderAddress}");
         }
 
         public async Task BroadcastPacket(dataPacket packet, TcpClient senderClient)
@@ -128,6 +136,12 @@ namespace GyroPrompt.Network_Objects
                 }
             }
         }
+
+        public void AssignProtocol(TCPServerProtocols protocolToAssign, TaskList tasklistToAssign)
+        {
+            serverProtocols.Add(protocolToAssign, tasklistToAssign);
+        }
+
     }
 
     public class ClientHandler
@@ -166,13 +180,9 @@ namespace GyroPrompt.Network_Objects
             }
 
             // Client disconnected, remove from the list
-            Console.WriteLine("Client disconnected: " + client.Client.RemoteEndPoint);
+            Console.WriteLine("Disconnected:" + client.Client.RemoteEndPoint);
 
             client.Close();
         }
-
-
-
-
     }
 }
