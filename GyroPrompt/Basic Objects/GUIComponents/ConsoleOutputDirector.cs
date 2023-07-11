@@ -1,7 +1,9 @@
 ﻿using GyroPrompt.Basic_Objects.Collections;
+using GyroPrompt.Basic_Objects.Variables;
 using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -41,18 +43,18 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                     BorderStyle = BorderStyle.Single,
                     DrawMarginFrame = true,
                     Padding = new Thickness(1),
-                    BorderBrush = Color.White
+                    BorderBrush = Terminal.Gui.Color.White
                 }
             };
             mainWindow.ColorScheme = new ColorScheme()
             {
-                Normal = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
-                Focus = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
-                HotNormal = Terminal.Gui.Attribute.Make(Color.White, Color.Black),
-                HotFocus = Terminal.Gui.Attribute.Make(Color.White, Color.Black)
+                Normal = Terminal.Gui.Attribute.Make(Terminal.Gui.Color.White, Terminal.Gui.Color.Black),
+                Focus = Terminal.Gui.Attribute.Make(Terminal.Gui.Color.White, Terminal.Gui.Color.Black),
+                HotNormal = Terminal.Gui.Attribute.Make(Terminal.Gui.Color.White, Terminal.Gui.Color.Black),
+                HotFocus = Terminal.Gui.Attribute.Make(Terminal.Gui.Color.White, Terminal.Gui.Color.Black)
             };
 
-            mainWindow.KeyPress += (e) =>
+            mainWindow.KeyUp += (e) =>
             {
                 if (keyFunctionList.ContainsKey(e.KeyEvent.Key))
                 {
@@ -92,17 +94,31 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             {
                 // Expect error to be thrown when Application.Shutdown() and Application.RequestStop() execute from parser
             }
+            
         }
         
         public void addKeyPressFunction(TaskList taskList_, Key keyPressed_)
         {
             keyFunctionList.Add(keyPressed_, taskList_);
-
         }
-        public int yesno_msgbox(string title, string msg)
+        public void yesno_msgbox(string title, string msg, string varname)
         {
             int result = MessageBox.Query(title, msg, "YES", "NO");
-            return result;
+            LocalVariable tempvar_ = topLevelParser.local_variables.Find(x => x.Name == varname);
+            if (tempvar_ == null)
+            {
+                Console.WriteLine($"Could not access variable {varname}.");
+                
+                return;
+            }
+            if (result == 0)
+            {
+                tempvar_.Value = "True";
+            }
+            else if (result == 1)
+            {
+                tempvar_.Value = "False";
+            }
         }
         public void ok_msgbox(string title, string msg)
         {

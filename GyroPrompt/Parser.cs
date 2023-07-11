@@ -25,6 +25,7 @@ using static System.Net.Mime.MediaTypeNames;
 using System.Threading;
 using GyroPrompt.Network_Objects;
 using GyroPrompt.Network_Objects.TCPSocket;
+using System.Web;
 
 public enum objectClass
 {
@@ -1223,7 +1224,7 @@ namespace GyroPrompt
                 // Grab user input
                 if (split_input[0].Equals("readline", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (split_input.Length >= 3)
+                    if (split_input.Length >= 2)
                     {
                         string var_ = split_input[1];
                         string prompt_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
@@ -1315,7 +1316,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("readint", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (split_input.Length >= 3)
+                    if (split_input.Length >= 2)
                     {
                         string var_ = split_input[1];
 
@@ -1408,6 +1409,78 @@ namespace GyroPrompt
                         }
 
                     } else
+                    {
+                        Console.WriteLine("Invalid format to hash.");
+                    }
+                }
+                if (split_input[0].Equals("hash512", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length >= 3)
+                    {
+                        string inputVar = split_input[1];
+                        bool isValidVar = LocalVariableExists(inputVar);
+                        if (isValidVar == true)
+                        {
+                            string prompt = SetVariableValue(string.Join(" ", split_input.Skip(2)));
+                            string hashedprompt = datahasher.CalculateHash512(prompt);
+                            foreach (LocalVariable variable in local_variables)
+                            {
+                                if (variable.Name == inputVar)
+                                {
+                                    if (variable.Type == VariableType.String)
+                                    {
+                                        variable.Value = hashedprompt;
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Variable must be string.");
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {inputVar}");
+                        }
+
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid format to hash.");
+                    }
+                }
+                if (split_input[0].Equals("hash384", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (split_input.Length >= 3)
+                    {
+                        string inputVar = split_input[1];
+                        bool isValidVar = LocalVariableExists(inputVar);
+                        if (isValidVar == true)
+                        {
+                            string prompt = SetVariableValue(string.Join(" ", split_input.Skip(2)));
+                            string hashedprompt = datahasher.CalculateHash384(prompt);
+                            foreach (LocalVariable variable in local_variables)
+                            {
+                                if (variable.Name == inputVar)
+                                {
+                                    if (variable.Type == VariableType.String)
+                                    {
+                                        variable.Value = hashedprompt;
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Variable must be string.");
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {inputVar}");
+                        }
+
+                    }
+                    else
                     {
                         Console.WriteLine("Invalid format to hash.");
                     }
@@ -2460,7 +2533,7 @@ namespace GyroPrompt
                                         }
                                         if (s.StartsWith("Checked:", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            string _placeholder = s.Remove(0, 9);
+                                            string _placeholder = s.Remove(0, 8);
                                             string q = SetVariableValue(_placeholder).TrimEnd();
                                             string[] validValues = { "False", "false","No", "no", "0", "True", "true","Yes","yes", "1" };
                                             int val = 0;
@@ -3608,6 +3681,7 @@ namespace GyroPrompt
 
                             string expected_variable = "";
                             LocalVariable bool_forYesNo = null;
+                            string variableName_ = "";
 
                             string text = "";
                             string title = "";
@@ -3671,7 +3745,7 @@ namespace GyroPrompt
                                         if (a.StartsWith("YESNO,", StringComparison.OrdinalIgnoreCase))
                                         {
                                             selectedButton = 2;
-                                            expected_variable = s.Remove(0, 6).TrimEnd();
+                                        expected_variable = a.Remove(0, 6).TrimEnd();
                                             bool validValue = LocalVariableExists(expected_variable);
                                             if (validValue == true)
                                             {
@@ -3685,12 +3759,12 @@ namespace GyroPrompt
                                                     } else
                                                     {
                                                         bool_forYesNo = var_totakevalue;
-                                                    }
+                                                }
                                                 }
                                             } else
                                             {
                                                 Console.WriteLine($"{expected_variable} variable not found.");
-                                                break;
+                                            break;
                                             }
                                         }
                                         if (a.StartsWith("OK", StringComparison.OrdinalIgnoreCase))
@@ -3710,26 +3784,18 @@ namespace GyroPrompt
                                         switch (selectedButton)
                                         {
                                             case 1:
-                                            Terminal.Gui.Application.MainLoop.Invoke(() =>
-                                            {
-                                                consoleDirector.ok_msgbox(title, text);
-                                            });
-                                                break;
-                                            case 2:
-                                            int result = -1;
                                                 Terminal.Gui.Application.MainLoop.Invoke(() =>
                                                 {
-                                                    result = consoleDirector.yesno_msgbox(title, text);
+                                                    consoleDirector.ok_msgbox(title, text);
                                                 });
-                                                if (result == 0)
-                                                {
-                                                    bool_forYesNo.Value = "True";
-                                                }
-                                                else if (result == 1)
-                                                {
-                                                    bool_forYesNo.Value = "False";
-                                                }
                                                 break;
+                                            case 2:
+                                                string varname = bool_forYesNo.Name;
+                                                Terminal.Gui.Application.MainLoop.Invoke(() =>
+                                                {
+                                                    consoleDirector.yesno_msgbox(title, text, varname);
+                                                });
+                                            break;
                                         }
                                         
                                     } else
