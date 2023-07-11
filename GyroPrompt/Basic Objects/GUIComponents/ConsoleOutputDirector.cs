@@ -22,6 +22,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         public bool runningPermision = true;
         public Window mainWindow;
         public SaveDialog saveDialog;
+        public OpenDialog openDialog;
         public Parser topLevelParser;
         private IDictionary<Key, TaskList> keyFunctionList = new Dictionary<Key, TaskList>();
 
@@ -125,25 +126,74 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             MessageBox.Query(title, msg, "Ok");
         }
 
-        public string showsaveDialog()
+        public void showsaveDialog(string title, string msg, string varname, LocalList filetypes = default)
         {
-            saveDialog = new SaveDialog("Save File As", "Select a location to save the file");
-
+            // Parse list variable values
+            List<string> filetypes_parsed = new List<string>();
+            foreach(LocalVariable strvariable in filetypes.items)
+            {
+                filetypes_parsed.Add(strvariable.Value);
+            }
+            // Create dialog
+            saveDialog = new SaveDialog(title, msg, filetypes_parsed);
+            // Execute dialog
             Terminal.Gui.Application.Run(saveDialog);
-            MessageBox.Query("result", saveDialog.FilePath.ToString(), "OK");
             
             if (!string.IsNullOrEmpty(saveDialog.FilePath.ToString()))
             {
                 try
                 {
-                    return saveDialog.FilePath.ToString();
+                    LocalVariable localvar = topLevelParser.local_variables.Find(x => x.Name ==  varname);
+                    if (localvar == null)
+                    {
+                        Console.WriteLine($"Could not access variable {varname}.");
+                        return;
+                    }
+                    localvar.Value = saveDialog.FilePath.ToString();
                 }
                 catch {
-                    return null;
+                    return;
                 }
             } else
             {
-                return null;
+                return;
+            }
+        }
+
+        public void showopenDialog(string title_, string msg, string varname, LocalList filetypes = default)
+        {
+            // Parse list variable values
+            List<string> filetypes_parsed = new List<string>();
+            foreach (LocalVariable strvariable in filetypes.items)
+            {
+                filetypes_parsed.Add(strvariable.Value);
+            }
+            // Create dialog
+            openDialog = new OpenDialog(title_, msg, filetypes_parsed);
+           
+            // Execute dialog
+            Terminal.Gui.Application.Run(openDialog);
+
+            if (!string.IsNullOrEmpty(openDialog.FilePath.ToString()))
+            {
+                try
+                {
+                    LocalVariable localvar = topLevelParser.local_variables.Find(x => x.Name == varname);
+                    if (localvar == null)
+                    {
+                        Console.WriteLine($"Could not access variable {varname}.");
+                        return;
+                    }
+                    localvar.Value = openDialog.FilePath.ToString();
+                }
+                catch
+                {
+                    return;
+                }
+            }
+            else
+            {
+                return;
             }
         }
     }

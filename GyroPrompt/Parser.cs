@@ -256,7 +256,7 @@ namespace GyroPrompt
                 }
             }
         }
-
+        
         public void parse(string input)
         {
             try
@@ -1226,7 +1226,7 @@ namespace GyroPrompt
                 {
                     if (split_input.Length >= 2)
                     {
-                        string var_ = split_input[1];
+                        string var_ = SetVariableValue(split_input[1]);
                         string prompt_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
                         bool validvar_ = LocalVariableExists(var_);
                         if (validvar_ == true)
@@ -1262,7 +1262,7 @@ namespace GyroPrompt
                 {
                     if (split_input.Length >= 2)
                     {
-                        string var_ = split_input[1];
+                        string var_ = SetVariableValue(split_input[1]);
                         string prompt_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
                         bool validvar_ = LocalVariableExists(var_);
                         if (validvar_ == true)
@@ -1318,21 +1318,28 @@ namespace GyroPrompt
                 {
                     if (split_input.Length >= 2)
                     {
-                        string var_ = split_input[1];
+                        string var_ = SetVariableValue(split_input[1]);
 
                         string[] prompt_ = new string[2];
-                        int separatorIndex = Array.IndexOf(split_input, "|");
+                        bool delimiterDetecter = false;
 
-                        if (separatorIndex >= 0)
-                        {
-                            prompt_[0] = string.Join(" ", split_input.Skip(2).Take(separatorIndex - 2));
-                            prompt_[1] = string.Join(" ", split_input.Skip(separatorIndex + 1));
-                        }
-                        else
-                        {
-                            prompt_[0] = string.Join(" ", split_input.Skip(2));
-                        }
-
+                            string placeholder = string.Join(" ", split_input.Skip(2));
+                            foreach(char c in placeholder)
+                            {
+                                if (c != '|')
+                                {
+                                    if (delimiterDetecter == false)
+                                    {
+                                        prompt_[0] += c;
+                                    } else if (delimiterDetecter == true)
+                                        {
+                                        prompt_[1] += c;
+                                        }
+                                } else if (c == '|')
+                                {
+                                    delimiterDetecter = true;
+                                }
+                            }
 
                         bool validvar_ = LocalVariableExists(var_);
                         if (validvar_ == true)
@@ -3818,7 +3825,261 @@ namespace GyroPrompt
                     
                     
                 }
+                if (split_input[0].Equals("gui_savedialog", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (GUIModeEnabled == true)
+                    {
 
+                        bool extracting = false;
+                        bool extractingTitle = false;
+                        bool hasText = false;
+                        bool hasTitle = false;
+                        bool validVariable = false;
+
+                        LocalList expectedFileTypes = null;
+
+                        string expectedVariableName_ = SetVariableValue(split_input[1]);
+                        string text = "";
+                        string title = "";
+
+                        validVariable = LocalVariableExists(expectedVariableName_);
+                        if (validVariable == true)
+                        {
+                            foreach (string s in split_input)
+                            {
+                                if (extracting == true)
+                                {
+                                    string q = SetVariableValue(s);
+                                    foreach (char c in q)
+                                    {
+                                        if (c != '|')
+                                        {
+                                            if (extractingTitle == true)
+                                            {
+                                                title += c;
+                                            }
+                                            else if (extractingTitle == false)
+                                            {
+                                                text += c;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            extracting = false;
+                                            extractingTitle = false;
+                                        }
+                                    }
+                                    if (extracting == true)
+                                    {
+                                        if (extractingTitle == true)
+                                        {
+                                            title += " ";
+                                        }
+                                        else if (extractingTitle == false)
+                                        {
+                                            text += " ";
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string _placeholder = s.Remove(0, 5);
+                                        extracting = true;
+                                        extractingTitle = false;
+                                        text = _placeholder + " ";
+                                        hasText = true;
+                                    }
+                                    if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string _placeholder = s.Remove(0, 6);
+                                        extractingTitle = true;
+                                        extracting = true;
+                                        title = _placeholder + " ";
+                                        hasTitle = true;
+                                    }
+
+                                    if (s.StartsWith("Filetypes:", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string _placeholder = s.Remove(0, 10);
+                                        bool listExists, listIsStringList = false;
+                                        LocalList templist = local_arrays.Find(x => x.Name == _placeholder);
+                                        if (templist != null)
+                                        {
+                                            listExists = true;
+                                            if (templist.arrayType == ArrayType.String) { listIsStringList = true; }
+
+                                            if ((listExists == true) && (listIsStringList == true))
+                                            {
+                                                expectedFileTypes = templist;
+                                            }
+
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Could not locate list {_placeholder}.");
+                                        }
+
+                                    }
+
+                                }
+                            }
+
+                            if (hasText == true)
+                            {
+                                if (hasTitle == true)
+                                {
+
+                                    consoleDirector.showsaveDialog(title, text, expectedVariableName_, expectedFileTypes);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Save dialog requires title");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("Save dialog requires text.");
+                            }
+                        } else
+                        {
+                            Console.WriteLine($"Could not locate variable {expectedVariableName_}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("GUI mode must be on.");
+                    }
+                }
+                if (split_input[0].Equals("gui_opendialog", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (GUIModeEnabled == true)
+                    {
+
+                        bool extracting = false;
+                        bool extractingTitle = false;
+                        bool hasText = false;
+                        bool hasTitle = false;
+                        bool validVariable = false;
+
+                        LocalList expectedFileTypes = null;
+
+                        string expectedVariableName_ = SetVariableValue(split_input[1]);
+                        string text = "";
+                        string title = "";
+
+                        validVariable = LocalVariableExists(expectedVariableName_);
+                        if (validVariable == true)
+                        {
+                            foreach (string s in split_input)
+                            {
+                                if (extracting == true)
+                                {
+                                    string q = SetVariableValue(s);
+                                    foreach (char c in q)
+                                    {
+                                        if (c != '|')
+                                        {
+                                            if (extractingTitle == true)
+                                            {
+                                                title += c;
+                                            }
+                                            else if (extractingTitle == false)
+                                            {
+                                                text += c;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            extracting = false;
+                                            extractingTitle = false;
+                                        }
+                                    }
+                                    if (extracting == true)
+                                    {
+                                        if (extractingTitle == true)
+                                        {
+                                            title += " ";
+                                        }
+                                        else if (extractingTitle == false)
+                                        {
+                                            text += " ";
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string _placeholder = s.Remove(0, 5);
+                                        extracting = true;
+                                        extractingTitle = false;
+                                        text = _placeholder + " ";
+                                        hasText = true;
+                                    }
+                                    if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string _placeholder = s.Remove(0, 6);
+                                        extractingTitle = true;
+                                        extracting = true;
+                                        title = _placeholder + " ";
+                                        hasTitle = true;
+                                    }
+
+                                    if (s.StartsWith("Filetypes:", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string _placeholder = s.Remove(0, 10);
+                                        bool listExists, listIsStringList = false;
+                                        LocalList templist = local_arrays.Find(x => x.Name == _placeholder);
+                                        if (templist != null)
+                                        {
+                                            listExists = true;
+                                            if (templist.arrayType == ArrayType.String) { listIsStringList = true; }
+
+                                            if ((listExists == true) && (listIsStringList == true))
+                                            {
+                                                expectedFileTypes = templist;
+                                            }
+
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine($"Could not locate list {_placeholder}.");
+                                        }
+
+                                    }
+
+                                }
+                            }
+
+                            if (hasText == true)
+                            {
+                                if (hasTitle == true)
+                                {
+
+                                    consoleDirector.showopenDialog(title, text, expectedVariableName_, expectedFileTypes);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Open dialog requires title");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("Open dialog requires text.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not locate variable {expectedVariableName_}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("GUI mode must be on.");
+                    }
+                }
 
                 /// <summary>
                 /// List items can hold multiple variable items. 
