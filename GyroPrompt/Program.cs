@@ -34,13 +34,8 @@ namespace GyroPrompt
                 Console.ReadKey();
                 Environment.Exit(0);
             }
-
-
             //parser.SetConsoleOut();
             parser.beginInputLoop(); // Begin the input loop
-
         }
-
-        
     }
 }

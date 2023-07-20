@@ -20,7 +20,7 @@ namespace GyroPrompt.Basic_Objects.Variables
         public VariableType Type { get; set; }
         public string ToString()
         {
-            return Value;
+            return Value.ToString();
         }
     }
 }

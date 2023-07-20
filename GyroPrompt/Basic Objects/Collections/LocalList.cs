@@ -159,5 +159,19 @@ namespace GyroPrompt.Basic_Objects.Collections
                 Console.WriteLine($"Variable name: {var.Name}\tType:{var.Type.ToString()}\tValue: {var.Value}");
             }
         }
+
+        public string ToString()
+        {
+            string v = "";
+            foreach(LocalVariable var in items)
+            {
+                v += var.Value;
+                if (items.IndexOf(var) != items.Count)
+                {
+                    v += ", ";
+                }
+            }
+            return v;
+        }
     }
 }
