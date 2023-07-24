@@ -48,15 +48,19 @@ namespace GyroPrompt
         public List<ServerSide> activeServers = new List<ServerSide>();
         public List<dataPacket> datapacketStack = new List<dataPacket>();
 
+        public const string eventmsg_str = "event_message";
+        public const string datapacketid_str = "datapacket_ID";
+        public const string datapacketsndr_str = "datapacket_sender";
+        public const string datapacketval_str = "datapacket_value";
         public string eventMessage = "";
         public string eventMessage_
         {
             get { return eventMessage; }
             set { 
                 eventMessage = value;
-                LocalVariable em = local_variables.Find(e => e.Name == "event_message");
+                LocalVariable em = local_variables.Find(e => e.Name == eventmsg_str);
                 em.Value = value;
-                Console.WriteLine(value.ToString()); 
+                //DEBUG: Console.WriteLine(value.ToString()); 
             }
         }
         public void addPacketToStack(dataPacket dpToStack)
@@ -66,15 +70,15 @@ namespace GyroPrompt
         }
         public void parseDP(dataPacket dpIn)
         {
-            LocalVariable tempID_ = local_variables.Find(y => y.Name == "datapacket_ID");
+            LocalVariable tempID_ = local_variables.Find(y => y.Name == datapacketid_str);
             if (tempID_ != null)
             {
                 tempID_.Value = dpIn.ID;
             }
-            LocalVariable tempSender_ = local_variables.Find(z => z.Name == "datapacket_sender");
+            LocalVariable tempSender_ = local_variables.Find(z => z.Name == datapacketsndr_str);
             tempSender_.Value = dpIn.senderAddress;
             LocalList temp = new LocalList();
-            LocalVariable temp_ = local_variables.Find(x => x.Name == "datapacket_value");
+            LocalVariable temp_ = local_variables.Find(x => x.Name == datapacketval_str);
             temp_.Value = dpIn.objData;
             
             if (temp_ == null)
@@ -150,8 +154,8 @@ namespace GyroPrompt
             info.status_backcolor = _background;
             return info;
         }
-        public IDictionary<string, ConsoleColor> keyConsoleColor = new Dictionary<string, ConsoleColor>();
-        public IDictionary<string, Color> terminalColor = new Dictionary<string, Color>();
+        public IDictionary<string, ConsoleColor> keyConsoleColor = new Dictionary<string, ConsoleColor>(StringComparer.OrdinalIgnoreCase);
+        public IDictionary<string, Color> terminalColor = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
         public void setConsoleStatus(ConsoleInfo _consoleinfo)
         {
             Console.ForegroundColor = _consoleinfo.status_forecolor;
@@ -215,6 +219,7 @@ namespace GyroPrompt
             set { ScriptDelay = value; }
         }
 
+        public readonly string[] validBoolValues = { "0", "false", "False", "1", "true", "True" }; // Going to redo bool declaration/set soon to enforce consistency
         
 
         // Some basic initializations for the environment
@@ -274,25 +279,25 @@ namespace GyroPrompt
 
             StringVariable datapacketvalue = new()
             {
-                Name = "datapacket_value",
+                Name = datapacketval_str,
                 Type = VariableType.String,
                 Value = "null"
             };
             StringVariable datapacketsender = new()
             {
-                Name = "datapacket_sender",
+                Name = datapacketsndr_str,
                 Type = VariableType.String,
                 Value = "null"
             };
             StringVariable datapacketID = new()
             {
-                Name = "datapacket_ID",
+                Name = datapacketid_str,
                 Type = VariableType.String,
                 Value = "null"
             };
             StringVariable eventmessage = new()
             {
-                Name = "event_message",
+                Name = eventmsg_str,
                 Type = VariableType.String,
                 Value = eventMessage_
             };
@@ -300,16 +305,18 @@ namespace GyroPrompt
             local_variables.Add(datapacketsender);
             local_variables.Add(datapacketID);
             local_variables.Add(eventmessage);
-            namesInUse.Add("datapacket_value", objectClass.Variable);
-            namesInUse.Add("datapacket_sender", objectClass.Variable);
-            namesInUse.Add("datapacket_ID", objectClass.Variable);
-            namesInUse.Add("event_message", objectClass.Variable);
+            namesInUse.Add(datapacketval_str, objectClass.Variable);
+            namesInUse.Add(datapacketsndr_str, objectClass.Variable);
+            namesInUse.Add(datapacketid_str, objectClass.Variable);
+            namesInUse.Add(eventmsg_str, objectClass.Variable);
 
             foreach (string envvar_name in environmentalVars.Keys)
             {
                 namesInUse.Add(envvar_name, objectClass.EnvironmentalVariable); // All encompassing name reserve system
             }
             condition_checker.LoadOperations(); // Load enum types for operators
+            errorHandler.topLevelParser = this; // Hand error handler a reference to instance of this parser
+            errorHandler.GUIConsole = consoleDirector; // Hand error handler a reference to instance of console director
         }
         
 
@@ -353,42 +360,66 @@ namespace GyroPrompt
             try
             {
                 bool valid_command = false;
+                bool entry_made = false;
                 string[] split_input = input.Split(' ');
 
                 // Detect comment declaration
                 if ((split_input[0].Equals("#", StringComparison.OrdinalIgnoreCase)) || (split_input[0].StartsWith("#", StringComparison.OrdinalIgnoreCase)))
                 {
                     // Hashtags are treated like comments
+                    valid_command = true;
+                    entry_made = true;
                 }
                 // Detect a print statement
                 if (split_input[0].Equals("print", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     // create a new string combining all elements in split array, except for the first, then pass it to print command
                     string input_to_print = "";
+                    int len = split_input.Length;
+                    int pos = 1;
                     foreach (string s in split_input.Skip(1))
                     {
-                        input_to_print = input_to_print + s + " ";
+                        input_to_print = input_to_print + s;
+                        pos++;
+                        if (pos != len)
+                        {
+                            input_to_print += " ";
+                        }
                     }
                     print(input_to_print);
+                    valid_command = true;
                 }
                 if (split_input[0].Equals("println", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     // create a new string combining all elements in split array, except for the first, then pass it to print command
                     string input_to_print = "";
+                    int len = split_input.Length;
+                    int pos = 1;
                     foreach (string s in split_input.Skip(1))
                     {
-                        input_to_print = input_to_print + s + " ";
+                        input_to_print = input_to_print + s;
+                        pos++;
+                        if (pos != len)
+                        {
+                            input_to_print += " ";
+                        }
                     }
                     print(input_to_print);
                     Console.WriteLine(); // end with new line
+                    valid_command = true;
                 }
                 if (split_input[0].Equals("clear", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     Console.Clear();
+                    valid_command = true;
                 }
                 // Detect a new variable declaration
                 if (split_input[0].Equals("bool", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "bool newname = True/False";
                     bool no_issues = true;
                     if (split_input.Length != 4)
@@ -439,6 +470,7 @@ namespace GyroPrompt
                                 new_bool.Type = VariableType.Boolean;
                                 local_variables.Add(new_bool);
                                 namesInUse.Add(split_input[1], objectClass.Variable);
+                                valid_command = true;
                             }
                         }
                         else
@@ -449,6 +481,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("int", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "int newname = 1";
                     bool no_issues = true;
                     if (split_input.Length != 4)
@@ -464,7 +497,7 @@ namespace GyroPrompt
                             if (split_input[2] == "=") { no_issues = true; }
                             else
                             {
-                                errorHandler.ThrowError(1100, "bool variable", null, null, null, expectedFormat);
+                                errorHandler.ThrowError(1100, "int variable", null, null, null, expectedFormat);
                                 no_issues = false;
                             }
                         }
@@ -488,6 +521,7 @@ namespace GyroPrompt
                                 new_int.Type = VariableType.Int;
                                 local_variables.Add(new_int);
                                 namesInUse.Add(split_input[1], objectClass.Variable);
+                                valid_command = true;
                             }
                         }
                         else
@@ -498,6 +532,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("string", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "string newname = A sentence.";
                     bool no_issues = true;
                     if (split_input.Length <= 3)
@@ -541,6 +576,7 @@ namespace GyroPrompt
                                 new_string.Type = VariableType.String;
                                 local_variables.Add(new_string);
                                 namesInUse.Add(new_string.Name, objectClass.Variable);
+                                valid_command = true;
                             }
                         }
                         else
@@ -552,6 +588,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("float", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "float newname = 10.0";
                     bool no_issues = true;
                     if (split_input.Length != 4)
@@ -595,6 +632,7 @@ namespace GyroPrompt
                                 new_float.Type = VariableType.Float;
                                 local_variables.Add(new_float);
                                 namesInUse.Add(new_float.Name, objectClass.Variable);
+                                valid_command = true;
                             }
                         }
                         else
@@ -607,6 +645,7 @@ namespace GyroPrompt
                 // Modify variable values
                 if (split_input[0].Equals("set", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "set existingvariable = value";
                     string var_name = split_input[1];
                     bool name_found = false;
@@ -633,6 +672,7 @@ namespace GyroPrompt
                                     {
                                         case VariableType.String:
                                             var.Value = SetVariableValue(a);
+                                            valid_command = true;
                                             break;
                                         case VariableType.Int:
                                             string placeholder = SetVariableValue(a);
@@ -641,6 +681,7 @@ namespace GyroPrompt
                                             if (isnumber == true)
                                             {
                                                 var.Value = b;
+                                                valid_command = true;
                                             }
                                             else
                                             {
@@ -654,6 +695,7 @@ namespace GyroPrompt
                                             if (isfloat == true)
                                             {
                                                 var.Value = b_;
+                                                valid_command = true;
                                             }
                                             else
                                             {
@@ -671,12 +713,14 @@ namespace GyroPrompt
                                                     {
                                                         validInput = true;
                                                         var.Value = "True";
+                                                        valid_command = true;
                                                         break;
                                                     }
                                                     else if ((s == "0") || (s == "false"))
                                                     {
                                                         validInput = true;
                                                         var.Value = "False";
+                                                        valid_command = true;
                                                         break;
                                                     }
                                                 }
@@ -686,9 +730,7 @@ namespace GyroPrompt
                                                 errorHandler.ThrowError(1400, $"bool", null, split_input[3], split_input[3], expectedFormat);
                                             }
                                             break;
-
                                     }
-
                                 }
                                 else
                                 {
@@ -707,6 +749,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("toggle", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "toggle boolvariable";
                     if (split_input.Length == 2)
                     {
@@ -720,6 +763,7 @@ namespace GyroPrompt
                                 if ((local_var.Name == var_name) && (local_var.Type == VariableType.Boolean))
                                 {
                                     if (local_var.Value == "False") { local_var.Value = "True"; } else if (local_var.Value == "True") { local_var.Value = "False"; } // Switch the values
+                                    valid_command = true;
                                 }
                                 else if ((local_var.Name == var_name) && (local_var.Type != VariableType.Boolean))
                                 {
@@ -739,6 +783,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("int+", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "int+ integername";
                     if (split_input.Length == 2)
                     {
@@ -753,6 +798,7 @@ namespace GyroPrompt
                                     int a = Int32.Parse(localVar.Value);
                                     a++; // increment it by 1
                                     localVar.Value = a.ToString();
+                                    valid_command = true;
                                 }
                                 else if ((localVar.Name == var_name) && (localVar.Type != VariableType.Int))
                                 {
@@ -773,6 +819,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("int-", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "int- integername";
                     if (split_input.Length == 2)
                     {
@@ -787,6 +834,7 @@ namespace GyroPrompt
                                     int a = Int32.Parse(localVar.Value);
                                     a--; // decrease it by 1
                                     localVar.Value = a.ToString();
+                                    valid_command = true;
                                 }
                                 else if ((localVar.Name == var_name) && (localVar.Type != VariableType.Int))
                                 {
@@ -808,12 +856,13 @@ namespace GyroPrompt
                 // Detect environmental variable modification
                 if (split_input[0].Equals("environment", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "environment set environmentalvariable value";
-                    if (split_input.Length > 3 && split_input.Length < 6)
+                    if (split_input.Length > 3)
                     {
                         if (split_input[1].Equals("set", StringComparison.OrdinalIgnoreCase))
                         {
-                            if (split_input.Length == 4)
+                            if (split_input.Length >= 4)
                             {
                                 string var_name = split_input[2].ToLower();
                                 switch (var_name)
@@ -824,6 +873,7 @@ namespace GyroPrompt
                                         if (_valid == true)
                                         {
                                             WindowHeight_ = (Int32.Parse(_num));
+                                            valid_command = true;
                                         }
                                         else
                                         {
@@ -836,6 +886,7 @@ namespace GyroPrompt
                                         if (_valid1 == true)
                                         {
                                             WindowWidth_ = (Int32.Parse(_num1));
+                                            valid_command = true;
                                         }
                                         else
                                         {
@@ -850,6 +901,7 @@ namespace GyroPrompt
                                             try
                                             {
                                                 CursorX_ = (Int32.Parse(_num2));
+                                                valid_command = true;
                                             }
                                             catch (ArgumentOutOfRangeException ex)
                                             {
@@ -869,6 +921,7 @@ namespace GyroPrompt
                                             try
                                             {
                                                 CursorY_ = (Int32.Parse(_num3));
+                                                valid_command = true;
                                             }
                                             catch (ArgumentOutOfRangeException ex)
                                             {
@@ -885,6 +938,7 @@ namespace GyroPrompt
                                         {
                                             ConsoleColor color = keyConsoleColor[split_input[3]];
                                             backColor_ = color;
+                                            valid_command = true;
                                         }
                                         else
                                         {
@@ -896,6 +950,7 @@ namespace GyroPrompt
                                         {
                                             ConsoleColor color = keyConsoleColor[split_input[3]];
                                             foreColor_ = color;
+                                            valid_command = true;
                                         }
                                         else
                                         {
@@ -910,6 +965,7 @@ namespace GyroPrompt
                                             try
                                             {
                                                 ScriptDelay = (Int32.Parse(_num4));
+                                                valid_command = true;
                                             }
                                             catch (ArgumentOutOfRangeException ex)
                                             {
@@ -922,8 +978,17 @@ namespace GyroPrompt
                                         }
                                         break;
                                     case "title":
-                                        string a_ = SetVariableValue(split_input[3]);
-                                        Console.Title = (a_);
+                                        string newTitle = "";
+                                        for(int xx = 3; xx < split_input.Length; xx++)
+                                        {
+                                            newTitle += SetVariableValue(split_input[xx]);
+                                            if (xx != split_input.Length - 1)
+                                            {
+                                                newTitle += " ";
+                                            }
+                                        }
+                                        Console.Title = (newTitle);
+                                        valid_command = true;
                                         break;
                                     case "prompt":
                                         string a__ = SetVariableValue(split_input[3]);
@@ -942,6 +1007,7 @@ namespace GyroPrompt
                                                 {
                                                     PromptOn_ = false;
                                                 }
+                                                valid_command = true;
                                             }
                                             x++;
                                         }
@@ -968,6 +1034,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("pause", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "pause 1000";
                     if (split_input.Length == 2)
                     {
@@ -976,8 +1043,8 @@ namespace GyroPrompt
                         int b_ = Int32.Parse(split_input[1]);
                         if (valid)
                         {
+                            valid_command = true;
                             Thread.Sleep(b_);
-
                         }
                         else
                         {
@@ -1008,6 +1075,7 @@ namespace GyroPrompt
                 /// </summary>
                 if (split_input[0].Equals("if", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "if variable = value then command(s) OR if variable = value then command(s) else command(s)\nIf value is reference to variable, variable name should be bracketed [ ]";
                     string first_value = SetVariableValue(split_input[1]).TrimEnd();
                     bool first_value_exists = LocalVariableExists(first_value);
@@ -1079,6 +1147,7 @@ namespace GyroPrompt
                                     {
                                         // Since both are numerical, we can use an operator that compares their value by greater/less than
                                         condition_is_met = condition_checker.ConditionChecked(operator_, var_val.Trim(), conditon_checkvariables.Trim());
+                                        
                                     }
                                     else
                                     {
@@ -1091,6 +1160,7 @@ namespace GyroPrompt
                                     string[] commands_to_execute = proceeding_commands.Split('|');
                                     try
                                     {
+                                        valid_command = true;
                                         foreach (string command in commands_to_execute)
                                         {
                                             try
@@ -1100,14 +1170,15 @@ namespace GyroPrompt
                                             catch
                                             {
                                                 //Error with specific command
-                                                Console.WriteLine($"Error running command {command}.");
+                                                
                                             }
+                                            
                                         }
                                     }
                                     catch
                                     {
                                         // General error
-                                        Console.WriteLine("There was an error processing list of commands.");
+                                        
                                     }
                                 }
                                 else if ((condition_is_met == false) && (else_statement_exists == true))
@@ -1116,6 +1187,7 @@ namespace GyroPrompt
                                     string[] else_commands_to_execute = else_statement_commands.Split('|');
                                     try
                                     {
+                                        valid_command = true;
                                         foreach (string command in else_commands_to_execute)
                                         {
                                             try
@@ -1130,7 +1202,7 @@ namespace GyroPrompt
                                     }
                                     catch
                                     {
-                                        Console.WriteLine("There was an error processing list of commands.");
+                                        
                                     }
                                 }
                             }
@@ -1151,6 +1223,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("while", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "while variable = value do command(s)\nIf value is reference to variable, variable name should be bracketed [ ]";
                     string first_value = SetVariableValue(split_input[1]).TrimEnd();
                     bool first_value_exists = LocalVariableExists(first_value);
@@ -1212,6 +1285,7 @@ namespace GyroPrompt
                                                 string[] commands_to_execute = proceeding_commands.Split("|");
                                                 try
                                                 {
+                                                    valid_command = true;
                                                     foreach (string command in commands_to_execute)
                                                     {
                                                         try
@@ -1221,7 +1295,7 @@ namespace GyroPrompt
                                                         catch
                                                         {
                                                             //Error with specific command, exiting 'while' loop
-                                                            Console.WriteLine($"Error running command {command}.");
+                                                            
                                                             break;
                                                         }
                                                     }
@@ -1229,7 +1303,7 @@ namespace GyroPrompt
                                                 catch
                                                 {
                                                     // General error, exiting 'while' loop
-                                                    Console.WriteLine("There was an error processing list of commands.");
+                                                    
                                                     break;
                                                 }
                                             }
@@ -1276,7 +1350,7 @@ namespace GyroPrompt
                                                     catch
                                                     {
                                                         // General error, exiting 'while' loop
-                                                        Console.WriteLine("There was an error processing list of commands.");
+                                                        
                                                         break;
                                                     }
                                                 }
@@ -1315,6 +1389,7 @@ namespace GyroPrompt
                 /// </summary>
                 if (split_input[0].Equals("goto", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "goto 10";
                     if (running_script == true)
                     {
@@ -1327,6 +1402,7 @@ namespace GyroPrompt
                                 if (a < max_lines)
                                 {
                                     current_line = a;
+                                    valid_command = true;
                                 } else
                                 {
                                     errorHandler.ThrowError(1200, null, $"line {a}", null, null, expectedFormat);
@@ -1347,6 +1423,7 @@ namespace GyroPrompt
                 // Grab user input
                 if (split_input[0].Equals("readline", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "readline strvariable prompt\nFinal parameter prompt is optional.";
                     if (split_input.Length >= 2)
                     {
@@ -1361,6 +1438,7 @@ namespace GyroPrompt
                                 {
                                     if (var.Type == VariableType.String)
                                     {
+                                        valid_command = true;
                                         Console.Write(prompt_);
                                         string a_ = Console.ReadLine();
                                         var.Value = a_;
@@ -1384,6 +1462,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("readkey", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "readkey strvariable prompt\nFinal parameter prompt is optional.";
                     if (split_input.Length >= 2)
                     {
@@ -1419,6 +1498,7 @@ namespace GyroPrompt
                                         }
                                         var.Value = a_;
                                         Console.WriteLine();
+                                        valid_command = true;
                                     }
                                     else
                                     {
@@ -1441,6 +1521,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("readint", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "readint intvariable prompt|errormessage\nFinal parameter prompt and errormessage should be separated by vertical pipe | and are optional.";
                     if (split_input.Length >= 2)
                     {
@@ -1492,6 +1573,7 @@ namespace GyroPrompt
                                                 Console.WriteLine(prompt_[1]);
                                             }
                                         }
+                                        valid_command = true;
                                     }
                                     else
                                     {
@@ -1515,6 +1597,7 @@ namespace GyroPrompt
                 // Check for hash or serialize
                 if (split_input[0].Equals("hash256", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "hash256 strvariable valuetohash";
                     if (split_input.Length >= 3)
                     {
@@ -1531,6 +1614,7 @@ namespace GyroPrompt
                                     if (variable.Type == VariableType.String)
                                     {
                                         variable.Value = hashedprompt;
+                                        valid_command = true;
                                     } else
                                     {
                                         Console.WriteLine("Variable must be string.");
@@ -1549,6 +1633,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("hash512", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "hash512 strvariable valuetohash";
                     if (split_input.Length >= 3)
                     {
@@ -1565,6 +1650,7 @@ namespace GyroPrompt
                                     if (variable.Type == VariableType.String)
                                     {
                                         variable.Value = hashedprompt;
+                                        valid_command = true;
                                     }
                                     else
                                     {
@@ -1586,6 +1672,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("hash384", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "hash384 strvariable valuetohash";
                     if (split_input.Length >= 3)
                     {
@@ -1602,6 +1689,7 @@ namespace GyroPrompt
                                     if (variable.Type == VariableType.String)
                                     {
                                         variable.Value = hashedprompt;
+                                        valid_command = true;
                                     }
                                     else
                                     {
@@ -1623,6 +1711,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("json_serialize", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "json_serialize strvariable objecttoserialize";
                     if (split_input.Length == 3)
                     {
@@ -1644,6 +1733,7 @@ namespace GyroPrompt
                                             if (variable.Name == objToSerialize)
                                             {
                                                 serializedprompt += dataserializer.serializeInput(variable);
+                                                valid_command = true;
                                             }
                                         }
                                         break;
@@ -1653,6 +1743,7 @@ namespace GyroPrompt
                                             if (list.Name == objToSerialize)
                                             {
                                                 serializedprompt += dataserializer.serializeInput(list);
+                                                valid_command = true;
                                             }
                                         }
                                         break;
@@ -1662,6 +1753,7 @@ namespace GyroPrompt
                                             if (datapckt.ID == objToSerialize)
                                             {
                                                 serializedprompt += dataserializer.serializeInput(datapckt);
+                                                valid_command = true;
                                             }
                                         }
                                         break;
@@ -1674,6 +1766,7 @@ namespace GyroPrompt
                                         if (variable.Type == VariableType.String)
                                         {
                                             variable.Value = serializedprompt;
+                                            valid_command = true;
                                         }
                                         else
                                         {
@@ -1699,6 +1792,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("json_deserialize", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "json_deserialize strvariable objecttodeserialize";
                     if (split_input.Length == 3)
                     {
@@ -1720,6 +1814,7 @@ namespace GyroPrompt
                                             if (variable.Name == objToSerialize)
                                             {
                                                 serializedprompt += dataserializer.deserializeInput(variable);
+                                                valid_command = true;
                                             }
                                         }
                                         break;
@@ -1729,6 +1824,7 @@ namespace GyroPrompt
                                             if (list.Name == objToSerialize)
                                             {
                                                 serializedprompt += dataserializer.deserializeInput(list);
+                                                valid_command = true;
                                             }
                                         }
                                         break;
@@ -1738,6 +1834,7 @@ namespace GyroPrompt
                                             if (datapckt.ID == objToSerialize)
                                             {
                                                 serializedprompt += dataserializer.deserializeInput(datapckt);
+                                                valid_command = true;
                                             }
                                         }
                                         break;
@@ -1750,6 +1847,7 @@ namespace GyroPrompt
                                         if (variable.Type == VariableType.String)
                                         {
                                             variable.Value = serializedprompt;
+                                            valid_command = true;
                                         }
                                         else
                                         {
@@ -1791,6 +1889,7 @@ namespace GyroPrompt
                 /// </summary>
                 if (split_input[0].Equals("gui_mode", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "gui_mode on/off/reset";
                     if (split_input[1].Equals("on", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1829,6 +1928,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("new_gui_item", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     if (split_input[1].Equals("Button", StringComparison.OrdinalIgnoreCase))
                     {
                         // new_gui_item button Buttontext Tasklist x y width height
@@ -2006,6 +2106,7 @@ namespace GyroPrompt
                                         }
                                         if (extracting == true)
                                         {
+                                            errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
                                             Console.WriteLine("Must terminate Text: with vertical pipe |");
                                             return;
                                         }
@@ -2014,6 +2115,7 @@ namespace GyroPrompt
                                         GUI_Button newbutton = new GUI_Button(this, btnName, tsklist, text, x, y, wid, hei, foregrn, backgrn);
                                         consoleDirector.GUIButtonsToAdd.Add(newbutton);
                                         GUIObjectsInUse.Add(btnName, newbutton);
+                                        valid_command = true;
                                         break;
                                     }
                                 }
@@ -2265,13 +2367,14 @@ namespace GyroPrompt
                                 }
                                 if (extracting == true)
                                 {
-                                    Console.WriteLine("Must terminate Text: with vertical pipe |");
+                                    errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
                                     return;
                                 }
 
                                 GUI_textfield newtextfield = new GUI_textfield(txtFieldName, x, y, wid, hei, isMultiline, text, isReadonly, foregrn, backgrn);
                                 consoleDirector.GUITextFieldsToAdd.Add(newtextfield);
                                 GUIObjectsInUse.Add(newtextfield.GUIObjName, newtextfield);
+                                valid_command = true;
 
                             } else
                             {
@@ -2343,6 +2446,7 @@ namespace GyroPrompt
                                     GUI_Menubar newmenubar = new GUI_Menubar(this, menuBarName, menuItemsToPass, taskListToPass);
                                     consoleDirector.GUIMenuBarsToAdd.Add(newmenubar);
                                     GUIObjectsInUse.Add(newmenubar.GUIObjName, newmenubar);
+                                    valid_command = true;
                                 } else
                                 {
                                     Console.WriteLine("Menubar requires minimum 1 list with 1 item.");
@@ -2529,13 +2633,14 @@ namespace GyroPrompt
 
                                 if (extracting == true)
                                 {
-                                    Console.WriteLine("Must terminate Text: with vertical pipe |");
+                                    errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
                                     return;
                                 }
 
                                 GUI_Label newlabel = new GUI_Label(labelName, text, x, y, wid, hei, foregrn, backgrn);
                                 consoleDirector.GUILabelsToAdd.Add(newlabel);
                                 GUIObjectsInUse.Add(newlabel.GUIObjName, newlabel);
+                                valid_command = true;
 
                             }
                             else
@@ -2789,12 +2894,13 @@ namespace GyroPrompt
 
                                 if (extracting == true)
                                 {
-                                    Console.WriteLine("Must terminate Text: with vertical pipe |");
+                                    errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
                                     return;
                                 }
                                 GUI_Checkbox newcheckbox = new GUI_Checkbox(this, expectedName, text, x, y, wid, hei, isChecked, hasLinkedBools, listOfBools_, foregrn, backgrn);
                                 consoleDirector.GUICheckboxToAdd.Add(newcheckbox);
                                 GUIObjectsInUse.Add(expectedName, newcheckbox);
+                                valid_command = true;
 
                             } else
                             {
@@ -2808,6 +2914,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("gui_item_setwidth"))
                 {
+                    entry_made = true;
                     string expectedFormat = "gui_item_setwidth objectname number/percent/fill 1";
                     if (split_input.Length == 4)
                     {
@@ -2899,6 +3006,9 @@ namespace GyroPrompt
                                     if (foundAndChangedWidth == false)
                                     {
                                         Console.WriteLine("Object type cannot accept argument for setwidth.");
+                                    } else
+                                    {
+                                        valid_command = true;
                                     }
 
                                 }
@@ -2924,6 +3034,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("gui_item_setheight"))
                 {
+                    entry_made = true;
                     string expectedFormat = "gui_item_setheight objectname number/percent/fill 1";
                     if (split_input.Length == 4)
                     {
@@ -3012,6 +3123,9 @@ namespace GyroPrompt
                                     if (foundAndChangedHeight == false)
                                     {
                                         Console.WriteLine("Object type cannot accept argument for setheight.");
+                                    } else
+                                    {
+                                        valid_command = true;
                                     }
 
                                 }
@@ -3037,6 +3151,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("gui_item_setx", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "gui_item_setx objectname number/percent/fill/leftof/rightof 1/object\nnumber/percent/fill expects integer value, leftof/rightof expects an object name";
                     if (split_input.Length == 4)
                     {
@@ -3137,6 +3252,9 @@ namespace GyroPrompt
                                         if (foundAndChangedHeight == false)
                                         {
                                             Console.WriteLine("Object type cannot accept argument for setx.");
+                                        } else
+                                        {
+                                            valid_command = true;
                                         }
 
                                     }
@@ -3324,6 +3442,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("gui_item_sety", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "gui_item_sety objectname number/percent/fill 1";
                     if (split_input.Length == 4)
                     {
@@ -3414,6 +3533,9 @@ namespace GyroPrompt
                                     if (foundAndChangedHeight == false)
                                     {
                                         Console.WriteLine("Object type cannot accept argument for sety.");
+                                    } else
+                                    {
+                                        valid_command = true;
                                     }
 
                                 }
@@ -3439,6 +3561,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("gui_item_gettext", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "gui_item_gettext objectname strvariable";
 
                     if (split_input.Length == 3)
@@ -3468,6 +3591,7 @@ namespace GyroPrompt
                                                     if (var.Type == VariableType.String)
                                                     {
                                                         var.Value = txtfield.textfieldtext;
+                                                        valid_command = true;
                                                         break;
                                                     } else
                                                     {
@@ -3491,6 +3615,7 @@ namespace GyroPrompt
                                                     if (var.Type == VariableType.String)
                                                     {
                                                         var.Value = buttonobj.newButton.Text.ToString();
+                                                        valid_command = true;
                                                         break;
                                                     } else
                                                     {
@@ -3514,6 +3639,7 @@ namespace GyroPrompt
                                                     if (var.Type == VariableType.String)
                                                     {
                                                         var.Value = lbltxt.newlabel.Text.ToString();
+                                                        valid_command = true;
                                                         break;
                                                     }
                                                     else
@@ -3539,6 +3665,7 @@ namespace GyroPrompt
                                                     if (var.Type == VariableType.String)
                                                     {
                                                         var.Value = chkbox.newCheckbox.Text.ToString();
+                                                        valid_command = true;
                                                         break;
                                                     }
                                                     else
@@ -3567,6 +3694,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("gui_item_settext", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "gui_item_settext objectname value";
                     if (split_input.Length >= 3)
                     {
@@ -3595,6 +3723,7 @@ namespace GyroPrompt
                                         if (txtfield.GUIObjName == guiObjectName)
                                         {
                                             txtfield.SetText(textToSetTo);
+                                            valid_command = true;
                                         }
                                     }
                                     break;
@@ -3604,6 +3733,7 @@ namespace GyroPrompt
                                         if (buttonobj.GUIObjName == guiObjectName)
                                         {
                                             buttonobj.SetText(textToSetTo);
+                                            valid_command = true;
                                         }
                                     }
                                     break;
@@ -3613,6 +3743,7 @@ namespace GyroPrompt
                                         if (labelobj.GUIObjName == guiObjectName)
                                         {
                                             labelobj.SetText(textToSetTo);
+                                            valid_command = true;
                                         }
                                     }
                                     break;
@@ -3622,6 +3753,7 @@ namespace GyroPrompt
                                         if (chkbox.GUIObjName == guiObjectName)
                                         {
                                             chkbox.SetText(textToSetTo);
+                                            valid_command = true;
                                         }
                                     }
                                     break;
@@ -3642,6 +3774,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("gui_keypress_event", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "gui_keypress_event taskname key";
                     if (split_input.Length == 3)
                     {
@@ -3868,6 +4001,7 @@ namespace GyroPrompt
                             if (validTask == true && validKey == true)
                             {
                                 consoleDirector.addKeyPressFunction(templist, keyToPass);
+                                valid_command = true;
                             }
 
                         } else
@@ -3882,6 +4016,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("msgbox", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     if (GUIModeEnabled == true)
                     {
                         string expectedFormat = "msgbox Text:Default message| Title:Default title| Buttons:OK/YESNO,boolvariable\nIf button set it yesno, a bool variable is expected after comma. If button set is ok, nothing else is expected.";
@@ -3995,12 +4130,12 @@ namespace GyroPrompt
                             }
                         if (extracting == true)
                         {
-                            Console.WriteLine("Must terminate Text: with vertical pipe |");
+                            errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
                             return;
                         }
                         if (extractingTitle == true)
                         {
-                            Console.WriteLine("Must terminate Title: with vertical pipe |");
+                            errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
                             return;
                         }
 
@@ -4013,13 +4148,15 @@ namespace GyroPrompt
                                         switch (selectedButton)
                                         {
                                             case 1:
-                                                Terminal.Gui.Application.MainLoop.Invoke(() =>
+                                            valid_command = true;
+                                            Terminal.Gui.Application.MainLoop.Invoke(() =>
                                                 {
                                                     consoleDirector.ok_msgbox(title, text);
                                                 });
-                                                break;
+                                            break;
                                             case 2:
-                                                string varname = bool_forYesNo.Name;
+                                            valid_command = true;
+                                            string varname = bool_forYesNo.Name;
                                                 Terminal.Gui.Application.MainLoop.Invoke(() =>
                                                 {
                                                     consoleDirector.yesno_msgbox(title, text, varname);
@@ -4029,16 +4166,17 @@ namespace GyroPrompt
                                         
                                     } else
                                     {
-                                        Console.WriteLine("Message box requires buttons to be defined: OK, YESNO");
-                                    }
+                                    // This shouldn't hit but there's never a thing as too much redundancy
+                                    errorHandler.ThrowError(1400, $"Buttons:", null, "provided value", "OK YESNO,bool", expectedFormat);
+                                }
                                 } else
                                 {
-                                    Console.WriteLine("Message box requires title");
-                                }
+                                errorHandler.ThrowError(1700, null, "Title:", null, null, expectedFormat);
+                            }
                             } else
                             {
-                                Console.WriteLine("Message box requires text.");
-                            }
+                                errorHandler.ThrowError(1700, null, "Text:", null, null, expectedFormat);
+                        }
 
                     } else
                     {
@@ -4049,6 +4187,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("gui_savedialog", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     if (GUIModeEnabled == true)
                     {
                         string expectedFormat = "gui_savedialog strvariable Text:Default text| Title:Default title| Filetypes:listname";
@@ -4129,7 +4268,6 @@ namespace GyroPrompt
                                         title = _placeholder + " ";
                                         hasTitle = true;
                                     }
-
                                     if (s.StartsWith("Filetypes:", StringComparison.OrdinalIgnoreCase))
                                     {
                                         string _placeholder = s.Remove(0, 10);
@@ -4156,11 +4294,22 @@ namespace GyroPrompt
                                 }
                             }
 
+                            if (extracting == true)
+                            {
+                                errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                return;
+                            }
+                            if (extractingTitle == true)
+                            {
+                                errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                return;
+                            }
+
                             if (hasText == true)
                             {
                                 if (hasTitle == true)
                                 {
-
+                                    valid_command = true;
                                     consoleDirector.showsaveDialog(title, text, expectedVariableName_, expectedFileTypes);
                                 }
                                 else
@@ -4184,6 +4333,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("gui_opendialog", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     if (GUIModeEnabled == true)
                     {
                         string expectedFormat = "gui_savedialog strvariable Text:Default text| Title:Default title| Filetypes:listname";
@@ -4290,11 +4440,22 @@ namespace GyroPrompt
                                 }
                             }
 
+                            if (extracting == true)
+                            {
+                                errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                return;
+                            }
+                            if (extractingTitle == true)
+                            {
+                                errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                return;
+                            }
+
                             if (hasText == true)
                             {
                                 if (hasTitle == true)
                                 {
-
+                                    valid_command = true;
                                     consoleDirector.showopenDialog(title, text, expectedVariableName_, expectedFileTypes);
                                 }
                                 else
@@ -4330,6 +4491,7 @@ namespace GyroPrompt
                 /// </summary>
                 if (split_input[0].Equals("new_list", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "new_list variabletype newname";
                     if (split_input.Length == 3)
                     {
@@ -4383,6 +4545,7 @@ namespace GyroPrompt
                                 newArray.arrayType = new_arrayType;
                                 local_arrays.Add(newArray);
                                 namesInUse.Add(listName, objectClass.List);
+                                valid_command = true;
                             }
                         }
                         else
@@ -4398,6 +4561,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("list_add", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "list_add listname variablename(s)";
                     if (split_input.Length >= 3)
                     {
@@ -4425,6 +4589,7 @@ namespace GyroPrompt
                                                 if (locvar.Name == currentVar)
                                                 {
                                                     list.itemAdd(locvar);
+                                                    valid_command = true;
                                                 }
                                             }
                                         }
@@ -4454,6 +4619,7 @@ namespace GyroPrompt
                                         {
                                             if (localVar.Name == varName)
                                             {
+                                                valid_command = true;
                                                 array.itemAdd(localVar);
                                                 break;
                                             }
@@ -4476,6 +4642,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("list_remove", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "list_remove listname variablename";
                     if (split_input.Length >= 3)
                     {
@@ -4490,6 +4657,7 @@ namespace GyroPrompt
                                 if (array.Name == listName)
                                 {
                                     array.itemRemove(varName);
+                                    valid_command = true;
                                     break;
                                 }
                             }
@@ -4509,6 +4677,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("list_setall", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "list_setall listname value";
                     if (split_input.Length >= 2)
                     {
@@ -4525,7 +4694,7 @@ namespace GyroPrompt
                                     case ArrayType.Float:
                                         if (split_input.Length > 3)
                                         {
-                                            Console.WriteLine("Invalid format to pass float.");
+                                            errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
                                         }
                                         else
                                         {
@@ -4535,6 +4704,7 @@ namespace GyroPrompt
                                             if (isfloat == true)
                                             {
                                                 localLists.SetAllWithValue(b_);
+                                                valid_command = true;
                                             }
                                             else
                                             {
@@ -4545,7 +4715,7 @@ namespace GyroPrompt
                                     case ArrayType.Int:
                                         if (split_input.Length > 3)
                                         {
-                                            Console.WriteLine("Invalid format to pass integer.");
+                                            errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
                                         }
                                         else
                                         {
@@ -4555,6 +4725,7 @@ namespace GyroPrompt
                                             if (isInt == true)
                                             {
                                                 localLists.SetAllWithValue(b_);
+                                                valid_command = true;
                                             }
                                             else
                                             {
@@ -4575,11 +4746,12 @@ namespace GyroPrompt
                                         string aa = SetVariableValue(newValue);
                                         string bb = ConvertNumericalVariable(aa);
                                         localLists.SetAllWithValue(bb.Trim());
+                                        valid_command = true;
                                         break;
                                     case ArrayType.Boolean:
                                         if (split_input.Length > 3)
                                         {
-                                            Console.WriteLine("Invalid format to pass boolean.");
+                                            errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
                                         }
                                         else
                                         {
@@ -4599,6 +4771,7 @@ namespace GyroPrompt
                                             if (isBool == true)
                                             {
                                                 localLists.SetAllWithValue(operation);
+                                                valid_command = true;
                                             }
                                             else
                                             {
@@ -4623,6 +4796,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("list_printall", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "list_printall listname";
                     string listName = split_input[1];
                     if (split_input.Length == 2)
@@ -4634,6 +4808,7 @@ namespace GyroPrompt
                             {
                                 listExists = true;
                                 list_.PrintAll();
+                                valid_command = true;
                                 break;
                             }
                         }
@@ -4667,12 +4842,14 @@ namespace GyroPrompt
                 /// <summary>
                 if (split_input[0].Equals("filesystem_write", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_write filepath value";
                     if (split_input.Length >= 3)
                     {
                         string path_ = SetVariableValue(split_input[1]);
                         string content_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
                         filesystem.WriteOverFile(path_, content_);
+                        valid_command = true;
                     } else
                     {
                         errorHandler.ThrowError(1100, "filesystem_write", null, null, null, expectedFormat);
@@ -4680,12 +4857,14 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_append", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_append filepath value";
                     if (split_input.Length >= 3)
                     {
                         string path_ = SetVariableValue(split_input[1]);
                         string content_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
                         filesystem.AppendToFile(path_, content_);
+                        valid_command = true;
                     }
                     else
                     {
@@ -4694,6 +4873,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_readall", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_readall filepath strvariable";
                     if (split_input.Length == 3)
                     {
@@ -4712,6 +4892,7 @@ namespace GyroPrompt
                                             if (var.Type == VariableType.String)
                                             {
                                                 var.Value = a_;
+                                                valid_command = true;
                                             }
                                             else
                                             {
@@ -4737,6 +4918,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_readtolist", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_readtolist filepath strlist";
                     if (split_input.Length == 3)
                     {
@@ -4777,6 +4959,7 @@ namespace GyroPrompt
                             if (issuccess == true)
                             {
                                 local_arrays.Add(locallist);
+                                valid_command = true;
                             }
                         } else if ((listExists == true) && (listEmpty == true))
                         {
@@ -4804,6 +4987,7 @@ namespace GyroPrompt
                                                 lists_.items.Add(var);
                                                 lists_.numberOfElements++;
                                             }
+                                            valid_command = true;
                                             break;
                                         }
                                     }
@@ -4826,10 +5010,12 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_delete", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_delete filepath";
                     if (split_input.Length == 2)
                     {
                         filesystem.DeleteFile(split_input[1]);
+                        valid_command = true;
                     } else
                     {
                         errorHandler.ThrowError(1100, "filesystem_delete", null, null, null, expectedFormat);
@@ -4837,10 +5023,12 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_copy", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_copy currentpath targetpath";
                     if (split_input.Length == 3)
                     {
                         filesystem.CopyFileToLocation(split_input[1], split_input[2]);
+                        valid_command = true;
                     }
                     else
                     {
@@ -4849,11 +5037,13 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_move", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_move currentpath targetpath";
                     if (split_input.Length == 3)
                         {
                             filesystem.MoveFileToLocation(split_input[1], split_input[2]);
-                        }
+                        valid_command = true;
+                    }
                         else
                         {
                         errorHandler.ThrowError(1100, "filesystem_move", null, null, null, expectedFormat);
@@ -4861,10 +5051,12 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_sethidden", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_sethidden filepath";
                     if (split_input.Length == 2)
                     {
                         filesystem.SetFileToHidden(split_input[1]);
+                        valid_command = true;
                     }
                     else
                     {
@@ -4873,10 +5065,12 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_setvisible", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_setvisible filepath";
                     if (split_input.Length == 2)
                     {
                         filesystem.SetHiddenFileToVisible(split_input[1]);
+                        valid_command = true;
                     }
                     else
                     {
@@ -4885,10 +5079,12 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_mkdir", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_mkdir path";
                     if (split_input.Length == 2)
                     {
                         filesystem.CreateDirectory(split_input[1]);
+                        valid_command = true;
                     } else
                     {
                         errorHandler.ThrowError(1100, "filesystem_setvisible", null, null, null, expectedFormat);
@@ -4897,10 +5093,12 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_rmdir", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_rmdir path";
                     if (split_input.Length == 2)
                     {
                         filesystem.RemoveDirectory(split_input[1]);
+                        valid_command = true;
                     }
                     else
                     {
@@ -4909,10 +5107,12 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_copydir", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_copydir currentpath targetpath";
                     if (split_input.Length == 3)
                     {
                         filesystem.CopyDirectoryToLocation(split_input[1], split_input[2]);
+                        valid_command = true;
                     }
                     else
                     {
@@ -4921,10 +5121,12 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("filesystem_movedir", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "filesystem_movdir currentpath targetpath";
                     if (split_input.Length == 3)
                     {
                         filesystem.MoveDirectoryToLocation(split_input[1], split_input[2]);
+                        valid_command = true;
                     }
                     else
                     {
@@ -4948,6 +5150,7 @@ namespace GyroPrompt
                 /// </summary>
                 if (split_input[0].Equals("new_task", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "new_task newname inline/background 100\nFinal parameter should be integer and is optional.";
                     string taskName_;
                     TaskType taskType_;
@@ -4980,6 +5183,7 @@ namespace GyroPrompt
                                             scriptDelay_ = Int32.Parse(split_input[3]);
                                             TaskList newTask = new TaskList(taskName_, taskType_, scriptDelay_);
                                             tasklists_inuse.Add(newTask);
+                                            valid_command = true;
                                         }
                                         else
                                         {
@@ -4995,6 +5199,7 @@ namespace GyroPrompt
                                             scriptDelay_ = Int32.Parse(split_input[3]);
                                             TaskList newTask = new TaskList(taskName_, taskType_, scriptDelay_);
                                             tasklists_inuse.Add(newTask);
+                                            valid_command = true;
                                         }
                                         else
                                         {
@@ -5038,12 +5243,14 @@ namespace GyroPrompt
                                         taskType_ = TaskType.InlineTask;
                                         TaskList newTask = new TaskList(taskName_, taskType_);
                                         tasklists_inuse.Add(newTask);
+                                        valid_command = true;
                                     }
                                     else if (a_ == "background")
                                     {
                                         taskType_ = TaskType.BackgroundTask;
                                         TaskList newTask = new TaskList(taskName_, taskType_);
                                         tasklists_inuse.Add(newTask);
+                                        valid_command = true;
                                     }
                                 }
                                 else
@@ -5066,6 +5273,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("task_add", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "task_add taskname command";
                     if (split_input.Length >= 3)
                     {
@@ -5095,6 +5303,9 @@ namespace GyroPrompt
                         if (foundtasklist == false)
                         {
                             errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                        } else
+                        {
+                            valid_command = true;
                         }
                     }
                     else
@@ -5108,27 +5319,29 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("task_insert", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "task_insert taskname index command";
                     string taskname = split_input[1];
                     bool foundtasklist = false;
                     string command = "";
+                    string expectedIndex = SetVariableValue(split_input[2]);
                     if (split_input.Length > 3)
                     {
-                        foreach (string s in split_input.Skip(2))
+                        foreach (string s in split_input.Skip(3))
                         {
                             command += s + " ";
                         }
                         command.Trim();
-                    } else if (split_input.Length < 3)
+                    } else if (split_input.Length < 4)
                     {
                         errorHandler.ThrowError(1100, "task_insert", null, null, null, expectedFormat);
                         return;
                     }
-                    else if (split_input.Length == 3)
+                    else if (split_input.Length == 4)
                     {
-                        command = split_input[2];
+                        command = split_input[3];
                     }
-                    bool validInteger = IsNumeric(split_input[2]); // must be valid number
+                    bool validInteger = IsNumeric(expectedIndex); // must be valid number
                     if (validInteger == true)
                     {
 
@@ -5144,15 +5357,19 @@ namespace GyroPrompt
                         if (foundtasklist == false)
                         {
                             errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                        } else
+                        {
+                            valid_command = true;
                         }
                     }
                     else
                     {
-                        Console.WriteLine($"{split_input[2]} is not a valid integer.");
+                        errorHandler.ThrowError(1400, "task_insert", null, expectedIndex, "a valid integer", expectedFormat);
                     }
                 }
                 if (split_input[0].Equals("task_clearall", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "task_clearall taskname";
                     if (split_input.Length == 2)
                     {
@@ -5170,6 +5387,9 @@ namespace GyroPrompt
                         if (foundtasklist == false)
                         {
                             errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                        } else
+                        {
+                            valid_command = true;
                         }
                     }
                     else
@@ -5179,6 +5399,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("task_printall", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "task_printall taskname";
                     if (split_input.Length == 2)
                     {
@@ -5196,6 +5417,9 @@ namespace GyroPrompt
                         if (foundtasklist == false)
                         {
                             errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                        } else
+                        {
+                            valid_command = true;
                         }
                     }
                     else
@@ -5205,6 +5429,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("task_setdelay", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "task_setdelay taskname 100";
                     if (split_input.Length == 3)
                     {
@@ -5227,6 +5452,9 @@ namespace GyroPrompt
                             if (foundtasklist == false)
                             {
                                 errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                            } else
+                            {
+                                valid_command = true;
                             }
                         }
                         else
@@ -5241,6 +5469,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("task_execute", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "task_execute taskname";
                     if (split_input.Length == 2)
                     {
@@ -5267,6 +5496,7 @@ namespace GyroPrompt
                         else
                         {
                             // We proceed to execute the task
+                            valid_command = true;
                             executeTask(commandsToPass, taskType_, scriptDelay_);
                         }
                     }
@@ -5298,6 +5528,7 @@ namespace GyroPrompt
                 // TCP Server
                 if (split_input[0].Equals("new_tcp_server", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "new_tcp_server newname";
                     if (split_input.Length >= 2)
                     {
@@ -5315,6 +5546,7 @@ namespace GyroPrompt
                             activeTCPObjects.Add(newTCPServer);
                             activeServers.Add(newTCPServer);
                             namesInUse.Add(expectedName, objectClass.TCPNetObj);
+                            valid_command = true;
                         }
                         else
                         {
@@ -5326,7 +5558,8 @@ namespace GyroPrompt
                     }
                 }
                 if (split_input[0].Equals("tcp_server_start", StringComparison.OrdinalIgnoreCase))
-                {
+                { 
+                    entry_made = true;
                     string expectedFormat = "tcp_server_start servername";
                     if (split_input.Length >= 2)
                     {
@@ -5347,10 +5580,11 @@ namespace GyroPrompt
                                         {
                                             found_ = true;
                                             server_.Start(); //.GetAwaiter().GetResult();
-                                            break;
+                                            valid_command = true;
+                                        break;
                                         }
                                     }
-                                    if (found_ == false){ Console.WriteLine($"Could not find TCP server {serverName}"); }
+                                    if (found_ == false){ errorHandler.ThrowError(1200, null, serverName, null, null, expectedFormat); }
                                 }
                                 else if (nameIsInUse == false)
                                 {
@@ -5358,7 +5592,7 @@ namespace GyroPrompt
                             }
                                 else if (isProperType == false)
                                 {
-                                    Console.WriteLine($"{serverName} is not a TCP client.");
+                                errorHandler.ThrowError(2100, null, null, serverName, "TCP server", expectedFormat);
                                 }
                             }
                             catch
@@ -5374,6 +5608,7 @@ namespace GyroPrompt
                 // TCP Client
                 if (split_input[0].Equals("new_tcp_client", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "new_tcp_client newname";
                     if (split_input.Length >= 2)
                     {
@@ -5391,7 +5626,7 @@ namespace GyroPrompt
                             activeTCPObjects.Add(newTCPClient);
                             activeClients.Add(newTCPClient);
                             namesInUse.Add(expectedName, objectClass.TCPNetObj);
-
+                            valid_command = true;
                         }
                         else
                         {
@@ -5405,6 +5640,7 @@ namespace GyroPrompt
                 }
                 if (split_input[0].Equals("tcp_client_connect", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "tcp_client_connect tcpclient address";
                     if (split_input.Length >= 3)
                     {
@@ -5426,17 +5662,17 @@ namespace GyroPrompt
                                     {
                                         if (client_.name == clientName)
                                         {
-                                            if (client_.hasStarted == false) { client_.Start(expectedIP); found_ = true; } else { Console.WriteLine($"{clientName} already has connection."); }
+                                            if (client_.hasStarted == false) { client_.Start(expectedIP); found_ = true; valid_command = true; } else { Console.WriteLine($"{clientName} already has connection."); }
                                             break;
                                         }
                                     }
-                                    if (found_ == false) { Console.WriteLine($"Could not find TCP client {clientName}"); }
+                                    if (found_ == false) { errorHandler.ThrowError(1200, null, clientName, null, null, expectedFormat); }
                                 } else if (nameIsInUse == false)
                                 {
                                     errorHandler.ThrowError(1200, null, clientName, null, null, expectedFormat);
                                 } else if (isProperType == false)
                                 {
-                                    Console.WriteLine($"{clientName} is not a TCP client.");
+                                    errorHandler.ThrowError(2100, null, null, clientName, "TCP client", expectedFormat);
                                 }
                             } catch
                             {
@@ -5445,7 +5681,7 @@ namespace GyroPrompt
                         }
                         else
                         {
-                            Console.WriteLine("Invalid IP address.");
+                            errorHandler.ThrowError(1400, "IP address", null, expectedIP, "IP address", expectedFormat);
                         }
                     }
                     else
@@ -5456,6 +5692,7 @@ namespace GyroPrompt
                 // TCP Client || TCP Server
                 if ((split_input[0].Equals("tcp_client_assignprotocol", StringComparison.OrdinalIgnoreCase) || (split_input[0].Equals("tcp_server_assignprotocol", StringComparison.OrdinalIgnoreCase))))
                 {
+                    entry_made = true;
                     // tcp_client_assignprotocol tcpobj protocol task
                     // tcp_server_assignprotocol tcpobj protocol task
                     string expectedFormat = "tcp_client_assignprotocol clientname protocol taskname";
@@ -5489,7 +5726,7 @@ namespace GyroPrompt
                             validTask = true;
                         } else
                         {
-                            Console.WriteLine($"Could not locate task list {expectedTask}");
+                            errorHandler.ThrowError(1200, null, expectedTask, null, null, expectedFormat);
                             return;
                         }
 
@@ -5583,6 +5820,7 @@ namespace GyroPrompt
                                                 if (client_.name == expectedTCPobject)
                                                 {
                                                     client_.AssignProtocol(clientProtocol, taskToAssign);
+                                                    valid_command = true;
                                                     break;
                                                 }
                                             }
@@ -5593,6 +5831,7 @@ namespace GyroPrompt
                                                 if (server_.serverName == expectedTCPobject)
                                                 {
                                                     server_.AssignProtocol(serverProtocol, taskToAssign);
+                                                    valid_command = true;
                                                     break;
                                                 }
                                             }
@@ -5601,7 +5840,7 @@ namespace GyroPrompt
 
                                     } else
                                     {
-                                        Console.WriteLine($"Could not locate task list {expectedTask}");
+                                        errorHandler.ThrowError(1200, null, expectedTask, null, null, expectedFormat);
                                         return; // logical redundancy
                                     }
                                 } else
@@ -5613,17 +5852,17 @@ namespace GyroPrompt
                                         {
                                             validValues += s + " ";
                                         }
-                                        Console.WriteLine($"{expectedTCPprotocol} is not a valid client protocol. Valid protocols: {validValues}");
+                                        errorHandler.ThrowError(1400, "client protocol", null, expectedTCPprotocol, validValues, expectedFormat);
                                     }
                                 }
 
                             } else
                             {
-                                Console.WriteLine($"{expectedTCPobject} is not a valid TCP object.");
+                                errorHandler.ThrowError(2100, null, null, expectedTCPobject, "TCP server/TCP client", expectedFormat);
                             }
                         } else
                         {
-                            Console.WriteLine($"TCP object {expectedTCPobject} not found.");
+                            errorHandler.ThrowError(1200, null, expectedTCPobject, null, null, expectedFormat);
                         }
 
 
@@ -5635,6 +5874,7 @@ namespace GyroPrompt
                 // Data packet stuff
                 if (split_input[0].Equals("new_datapacket", StringComparison.OrdinalIgnoreCase)) 
                 {
+                    entry_made = true;
                     string expectedFormat = "new_datapacket TCPObject:clientname/servername ID:value| Data:object\nID must end with vertical pipe | and Data must refer to object by name.";
                     bool hasDestination = false;
                     bool hasData = false;
@@ -5807,7 +6047,7 @@ namespace GyroPrompt
                     
                     if (extracting == true)
                     {
-                        Console.WriteLine("Must terminate reading ID with vertical pipe |");
+                        errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                     }
 
                     int canProceed = 0;
@@ -5842,7 +6082,7 @@ namespace GyroPrompt
                                     outgoingDP.objData = temp_.Value;
                                 } else
                                 {
-                                    Console.WriteLine($"Error locating variable {objName}");
+                                    errorHandler.ThrowError(1200, null, objName, null, null, expectedFormat);
                                     break;
                                 }
                                 break;
@@ -5864,7 +6104,7 @@ namespace GyroPrompt
                                 }
                                 else
                                 {
-                                    Console.WriteLine($"Error locating list {objName}");
+                                    errorHandler.ThrowError(1200, null, "list " + objName, null, null, expectedFormat);
                                     break;
                                 }
                                 break;
@@ -5882,12 +6122,13 @@ namespace GyroPrompt
                                     targetObject.outgoingDataPackets.Add(outgoingDP);
                                 }
                             }
-
+                            valid_command = true;
                         }
                     }
                 }
                 if (split_input[0].Equals("datapacket_send", StringComparison.OrdinalIgnoreCase))
                 {
+                    entry_made = true;
                     string expectedFormat = "datapacket_send clientname/servername packetid *all\nFinal parameter all is optional and will send all datapackets with specified ID. If not included, first datapacket found with ID is sent.";
                     if ((split_input.Length >= 3) && (split_input.Length < 5))
                     {
@@ -5935,6 +6176,7 @@ namespace GyroPrompt
                                                         dp.senderAddress = TCPClient.thisClientIP;
                                                         TCPClient.SendDatapacket(dp);
                                                     }
+                                                    valid_command = true;
                                                 }
                                                 else
                                                 {
@@ -5947,6 +6189,7 @@ namespace GyroPrompt
                                                 if (dpToSend != null)
                                                 {
                                                     TCPClient.SendDatapacket(dpToSend);
+                                                    valid_command = true;
                                                 } else
                                                 {
                                                     errorHandler.ThrowError(1200, null, $"datapacket with ID " + expectedDPID, null, null, expectedFormat);
@@ -5971,7 +6214,7 @@ namespace GyroPrompt
                                                         dp.senderAddress = TCPServer.serverName;
                                                         TCPServer.BroadcastPacket(dp, null);
                                                     }
-
+                                                    valid_command = true;
                                                 } else
                                                 {
                                                     errorHandler.ThrowError(1200, null, $"datapacket with ID " + expectedDPID, null, null, expectedFormat);
@@ -5984,6 +6227,7 @@ namespace GyroPrompt
                                                 if (dpToSend != null)
                                                 {
                                                     TCPServer.BroadcastPacket(dpToSend, null);
+                                                    valid_command = true;
                                                 }
                                                 else
                                                 {
@@ -6031,9 +6275,22 @@ namespace GyroPrompt
                     Console.Beep(1000, 1000);
                 }
 
-            } catch (Exception error){ Console.WriteLine($"Error with input - {error}"); }
-        }
 
+
+                if ((valid_command == false) && (entry_made == false))
+                {
+                    if (input != "")
+                    {
+                        errorHandler.ThrowError(1000, null, null, input, null, null);
+                    }
+                }
+
+
+            } catch (Exception error){ Console.WriteLine($"Fatal error encountered."); }
+
+            
+        }
+        
         // Executes a script file line-by-line
         public void run(string script)
         {

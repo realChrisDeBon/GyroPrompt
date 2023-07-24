@@ -1,15 +1,21 @@
-﻿using System;
+﻿using GyroPrompt.Basic_Objects.GUIComponents;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace GyroPrompt
 {
     public  class SysErrorParser
     {
+        public Parser topLevelParser;
+        public ConsoleOutputDirector GUIConsole;
+
         public Dictionary<int, string> errorCategory = new Dictionary<int, string>
         {
+            { 10, "Statement not recognized: "},
             { 11, "Incorrect format for " },
             { 12, "Could not find or locate " },
             { 13, "Name already in use " },
@@ -33,11 +39,14 @@ namespace GyroPrompt
             string outputMessage = "";
             switch (errCategory)
             {
+                case 10:
+                    outputMessage += errorCategory[errCategory] + badValue;
+                    break;
                 case 11:
-                    outputMessage += errorCategory[errCategory] + failedItem + ". " + expectedFormat;
+                    outputMessage += errorCategory[errCategory] + failedItem + ". Expected syntax: " + expectedFormat;
                     break;
                 case 12:
-                    outputMessage += errorCategory[errCategory] + missingObject + ".";
+                    outputMessage += errorCategory[errCategory] + missingObject;
                     break;
                 case 13:
                     outputMessage += errorCategory[errCategory] + badValue;
@@ -61,7 +70,7 @@ namespace GyroPrompt
                     outputMessage = errorCategory[errCategory];
                     break;
                 case 20:
-                    outputMessage += errorCategory[errCategory] + expectedParameter + ". " + expectedFormat;
+                    outputMessage += errorCategory[errCategory] + expectedParameter + ". Expected syntax: " + expectedFormat;
                     break;
                 case 21:
                     outputMessage += errorCategory[errCategory] + badValue + ", expecting " + expectedParameter;
@@ -69,8 +78,31 @@ namespace GyroPrompt
                 case 22:
                     outputMessage += errorCategory[errCategory];
                     break;
+                case 23:
+                    outputMessage += errorCategory[errCategory];
+                    break;
             }
-            Console.WriteLine(outputMessage);
+            
+            if (topLevelParser.GUIModeEnabled == false)
+            {
+                Console.WriteLine(outputMessage);
+            } else
+            {
+                // Error will be printed into a message box prompt in console director
+                try
+                {
+                    Terminal.Gui.Application.MainLoop.Invoke(() =>
+                    {
+                        GUIConsole.error_msgbox("Error!", outputMessage);
+                    });
+                }
+                catch
+                {
+                    // um
+                }
+            }
+
+            
         }
 
     }

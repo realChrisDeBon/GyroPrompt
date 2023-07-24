@@ -126,6 +126,11 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             MessageBox.Query(title, msg, "Ok");
         }
 
+        public void error_msgbox(string title, string msg)
+        {
+            MessageBox.ErrorQuery(title, msg, "Continue");
+        }
+
         public void showsaveDialog(string title, string msg, string varname, LocalList filetypes = default)
         {
             // Parse list variable values

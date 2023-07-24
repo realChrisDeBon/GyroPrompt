@@ -80,33 +80,39 @@ namespace GyroPrompt.Network_Objects
         }
         public void ReceiveDatapacket()
         {
-            NetworkStream stream = client.GetStream();
-            while (true)
+            try
             {
-                byte[] buffer = new byte[client.ReceiveBufferSize];
-                int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-
-                dataPacket incomingDataPacket = JsonConvert.DeserializeObject<dataPacket>(message);
-                // set a bool of 'RerouteToLocalStack' so in the future datapackets can first land in incomingDataPackets
-                // then optionally be automatically sent to local stack
-                incomingDataPackets.Add(incomingDataPacket);
-                toplevelParser.addPacketToStack(incomingDataPacket);
-                string objtypeStr = GetDescription(incomingDataPacket.objType);
-                runProtocol(TCPClientProtocols.protocols_receiveDataPacket, $"Sender:{incomingDataPacket.senderAddress} ID:{incomingDataPacket.ID} ObjectType:{objtypeStr}");
-
-                if (bytesRead == 0)
+                NetworkStream stream = client.GetStream();
+                while (true)
                 {
-                    hasStarted = false;
-                    runProtocol(TCPClientProtocols.protocols_clientDisconnect, $"ConnectionLost");
-                    break; // Server disconnected
-                }
+                    byte[] buffer = new byte[client.ReceiveBufferSize];
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
 
-                Console.WriteLine($"Received from server: {incomingDataPacket.senderAddress} {incomingDataPacket.ID}");
+                    dataPacket incomingDataPacket = JsonConvert.DeserializeObject<dataPacket>(message);
+                    // set a bool of 'RerouteToLocalStack' so in the future datapackets can first land in incomingDataPackets
+                    // then optionally be automatically sent to local stack
+                    incomingDataPackets.Add(incomingDataPacket);
+                    toplevelParser.addPacketToStack(incomingDataPacket);
+                    string objtypeStr = GetDescription(incomingDataPacket.objType);
+                    runProtocol(TCPClientProtocols.protocols_receiveDataPacket, $"Sender:{incomingDataPacket.senderAddress} ID:{incomingDataPacket.ID} ObjectType:{objtypeStr}");
+
+                    if (bytesRead == 0)
+                    {
+                        hasStarted = false;
+                        runProtocol(TCPClientProtocols.protocols_clientDisconnect, $"ConnectionLost");
+                        break; // Server disconnected
+                    }
+
+                    Console.WriteLine($"Received from server: {incomingDataPacket.senderAddress} {incomingDataPacket.ID}");
+                }
+            } catch
+            {
+                runProtocol(TCPClientProtocols.protocols_clientDisconnect, "");
+                client.Dispose();
+                client.Close();
             }
-            client.Dispose();
-            client.Close();
-            Environment.Exit(0);
+           
         }
 
     }
