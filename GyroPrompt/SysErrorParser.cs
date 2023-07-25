@@ -13,7 +13,7 @@ namespace GyroPrompt
         public Parser topLevelParser;
         public ConsoleOutputDirector GUIConsole;
 
-        public Dictionary<int, string> errorCategory = new Dictionary<int, string>
+        public readonly Dictionary<int, string> errorCategory = new Dictionary<int, string>
         {
             { 10, "Statement not recognized: "},
             { 11, "Incorrect format for " },
@@ -29,7 +29,6 @@ namespace GyroPrompt
             { 21, "Wrong type of variable or object: " },
             { 22, "Script must be running for this command to execute." },
             { 23, "Must terminate text read with a vertical pipe |" }
-
         };
         public void ThrowError(int errorCode, string failedItem = "object", string missingObject = "object", string badValue = "bad value", string expectedParameter = "parameter", string expectedFormat = "format")
         {

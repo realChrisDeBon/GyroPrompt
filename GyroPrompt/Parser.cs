@@ -25,6 +25,7 @@ public enum objectClass
     Variable,
     EnvironmentalVariable,
     List,
+    TaskList,
     TCPNetObj,
     DataPacket
 }
@@ -5183,6 +5184,7 @@ namespace GyroPrompt
                                             scriptDelay_ = Int32.Parse(split_input[3]);
                                             TaskList newTask = new TaskList(taskName_, taskType_, scriptDelay_);
                                             tasklists_inuse.Add(newTask);
+                                            namesInUse.Add(taskName_, objectClass.TaskList);
                                             valid_command = true;
                                         }
                                         else
@@ -5199,6 +5201,7 @@ namespace GyroPrompt
                                             scriptDelay_ = Int32.Parse(split_input[3]);
                                             TaskList newTask = new TaskList(taskName_, taskType_, scriptDelay_);
                                             tasklists_inuse.Add(newTask);
+                                            namesInUse.Add(taskName_, objectClass.TaskList);
                                             valid_command = true;
                                         }
                                         else
@@ -5533,7 +5536,7 @@ namespace GyroPrompt
                     if (split_input.Length >= 2)
                     {
                         string expectedName = split_input[1].TrimEnd();
-                        bool nameInUse = namesInUse.ContainsKey(expectedName);
+                        bool nameInUse= NameInUse(expectedName);
                         bool validCharacters = ContainsOnlyLettersAndNumbers(expectedName);
                         if (validCharacters == false)
                         {
@@ -5565,7 +5568,7 @@ namespace GyroPrompt
                     {
                         IPAddress ipAddress;
                         string serverName = split_input[1].TrimEnd();
-                        bool nameIsInUse = namesInUse.ContainsKey(serverName);
+                        bool nameIsInUse= NameInUse(serverName);
                         bool isProperType = namesInUse[serverName] == objectClass.TCPNetObj;
                         bool clearToProceed = ((nameIsInUse == true) && (isProperType == true));
                         bool found_ = false;
@@ -5613,7 +5616,7 @@ namespace GyroPrompt
                     if (split_input.Length >= 2)
                     {
                         string expectedName = split_input[1].TrimEnd();
-                        bool nameInUse = namesInUse.ContainsKey(expectedName);
+                        bool nameInUse= NameInUse(expectedName);
                         bool validCharacters = ContainsOnlyLettersAndNumbers(expectedName);
                         if (validCharacters == false)
                         {
@@ -5646,7 +5649,7 @@ namespace GyroPrompt
                     {
                         IPAddress ipAddress;
                         string clientName = split_input[1].TrimEnd();
-                        bool nameIsInUse = namesInUse.ContainsKey(clientName);
+                        bool nameIsInUse= NameInUse(clientName);
                         bool isProperType = namesInUse[clientName] == objectClass.TCPNetObj;
                         bool clearToProceed = ((nameIsInUse == true) && (isProperType == true));
                         string expectedIP = split_input[2];
@@ -5730,7 +5733,7 @@ namespace GyroPrompt
                             return;
                         }
 
-                        bool objectExists = namesInUse.ContainsKey(expectedTCPobject);
+                        bool objectExists= NameInUse(expectedTCPobject);
                         if (objectExists == true)
                         {
                             bool validTCPobject = namesInUse[expectedTCPobject] == objectClass.TCPNetObj;
@@ -5967,7 +5970,7 @@ namespace GyroPrompt
                             {
                                 string _placeholder = s.Remove(0, 5);
                                 string a = ConvertNumericalVariable(_placeholder);
-                                bool validObject = namesInUse.ContainsKey(a);
+                                bool validObject= NameInUse(a);
                                 bool validObjType = false;
                                 if (validObject == true)
                                 {
@@ -6287,8 +6290,6 @@ namespace GyroPrompt
 
 
             } catch (Exception error){ Console.WriteLine($"Fatal error encountered."); }
-
-            
         }
         
         // Executes a script file line-by-line
@@ -6871,7 +6872,7 @@ namespace GyroPrompt
                         
                         if (validPropertyFound == true)
                         {
-                            bool TCBObjectExists = namesInUse.ContainsKey(expectedTCBObjName);
+                            bool TCBObjectExists= NameInUse(expectedTCBObjName);
                             bool isTCBObj = namesInUse[expectedTCBObjName] == objectClass.TCPNetObj;
                             bool ValidTCBObject = ((TCBObjectExists == true) && (isTCBObj == true));
 
@@ -7449,7 +7450,7 @@ namespace GyroPrompt
 
                         if (validPropertyFound == true)
                         {
-                            bool TCBObjectExists = namesInUse.ContainsKey(expectedTCBObjName);
+                            bool TCBObjectExists = NameInUse(expectedTCBObjName);
                             bool isTCBObj = false;
                             if (TCBObjectExists == true)
                             {
@@ -7595,6 +7596,9 @@ namespace GyroPrompt
         public bool NameInUse(string name)
         {
             if (namesInUse.ContainsKey(name))
+            {
+                return true;
+            } else if (environmentalVars.ContainsKey(name))
             {
                 return true;
             }
