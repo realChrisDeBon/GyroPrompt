@@ -18,7 +18,7 @@ namespace GyroPrompt
             { 10, "Statement not recognized: "},
             { 11, "Incorrect format for " },
             { 12, "Could not find or locate " },
-            { 13, "Name already in use " },
+            { 13, "Name already in use: " },
             { 14, "Invalid value for " },
             { 15, "Expecting two values separated by comma: " },
             { 16, "Variable or object name may only contain letters and numbers. Invalid name: "},
@@ -72,7 +72,7 @@ namespace GyroPrompt
                     outputMessage += errorCategory[errCategory] + expectedParameter + ". Expected syntax: " + expectedFormat;
                     break;
                 case 21:
-                    outputMessage += errorCategory[errCategory] + badValue + ", expecting " + expectedParameter;
+                    outputMessage += errorCategory[errCategory] + badValue + ", expecting: " + expectedParameter;
                     break;
                 case 22:
                     outputMessage += errorCategory[errCategory];

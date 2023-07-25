@@ -11,23 +11,35 @@ using GyroPrompt.Setup;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections;
+using System.ComponentModel;
+using System.Drawing;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using System.Text.RegularExpressions;
 using Terminal.Gui;
+using Color = Terminal.Gui.Color;
 
 public enum objectClass
 {
+    [Description("variable")]
     Variable,
+    [Description("environmental variable")]
     EnvironmentalVariable,
+    [Description("list")]
     List,
+    [Description("task list")]
     TaskList,
+    [Description("TCP object")]
     TCPNetObj,
-    DataPacket
+    [Description("data packet")]
+    DataPacket,
+    [Description("GUI object")]
+    GUIObj
 }
 
 namespace GyroPrompt
@@ -156,7 +168,7 @@ namespace GyroPrompt
             return info;
         }
         public IDictionary<string, ConsoleColor> keyConsoleColor = new Dictionary<string, ConsoleColor>(StringComparer.OrdinalIgnoreCase);
-        public IDictionary<string, Color> terminalColor = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+        public IDictionary<string, Terminal.Gui.Color> terminalColor = new Dictionary<string, Terminal.Gui.Color>(StringComparer.OrdinalIgnoreCase);
         public void setConsoleStatus(ConsoleInfo _consoleinfo)
         {
             Console.ForegroundColor = _consoleinfo.status_forecolor;
@@ -1758,6 +1770,10 @@ namespace GyroPrompt
                                             }
                                         }
                                         break;
+                                    default:
+                                        string type_ = GetDescription(namesInUse[objToSerialize]);
+                                        errorHandler.ThrowError(2100, null, null, type_, "variable, list, or datapacket", expectedFormat);
+                                        break;
                                 }
 
                                 foreach (LocalVariable variable in local_variables)
@@ -1794,77 +1810,388 @@ namespace GyroPrompt
                 if (split_input[0].Equals("json_deserialize", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
-                    string expectedFormat = "json_deserialize strvariable objecttodeserialize";
+                    string expectedFormat = "json_deserialize object strvariable";
                     if (split_input.Length == 3)
                     {
-                        string inputVar = split_input[1];
-                        string objToSerialize = split_input[2];
-                        bool isValidVar = LocalVariableExists(inputVar);
-                        bool isValidObj = NameInUse(objToSerialize);
+                        string receivingObject = split_input[1];
+                        string stringSerialized = split_input[2];
+                        bool isValidReceivingObj = NameInUse(receivingObject);
+                        bool stringExists = LocalVariableExists(stringSerialized);
 
-                        if (isValidVar == true)
+                        objectClass expectedClass = default;
+                        string newname = "";
+                        string newvalue = "";
+                        string informationBetweenBrackets = "";
+                        int valtype = -1;
+                        bool foundListElements = false;
+                        Dictionary<string, string> foundElement = new Dictionary<string, string>(); // Name, Value
+                        // We will parse the string, assuming it contains serialize object
+                        if (stringExists == true)
                         {
-                            if (isValidObj == true)
+                            LocalVariable expectedStringVar = local_variables.Find(o => o.Name == stringSerialized);
+                            if (expectedStringVar == null)
                             {
-                                string serializedprompt = "";
-                                switch (namesInUse[objToSerialize])
+                                // Throw error of wrong object type
+                                errorHandler.ThrowError(2100, null, null, stringSerialized, "string variable holding serialized data", expectedFormat);
+                                return;
+                            } else
+                            {
+                                if (expectedStringVar.Type != VariableType.String)
                                 {
-                                    case (objectClass.Variable):
-                                        foreach (LocalVariable variable in local_variables)
-                                        {
-                                            if (variable.Name == objToSerialize)
-                                            {
-                                                serializedprompt += dataserializer.deserializeInput(variable);
-                                                valid_command = true;
-                                            }
-                                        }
-                                        break;
-                                    case (objectClass.List):
-                                        foreach (LocalList list in local_arrays)
-                                        {
-                                            if (list.Name == objToSerialize)
-                                            {
-                                                serializedprompt += dataserializer.deserializeInput(list);
-                                                valid_command = true;
-                                            }
-                                        }
-                                        break;
-                                    case (objectClass.DataPacket):
-                                        foreach (dataPacket datapckt in datapacketStack)
-                                        {
-                                            if (datapckt.ID == objToSerialize)
-                                            {
-                                                serializedprompt += dataserializer.deserializeInput(datapckt);
-                                                valid_command = true;
-                                            }
-                                        }
-                                        break;
-                                }
+                                    // Throw error of wrong variable type, only a string could hold serialized data
+                                    errorHandler.ThrowError(2100, null, null, expectedStringVar.Name, "string variable holding serialized data", expectedFormat);
+                                    return;
+                                } else
+                                {
 
-                                foreach (LocalVariable variable in local_variables)
-                                {
-                                    if (variable.Name == inputVar)
+                                    string notsplitData = expectedStringVar.Value;
+                                    
+                                    // Trim the beginning and ending curly brackets
+                                    
+                                    string gg = notsplitData.Replace("{","");
+                                    string hh = gg.Replace("}","");
+                                    notsplitData = hh.TrimEnd();
+
+                                    
+                                    // Grab the items within the list if they exist (they'll be within square brackets)
+                                    int startIndex = notsplitData.IndexOf('[');
+                                    int endIndex = notsplitData.IndexOf(']');
+                                    // Extract the information between the brackets
+                                    if (startIndex != -1 && endIndex != -1 && endIndex > startIndex)
                                     {
-                                        if (variable.Type == VariableType.String)
+                                        foundListElements = true;
+                                        informationBetweenBrackets = notsplitData.Substring(startIndex + 1, endIndex - startIndex - 1);
+                                        // Add each item to the foundElement dictionary
+                                        string[] newvars = informationBetweenBrackets.Split(',');
+                                        for(int i = 0; i < newvars.Length; i++)
                                         {
-                                            variable.Value = serializedprompt;
-                                            valid_command = true;
+                                            if (newvars[i].Contains("\"Name\":"))
+                                            {
+                                                string name_ = newvars[i].Remove(0, 8);
+                                                string nameout_ = name_.Replace("\"", "");
+                                                string value_ = newvars[i + 1].Remove(0, 9);
+                                                string valueout_ = value_.Replace("\"", "");
+                                                if (!foundElement.ContainsKey(nameout_))
+                                                {
+                                                    foundElement.Add(nameout_, valueout_);
+                                                }
+                                            }
                                         }
-                                        else
+                                    }
+                                    if (foundListElements == false)
+                                    {
+                                        informationBetweenBrackets = "`````"; // temp fix for zero length string exception thrown
+                                    }
+                                    string beforeSplit = notsplitData.Replace(informationBetweenBrackets, "");
+                                    string[] splitData = beforeSplit.Split(',');
+
+                                    if (splitData.Length >= 3)
+                                    {
+                                        string[] possibleTypes = { "\"Typrintpe\":", "\"arrayType\":" };
+                                        int typeLengthToRemove = -1;
+                                        bool foundName = false;
+                                        int nameIndx = Array.FindIndex(splitData, element => element.Contains("\"Name\":"));
+                                        bool foundType = false;
+                                        int typeIndx = -1;
+                                        bool foundValue = false;
+                                        int valueIndx = Array.FindIndex(splitData, element => element.Contains("\"Value\":"));
+                                        if (valueIndx >= 0)
                                         {
-                                            errorHandler.ThrowError(1400, $"json_deserialize", null, $"{variable.Name}", "string variable", expectedFormat);
+                                            foundValue = true;
+                                            string stepone = splitData[valueIndx].Remove(0, 9);
+                                            newvalue = stepone.Remove(stepone.Length - 1, 1);
                                         }
+                                        if (nameIndx >= 0)
+                                        {
+                                            foundName = true;
+                                            newname = splitData[nameIndx].Remove(0, 8).Replace("\"", "");
+                                        }
+                                        for (int x = 0; x < possibleTypes.Length; x++)
+                                        {
+                                            typeIndx = Array.FindIndex(splitData, element => element.Contains(possibleTypes[x]));
+                                            if (typeIndx >= 0)
+                                            {
+                                                switch (x)
+                                                {
+                                                    case 0:
+                                                        expectedClass = objectClass.Variable;
+                                                        break;
+                                                    case 1:
+                                                        expectedClass = objectClass.List;
+                                                        break;
+                                                    default:
+                                                        // Throw error, invalid type
+
+                                                        return;
+                                                        break;
+                                                }
+                                                typeLengthToRemove = possibleTypes[x].Length;
+                                                foundType = true;
+                                                break;
+                                            }
+                                        }
+
+                                        if (foundName == true)
+                                        {
+                                            //////////////////////////////
+                                        } else
+                                        {
+                                            // Throw error, name not found
+                                            errorHandler.ThrowError(1200, null, newname, null, null, expectedFormat);
+                                        }
+
+                                        if (foundType == true)
+                                        {
+                                            string stepone = splitData[typeIndx].Remove(0, typeLengthToRemove);
+                                            switch (stepone)
+                                            {
+                                                case "0":
+                                                    valtype = 0;
+                                                    break;
+                                                case "1":
+                                                    valtype = 1;
+                                                    break;
+                                                case "2":
+                                                    valtype = 2;
+                                                    break;
+                                                case "3":
+                                                    valtype = 3;
+                                                    break;
+                                                default:
+                                                    // Throw error, invalid type
+
+                                                    return;
+                                                    break;
+                                            }
+                                        } else
+                                        {
+                                            // Throw error, type not found
+                                            errorHandler.ThrowError(1200, null, "valid type", null, null, expectedFormat);
+
+                                        }
+                                        if ((foundName == true) && (foundType == true))
+                                        {
+
+                                            if (isValidReceivingObj == true)
+                                            {
+                                                if (namesInUse[receivingObject] == expectedClass)
+                                                {
+                                                    bool found = false;
+                                                    switch (namesInUse[receivingObject])
+                                                    {
+                                                        case (objectClass.Variable):
+                                                            if (foundValue == false)
+                                                            {
+                                                                errorHandler.ThrowError(2100, null, null, "variable has no value", "variable value", expectedFormat);
+                                                                return;
+                                                            }
+                                                            foreach (LocalVariable variable in local_variables)
+                                                            {
+                                                                if (variable.Name == receivingObject)
+                                                                {
+                                                                    //variable.Name = newname;
+                                                                    variable.Value = newvalue;
+                                                                    switch (valtype)
+                                                                    {
+                                                                        case 0:
+                                                                            variable.Type = VariableType.String;
+                                                                            break;
+                                                                        case 1:
+                                                                            variable.Type = VariableType.Int;
+                                                                            break;
+                                                                        case 2:
+                                                                            variable.Type = VariableType.Float;
+                                                                            break;
+                                                                        case 3:
+                                                                            variable.Type = VariableType.Boolean;
+                                                                            break;
+                                                                    }
+                                                                    found = true;
+                                                                    valid_command = true;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            break;
+                                                        case (objectClass.List):
+                                                            foreach (LocalList list in local_arrays)
+                                                            {
+                                                                if (list.Name == receivingObject)
+                                                                {
+                                                                    list.items.Clear();
+                                                                    //list.Name = newname;
+                                                                    switch (valtype)
+                                                                    {
+                                                                        case 0:
+                                                                            list.arrayType = ArrayType.String;
+                                                                            break;
+                                                                        case 1:
+                                                                            list.arrayType = ArrayType.Int;
+                                                                            break;
+                                                                        case 2:
+                                                                            list.arrayType = ArrayType.Float;
+                                                                            break;
+                                                                        case 3:
+                                                                            list.arrayType = ArrayType.Boolean;
+                                                                            break;
+                                                                    }
+                                                                    foreach(var newvar in foundElement)
+                                                                    {
+                                                                        LocalVariable newvariable = new LocalVariable();
+                                                                        newvariable.Name = (newvar.Key);
+                                                                        newvariable.Value = (newvar.Value);
+                                                                        switch (valtype)
+                                                                        {
+                                                                            case 0:
+                                                                                newvariable.Type = VariableType.String;
+                                                                                break;
+                                                                            case 1:
+                                                                                newvariable.Type = VariableType.Int;
+                                                                                break;
+                                                                            case 2:
+                                                                                newvariable.Type = VariableType.Float;
+                                                                                break;
+                                                                            case 3:
+                                                                                newvariable.Type = VariableType.Boolean;
+                                                                                break;
+                                                                        }
+                                                                        list.items.Add(newvariable);
+                                                                    }
+                                                                    valid_command = true;
+                                                                    found = true;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            break;
+                                                        case (objectClass.DataPacket):
+                                                            foreach (dataPacket datapckt in datapacketStack)
+                                                            {
+                                                                if (datapckt.ID == stringSerialized)
+                                                                {
+                                                                    
+                                                                    valid_command = true;
+                                                                }
+                                                            }
+                                                            break;
+                                                        default:
+                                                            string type_ = GetDescription(namesInUse[receivingObject]);
+                                                            errorHandler.ThrowError(2100, null, null, type_, "variable, list, or datapacket", expectedFormat);
+                                                            break;
+                                                    }
+
+                                                } else
+                                                {
+                                                    errorHandler.ThrowError(2100, null, null, $"{receivingObject} is a {GetDescription(namesInUse[receivingObject])}", $"{GetDescription(expectedClass)}", expectedFormat);
+                                                }
+                                            }
+                                            else 
+                                            {
+                                                // receiving object does not exist, we will create new object rather than find existing
+                                                switch (expectedClass)
+                                                {
+                                                    case (objectClass.Variable):
+                                                        if (foundValue == false)
+                                                        {
+                                                            errorHandler.ThrowError(2100, null, null, "variable has no value", "variable value", expectedFormat);
+                                                            return;
+                                                        }
+                                                        LocalVariable newvar_ = new LocalVariable();
+                                                        newvar_.Name = receivingObject;
+                                                        newvar_.Value = newvalue;
+
+                                                                switch (valtype)
+                                                                {
+                                                                    case 0:
+                                                                        newvar_.Type = VariableType.String;
+                                                                        break;
+                                                                    case 1:
+                                                                        newvar_.Type = VariableType.Int;
+                                                                        break;
+                                                                    case 2:
+                                                                        newvar_.Type = VariableType.Float;
+                                                                        break;
+                                                                    case 3:
+                                                                        newvar_.Type = VariableType.Boolean;
+                                                                        break;
+                                                                }
+                                                        local_variables.Add(newvar_);
+                                                        namesInUse.Add(receivingObject, objectClass.Variable);
+                                                        valid_command = true;
+                                                        break;
+                                                    case (objectClass.List):
+                                                        LocalList newlist_ = new LocalList();
+                                                        newlist_.Name = receivingObject;
+                                                                switch (valtype)
+                                                                {
+                                                                    case 0:
+                                                                        newlist_.arrayType = ArrayType.String;
+                                                                        break;
+                                                                    case 1:
+                                                                        newlist_.arrayType = ArrayType.Int;
+                                                                        break;
+                                                                    case 2:
+                                                                        newlist_.arrayType = ArrayType.Float;
+                                                                        break;
+                                                                    case 3:
+                                                                        newlist_.arrayType = ArrayType.Boolean;
+                                                                        break;
+                                                                }
+                                                                foreach (var newvar in foundElement)
+                                                                {
+                                                                    LocalVariable newvariable = new LocalVariable();
+                                                                    newvariable.Name = (newvar.Key);
+                                                                    newvariable.Value = (newvar.Value);
+                                                                    switch (valtype)
+                                                                    {
+                                                                        case 0:
+                                                                            newvariable.Type = VariableType.String;
+                                                                            break;
+                                                                        case 1:
+                                                                            newvariable.Type = VariableType.Int;
+                                                                            break;
+                                                                        case 2:
+                                                                            newvariable.Type = VariableType.Float;
+                                                                            break;
+                                                                        case 3:
+                                                                            newvariable.Type = VariableType.Boolean;
+                                                                            break;
+                                                                    }
+                                                                       newlist_.items.Add(newvariable);
+                                                                }
+                                                                local_arrays.Add(newlist_);
+                                                                namesInUse.Add(receivingObject, objectClass.List);
+                                                                valid_command = true;
+                                                        break;
+                                                    case (objectClass.DataPacket):
+                                                        foreach (dataPacket datapckt in datapacketStack)
+                                                        {
+                                                            if (datapckt.ID == stringSerialized)
+                                                            {
+
+                                                                valid_command = true;
+                                                            }
+                                                        }
+                                                        break;
+                                                    default:
+                                                        string type_ = GetDescription(namesInUse[receivingObject]);
+                                                        errorHandler.ThrowError(2100, null, null, type_, "variable, list, or datapacket", expectedFormat);
+                                                        break;
+                                                }
+                                            }
+
+                                        }
+
+                                    } else
+                                    {
+                                        // Throw error as string likely does not contain serialized data
+                                        errorHandler.ThrowError(2100, null, null, stringSerialized, "string variable holding serialize data", expectedFormat);
+
                                     }
                                 }
                             }
-                            else
-                            {
-                                errorHandler.ThrowError(1200, null, objToSerialize, null, null, expectedFormat);
-                            }
-                        }
-                        else
+
+                        } else
                         {
-                            errorHandler.ThrowError(1200, null, inputVar, null, null, expectedFormat);
+                            errorHandler.ThrowError(1200, null, stringSerialized, null, null, expectedFormat);
                         }
 
                     }
@@ -1940,6 +2267,10 @@ namespace GyroPrompt
                         {
                             //new_gui_item Button name Taslklist
                             bool nameinuse = GUIObjectsInUse.ContainsKey(split_input[2]);
+                            if (nameinuse == false)
+                            {
+                                nameinuse = NameInUse(split_input[2]);
+                            }
                             string btnName = split_input[2];
                             bool validCharacters = ContainsOnlyLettersAndNumbers(btnName);
                             string assignedTask = split_input[3];
@@ -2116,6 +2447,7 @@ namespace GyroPrompt
                                         GUI_Button newbutton = new GUI_Button(this, btnName, tsklist, text, x, y, wid, hei, foregrn, backgrn);
                                         consoleDirector.GUIButtonsToAdd.Add(newbutton);
                                         GUIObjectsInUse.Add(btnName, newbutton);
+                                        namesInUse.Add(btnName, objectClass.GUIObj);
                                         valid_command = true;
                                         break;
                                     }
@@ -2141,6 +2473,10 @@ namespace GyroPrompt
                         if (split_input.Length >= 3)
                         {
                             bool validName = GUIObjectsInUse.ContainsKey(split_input[2]);
+                            if (validName == false)
+                            {
+                                validName = NameInUse(split_input[2]);
+                            }
                             string txtFieldName = split_input[2];
                             bool validCharacters = ContainsOnlyLettersAndNumbers(txtFieldName);
                             if (validCharacters == false)
@@ -2397,6 +2733,10 @@ namespace GyroPrompt
                             List<LocalList> menuItemsToPass = new List<LocalList>();
                             List<TaskList> taskListToPass = new List<TaskList>();
                             bool validName = GUIObjectsInUse.ContainsKey(menuBarName);
+                            if (validName == false)
+                            {
+                                validName = NameInUse(menuBarName);
+                            }
                             bool validCharacters = ContainsOnlyLettersAndNumbers(menuBarName);
                             if (validCharacters == false)
                             {
@@ -2470,6 +2810,10 @@ namespace GyroPrompt
                         if (split_input.Length >= 3)
                         {
                             bool nameinuse = GUIObjectsInUse.ContainsKey(split_input[2]);
+                            if (nameinuse == false)
+                            {
+                                nameinuse = NameInUse(split_input[2]);
+                            }
                             string labelName = split_input[2];
                             bool validCharacters = ContainsOnlyLettersAndNumbers(labelName);
                             if (validCharacters == false)
@@ -2662,6 +3006,10 @@ namespace GyroPrompt
                         {
                             string expectedName = split_input[2];
                             bool nameInUse = GUIObjectsInUse.ContainsKey(expectedName);
+                            if (nameInUse == false)
+                            {
+                                nameInUse = NameInUse(split_input[2]);
+                            }
                             bool validCharacters = ContainsOnlyLettersAndNumbers(expectedName);
                             if (validCharacters == false)
                             {
@@ -6289,7 +6637,7 @@ namespace GyroPrompt
                 }
 
 
-            } catch (Exception error){ Console.WriteLine($"Fatal error encountered."); }
+            } catch (Exception error){ Console.WriteLine($"Fatal error encountered.{error}"); }
         }
         
         // Executes a script file line-by-line
@@ -7704,6 +8052,27 @@ namespace GyroPrompt
                 }
             }
             return true;
+        }
+        ///////////////////////////////////////////////////
+        public string GetDescription(Enum value)
+        {
+            Type type = value.GetType();
+            string name = Enum.GetName(type, value);
+            if (name != null)
+            {
+                FieldInfo field = type.GetField(name);
+                if (field != null)
+                {
+                    DescriptionAttribute attr =
+                           System.Attribute.GetCustomAttribute(field,
+                             typeof(DescriptionAttribute)) as DescriptionAttribute;
+                    if (attr != null)
+                    {
+                        return attr.Description;
+                    }
+}
+            }
+            return null;
         }
     }
 }
