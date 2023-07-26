@@ -19,6 +19,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.Intrinsics.Arm;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Terminal.Gui;
@@ -39,7 +40,9 @@ public enum objectClass
     [Description("data packet")]
     DataPacket,
     [Description("GUI object")]
-    GUIObj
+    GUIObj,
+    [Description("function")]
+    Function
 }
 
 namespace GyroPrompt
@@ -54,6 +57,7 @@ namespace GyroPrompt
         public List<object> environmental_variables = new List<object>();
         public List<LocalList> local_arrays = new List<LocalList>();
         public List<TaskList> tasklists_inuse = new List<TaskList>();
+        public Dictionary<string, string[]> local_function = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         
         // Mostly network related lists and objects
         public ArrayList activeTCPObjects = new ArrayList();
@@ -149,7 +153,7 @@ namespace GyroPrompt
         public bool GUIModeEnabled = false;
         public string ConsoleOutCatcher = "";
         ConsoleOutputDirector consoleDirector = new ConsoleOutputDirector();
-        public IDictionary<string, GUI_BaseItem> GUIObjectsInUse = new Dictionary<string, GUI_BaseItem>();
+        public IDictionary<string, GUI_BaseItem> GUIObjectsInUse = new Dictionary<string, GUI_BaseItem>(StringComparer.OrdinalIgnoreCase);
         
         /// <summary>
         /// Below are environmental variables. These are meant for the users to be able to interact with the console settings and modify the environment.
@@ -1607,6 +1611,92 @@ namespace GyroPrompt
                         errorHandler.ThrowError(1100, "readint", null, null, null, expectedFormat);
                     }
                 }
+                // Create function
+                if ((split_input[0].Equals("new_function", StringComparison.OrdinalIgnoreCase)) || (split_input[0].Equals("new_function*", StringComparison.OrdinalIgnoreCase)))
+                {
+                    entry_made = true;
+                    string expectedFormat = "new_function newname command(s)";
+                    string expectedFunctionName = SetVariableValue(split_input[1]);
+                    bool okname = ContainsOnlyLettersAndNumbers(expectedFunctionName);
+                    bool nameUsed = NameInUse(expectedFunctionName);
+                    bool verticalPipeSplit = true;
+                    if (split_input.Length < 3)
+                    {
+                        errorHandler.ThrowError(1100, "new_function", null, null, null, expectedFormat);
+                        return;
+                    }
+                    if (okname == false)
+                    {
+                        errorHandler.ThrowError(1600, expectedFunctionName, null, null, null, expectedFormat);
+                        return;
+                    }
+                    if (nameUsed == true)
+                    {
+                        errorHandler.ThrowError(1300, null, null, expectedFunctionName, null, expectedFormat);
+                        return;
+                    }
+                    if ((okname == true) && (nameUsed == false))
+                    {
+                        if (split_input[0].Equals("new_function", StringComparison.OrdinalIgnoreCase))
+                        {
+                            verticalPipeSplit = true;
+                        } else if (split_input[0].Equals("new_function*", StringComparison.OrdinalIgnoreCase))
+                        {
+                            verticalPipeSplit = false;
+                        }
+
+
+
+                        // Recombine the string
+                        string commandListUnsplit = "";
+                        int pos = 2;
+                        int len = split_input.Length;
+                        foreach (string s in split_input.Skip(2))
+                        {
+                            commandListUnsplit += s;
+                            pos++;
+                            if (pos != len)
+                            {
+                                commandListUnsplit += " ";
+                            }
+                        }
+                        // Then split it by vertical pipe or put single line
+                        string[] commandListSplit = commandListUnsplit.Split('|');
+                        string[] commandsNotSplit = { commandListUnsplit }; 
+                        if (verticalPipeSplit == true)
+                        {
+                            local_function.Add(expectedFunctionName, commandListSplit);
+                        } else if (verticalPipeSplit == false)
+                        {
+                            local_function.Add(expectedFunctionName, commandsNotSplit);
+                        }
+                        namesInUse.Add(expectedFunctionName, objectClass.Function);
+                        valid_command = true;
+                    }
+                }
+                if (split_input[0].Equals("function", StringComparison.OrdinalIgnoreCase))
+                {
+                    entry_made = true;
+                    string expectedFormat = "function functionname";
+                    if (split_input.Length == 2)
+                    {
+                        string functionToExecute = split_input[1];
+                        if (local_function.ContainsKey(functionToExecute))
+                        {
+                            foreach(string command_ in local_function[functionToExecute])
+                            {
+                                parse(command_);
+                            }
+                            valid_command = true;
+                        } else
+                        {
+                            errorHandler.ThrowError(1200, null, functionToExecute, null, null, expectedFormat);
+                        }
+                    } else
+                    {
+                        errorHandler.ThrowError(1100, "function", null, null, null, expectedFormat);
+                    }
+                }
                 // Check for hash or serialize
                 if (split_input[0].Equals("hash256", StringComparison.OrdinalIgnoreCase))
                 {
@@ -2438,7 +2528,7 @@ namespace GyroPrompt
                                         }
                                         if (extracting == true)
                                         {
-                                            errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                            errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                                             Console.WriteLine("Must terminate Text: with vertical pipe |");
                                             return;
                                         }
@@ -2704,7 +2794,7 @@ namespace GyroPrompt
                                 }
                                 if (extracting == true)
                                 {
-                                    errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                    errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                                     return;
                                 }
 
@@ -2978,7 +3068,7 @@ namespace GyroPrompt
 
                                 if (extracting == true)
                                 {
-                                    errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                    errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                                     return;
                                 }
 
@@ -3243,7 +3333,7 @@ namespace GyroPrompt
 
                                 if (extracting == true)
                                 {
-                                    errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                    errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                                     return;
                                 }
                                 GUI_Checkbox newcheckbox = new GUI_Checkbox(this, expectedName, text, x, y, wid, hei, isChecked, hasLinkedBools, listOfBools_, foregrn, backgrn);
@@ -4052,7 +4142,7 @@ namespace GyroPrompt
                         StringBuilder newstring = new StringBuilder();
                         if (split_input.Length > 3)
                         {
-                            foreach(string s  in split_input.Skip(2))
+                            foreach(string s in split_input.Skip(2))
                             {
                                 newstring.Append(s);
                             }
@@ -4422,19 +4512,62 @@ namespace GyroPrompt
                                     if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
                                     {
                                         string _placeholder = s.Remove(0, 5);
+                                    string b = SetVariableValue(_placeholder);
                                         extracting = true;
                                         extractingTitle = false;
-                                        text = _placeholder + " ";
                                         hasText = true;
+                                    bool pipefound = false;
+                                    foreach (char c in b)
+                                    {
+                                        if (c != '|')
+                                        {
+                                            text += c;
+                                        }
+                                        else
+                                        {
+                                            pipefound = true;
+                                            break;
+                                        }
                                     }
+                                    if (pipefound == true)
+                                    {
+                                        extracting = false;
+                                    }
+                                    else
+                                    {
+                                        text += " ";
+                                    }
+                                }
                                     if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
                                     {
                                         string _placeholder = s.Remove(0, 6);
+                                        string b = SetVariableValue(_placeholder);
                                         extractingTitle = true;
                                         extracting = true;
-                                        title = _placeholder + " ";
                                         hasTitle = true;
+                                    bool pipefound = false;
+                                    foreach (char c in b)
+                                    {
+                                        if (c != '|')
+                                        {
+                                            title += c;
+                                        }
+                                        else
+                                        {
+                                            pipefound = true;
+                                            break;
+                                        }
                                     }
+                                    if (pipefound == true)
+                                    {
+                                        extracting = false;
+                                        extractingTitle = false;
+                                    }
+                                    else
+                                    {
+                                        title += " ";
+                                    }
+                                }
                                     if (s.StartsWith("Buttons:", StringComparison.OrdinalIgnoreCase))
                                     {
                                         string _placeholder = s.Remove(0, 8);
@@ -4479,12 +4612,12 @@ namespace GyroPrompt
                             }
                         if (extracting == true)
                         {
-                            errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                            errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                             return;
                         }
                         if (extractingTitle == true)
                         {
-                            errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                            errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                             return;
                         }
 
@@ -4645,12 +4778,12 @@ namespace GyroPrompt
 
                             if (extracting == true)
                             {
-                                errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                                 return;
                             }
                             if (extractingTitle == true)
                             {
-                                errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                                 return;
                             }
 
@@ -4791,12 +4924,12 @@ namespace GyroPrompt
 
                             if (extracting == true)
                             {
-                                errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                                 return;
                             }
                             if (extractingTitle == true)
                             {
-                                errorHandler.ThrowError(2200, null, null, null, null, expectedFormat);
+                                errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
                                 return;
                             }
 
@@ -6603,11 +6736,19 @@ namespace GyroPrompt
 
                 if (split_input[0].Equals("SETUP"))
                 {
+                    string expectedSyntax = "SETUP";
+                    entry_made = true;
+                    if (split_input.Length > 1)
+                    {
+                        errorHandler.ThrowError(1100, "GyroPrompt setup", null, null, null, expectedSyntax);
+                        return;
+                    }
                     SetupFiletype setup = new SetupFiletype();
                     bool isadmin = setup.IsAdministrator();
                     if (isadmin == false)
                     {
                         Console.WriteLine("You will need to restart GyroPrompt as an administrator in order to setup .gs script files.");
+                    
                     } else
                     {
                         bool runSetup = setup.SystemsCheck();
@@ -6617,6 +6758,7 @@ namespace GyroPrompt
                         } else
                         {
                             Console.WriteLine("Setup successful!");
+                            valid_command = true;
                         }
                     }
                 }
@@ -6637,7 +6779,7 @@ namespace GyroPrompt
                 }
 
 
-            } catch (Exception error){ Console.WriteLine($"Fatal error encountered.{error}"); }
+            } catch (Exception error){ Console.WriteLine($"Fatal error encountered."); }
         }
         
         // Executes a script file line-by-line
