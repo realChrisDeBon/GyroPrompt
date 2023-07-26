@@ -679,10 +679,16 @@ namespace GyroPrompt
                                     if (split_input.Length > 3)
                                     {
                                         // Recombine the string if necessary
-
+                                        int len = split_input.Length;
+                                        int pos = 3;
                                         foreach (string s in split_input.Skip(3))
                                         {
-                                            a += s + " ";
+                                            a += s;
+                                            if (pos != len)
+                                            {
+                                                a += " ";
+                                            }
+                                            pos++;
                                         }
                                     }
                                     switch (var.Type)
@@ -4140,15 +4146,23 @@ namespace GyroPrompt
                         string guiObjectName = split_input[1];
                         string textToSetTo = "";
                         StringBuilder newstring = new StringBuilder();
-                        if (split_input.Length > 3)
+                        if (split_input.Length >= 3)
                         {
+                            int pos = 2;
+                            int len = split_input.Length;
                             foreach(string s in split_input.Skip(2))
                             {
-                                newstring.Append(s);
+                                newstring.Append(SetVariableValue(s));
+                                if (pos != len)
+                                {
+                                    newstring.Append(" ");
+                                }
+                                pos++;
                             }
+                            
                             textToSetTo = SetVariableValue(newstring.ToString());
                         } else if (split_input.Length == 3) { 
-                            textToSetTo = SetVariableValue(split_input[2]);
+                            textToSetTo = SetVariableValue(split_input[2]).TrimEnd();
                         }
                         bool guiObjectExists = (GUIObjectsInUse.ContainsKey(guiObjectName));
                         if (guiObjectExists == true)
@@ -7449,7 +7463,7 @@ namespace GyroPrompt
                     }
                 }
                 // Finally, check for newline
-                if (capturedText.Equals("nl", StringComparison.OrdinalIgnoreCase)) { a = a + "\n"; }
+                if (capturedText.Equals("nl", StringComparison.OrdinalIgnoreCase)) { a = a + Environment.NewLine; }
             }
             return a;
         }
