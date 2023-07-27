@@ -14,7 +14,7 @@ namespace GyroPrompt.Basic_Functions
         {
             double solution = MathEvaluator.Evaluate(equation);
             string return_string = solution.ToString();
-            return return_string;
+            return return_string.TrimEnd();
         }
 
         public int calculate_int(string equation)

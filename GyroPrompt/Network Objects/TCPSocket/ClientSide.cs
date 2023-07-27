@@ -103,8 +103,6 @@ namespace GyroPrompt.Network_Objects
                         runProtocol(TCPClientProtocols.protocols_clientDisconnect, $"ConnectionLost");
                         break; // Server disconnected
                     }
-
-                    Console.WriteLine($"Received from server: {incomingDataPacket.senderAddress} {incomingDataPacket.ID}");
                 }
             } catch
             {

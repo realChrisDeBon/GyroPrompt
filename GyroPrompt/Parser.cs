@@ -45,6 +45,7 @@ public enum objectClass
     Function
 }
 
+
 namespace GyroPrompt
 {
     public class Parser
@@ -580,9 +581,16 @@ namespace GyroPrompt
                         {
                             // Recombine string
                             string a = "";
+                            int pos = 4;
+                            int len = split_input.Length;
                             foreach (string s in split_input.Skip(3))
                             {
-                                a += s + " ";
+                                a += SetVariableValue(s);
+                                if (pos != len)
+                                {
+                                    a += " ";
+                                }
+                                pos++;
                             }
                             if (no_issues == true)
                             {
@@ -683,7 +691,7 @@ namespace GyroPrompt
                                         int pos = 3;
                                         foreach (string s in split_input.Skip(3))
                                         {
-                                            a += s;
+                                            a += SetVariableValue(s);
                                             if (pos != len)
                                             {
                                                 a += " ";
@@ -694,7 +702,7 @@ namespace GyroPrompt
                                     switch (var.Type)
                                     {
                                         case VariableType.String:
-                                            var.Value = SetVariableValue(a);
+                                            var.Value = a;
                                             valid_command = true;
                                             break;
                                         case VariableType.Int:
@@ -1616,6 +1624,139 @@ namespace GyroPrompt
                     {
                         errorHandler.ThrowError(1100, "readint", null, null, null, expectedFormat);
                     }
+                }
+                // String manipulation
+                if (split_input[0].Equals("string_replace", StringComparison.OrdinalIgnoreCase))
+                {
+                    entry_made = true;
+                    string expectedFormat = "string_replace strvariable targetvalue|newvalue";
+                    if (split_input.Length > 2)
+                    {
+                        string expectedVariableName = split_input[1];
+                        string valuesPresplit = "";
+                        bool variableExists = false;
+                        bool variableIsString = false;
+                        bool verticalPipeExists = false;
+
+                        LocalVariable soughtString = local_variables.Find(q => q.Name == expectedVariableName);
+                        if (soughtString != null)
+                        {
+                            variableExists = true;
+                            if (soughtString.Type == VariableType.String)
+                            {
+                                variableIsString = true;
+
+                                // Recombine all strings
+                                int pos = 3;
+                                int len = split_input.Length;
+                                foreach(string s in split_input.Skip(2))
+                                {
+                                    valuesPresplit += SetVariableValue(s);
+                                    if (pos != len)
+                                    {
+                                        valuesPresplit += " ";
+                                    }
+                                    pos++;
+                                }
+
+                                string[] valuesSplit = valuesPresplit.Split('|');
+                                if (valuesSplit.Length == 1)
+                                {
+                                    errorHandler.ThrowError(1700, null, "|", null, null, expectedFormat);
+                                    return;
+                                } else if (valuesSplit.Length > 2)
+                                {
+                                    errorHandler.ThrowError(1400, "targetvalue|newvalue", null, "more than one vertical pipe", "targetvalue|newvalue", expectedFormat);
+                                    return;
+                                } else if (valuesSplit.Length == 2)
+                                {
+                                    // Clear to proceed
+                                    string temp_ = soughtString.Value.Replace(valuesSplit[0], valuesSplit[1]);
+                                    soughtString.Value = temp_;
+                                }
+
+
+
+                            } else
+                            {
+                                errorHandler.ThrowError(2100, null, null, expectedVariableName, "string variable", expectedFormat);
+                                return;
+                            }
+                        } else
+                        {
+                            errorHandler.ThrowError(1200, null, expectedVariableName, null, null, expectedFormat);
+                            return;
+                        }
+                    } else
+                    {
+                        errorHandler.ThrowError(1100, "string_replace", null, null, null, expectedFormat);
+                        return;
+                    }
+                    
+                }
+                if (split_input[0].Equals("string_remove", StringComparison.OrdinalIgnoreCase))
+                {
+                    entry_made = true;
+                    string expectedFormat = "string_remove strvariable targetvalue";
+                    if (split_input.Length > 2)
+                    {
+                        string expectedVariableName = split_input[1];
+                        string targetValue = "";
+                        bool variableExists = false;
+                        bool variableIsString = false;
+                        bool verticalPipeExists = false;
+
+                        LocalVariable soughtString = local_variables.Find(q => q.Name == expectedVariableName);
+                        if (soughtString != null)
+                        {
+                            variableExists = true;
+                            if (soughtString.Type == VariableType.String)
+                            {
+                                variableIsString = true;
+
+                                // Recombine all strings
+                                int pos = 3;
+                                int len = split_input.Length;
+                                foreach (string s in split_input.Skip(2))
+                                {
+                                    targetValue += SetVariableValue(s);
+                                    if (pos != len)
+                                    {
+                                        targetValue += " ";
+                                    }
+                                    pos++;
+                                }
+
+                                // Clear to proceed
+                                int tvlen = targetValue.Length;
+                                string temp_ = soughtString.Value;
+                                while (temp_.Contains(targetValue) == true)
+                                {
+                                    int indxof = temp_.IndexOf(targetValue);
+                                    string a = temp_.Remove(indxof, tvlen);
+                                    temp_ = a;
+                                }
+                                soughtString.Value = temp_;
+
+                            }
+                            else
+                            {
+                                errorHandler.ThrowError(2100, null, null, expectedVariableName, "string variable", expectedFormat);
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            errorHandler.ThrowError(1200, null, expectedVariableName, null, null, expectedFormat);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        errorHandler.ThrowError(1100, "string_remove", null, null, null, expectedFormat);
+                        return;
+                    }
+
                 }
                 // Create function
                 if ((split_input[0].Equals("new_function", StringComparison.OrdinalIgnoreCase)) || (split_input[0].Equals("new_function*", StringComparison.OrdinalIgnoreCase)))
@@ -4148,7 +4289,7 @@ namespace GyroPrompt
                         StringBuilder newstring = new StringBuilder();
                         if (split_input.Length >= 3)
                         {
-                            int pos = 2;
+                            int pos = 3;
                             int len = split_input.Length;
                             foreach(string s in split_input.Skip(2))
                             {
@@ -6208,7 +6349,7 @@ namespace GyroPrompt
                     
                     if (split_input.Length == 4)
                     {
-                        string[] serverProtocols = { "ServerStarted", "ReceivedDataPacket","ClientConnected","ClientDisconnected","ClientRejected","DataPacketAdded","BroadcastDataPacket","BroadcastAllOutDataPackets" };
+                        string[] serverProtocols = { "ServerStarted", "ReceivedDataPacket","ClientConnected","ClientDisconnected","ClientRejected","DataPacketAdded","BroadcastDataPacket","BroadcastAllOutDataPackets", "AttemptedConnection" };
                         string[] clientProtocols = { "ClientStarted","ClientDisconnect","ReceivedDataPacket","BroadcastDataPacket","BroadcastAllOutDataPackets","" };
                         TCPClientProtocols clientProtocol = new TCPClientProtocols();
                         TCPServerProtocols serverProtocol = new TCPServerProtocols();
@@ -6300,6 +6441,9 @@ namespace GyroPrompt
                                                     break;
                                                 case 7:
                                                     serverProtocol = TCPServerProtocols.protocols_broadcastAllOutgoing;
+                                                    break;
+                                                case 8:
+                                                    serverProtocol = TCPServerProtocols.protocols_attemptedConnection;
                                                     break;
                                             }
                                             break;
@@ -6673,6 +6817,7 @@ namespace GyroPrompt
                                                     {
                                                         dp.senderAddress = TCPClient.thisClientIP;
                                                         TCPClient.SendDatapacket(dp);
+                                                        dpsToSend.Remove(dp);
                                                     }
                                                     valid_command = true;
                                                 }
@@ -6687,6 +6832,7 @@ namespace GyroPrompt
                                                 if (dpToSend != null)
                                                 {
                                                     TCPClient.SendDatapacket(dpToSend);
+                                                    TCPClient.outgoingDataPackets.Remove(dpToSend);
                                                     valid_command = true;
                                                 } else
                                                 {
@@ -6711,6 +6857,7 @@ namespace GyroPrompt
                                                     {
                                                         dp.senderAddress = TCPServer.serverName;
                                                         TCPServer.BroadcastPacket(dp, null);
+                                                        dpsToSend.Remove(dp);
                                                     }
                                                     valid_command = true;
                                                 } else
@@ -6725,6 +6872,7 @@ namespace GyroPrompt
                                                 if (dpToSend != null)
                                                 {
                                                     TCPServer.BroadcastPacket(dpToSend, null);
+                                                    TCPServer.outgoingDataPackets.Remove(dpToSend);
                                                     valid_command = true;
                                                 }
                                                 else
@@ -6782,8 +6930,6 @@ namespace GyroPrompt
                     Console.Beep(1000, 1000);
                 }
 
-
-
                 if ((valid_command == false) && (entry_made == false))
                 {
                     if (input != "")
@@ -6791,7 +6937,6 @@ namespace GyroPrompt
                         errorHandler.ThrowError(1000, null, null, input, null, null);
                     }
                 }
-
 
             } catch (Exception error){ Console.WriteLine($"Fatal error encountered."); }
         }
@@ -6856,7 +7001,6 @@ namespace GyroPrompt
                 {
                     parse(command.TrimEnd());
                     parse(pause_.TrimEnd()); // Script delay
-
                 }
             } else if (type == TaskType.BackgroundTask)
             {
@@ -6905,7 +7049,10 @@ namespace GyroPrompt
                     capturedText.Append(currentChar);
 
                 }
-                if (capturing == false) { a = a + currentChar; }
+                if (capturing == false) 
+                {
+                    a = a + currentChar; 
+                }
             }
 
             void ProcessCapturedText(string capturedText)
@@ -6927,8 +7074,8 @@ namespace GyroPrompt
                 {
                     string _placeholder = capturedText.Remove(0, 10);
                     string b_ = ConvertNumericalVariable(_placeholder);
-                    string b = calculate.calculate_string(b_);
-                    a = a + b;
+                    string b = calculate.calculate_string(b_).TrimEnd();
+                    a += b;
                 }
                 // Then check for a randomizer
                 if (capturedText.StartsWith("RandomizeInt:", StringComparison.OrdinalIgnoreCase))
@@ -6950,7 +7097,7 @@ namespace GyroPrompt
                                 int b_ = Int32.Parse(b);
                                 if (a_ < b_)
                                 {
-                                    string random_int = randomizer.randomizeInt(c, b);
+                                    string random_int = randomizer.randomizeInt(c, b).TrimEnd();
                                     a = a + random_int;
                                 }
                                 else

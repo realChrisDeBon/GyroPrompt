@@ -41,6 +41,8 @@ namespace GyroPrompt.Network_Objects.TCPSocket
         protocols_serverStarted,
         [Description("ServerProtocol:ReceivedDataPacket")]
         protocols_receiveDataPacket,
+        [Description("ServerProtocol:AttemptedConnection")]
+        protocols_attemptedConnection,
         [Description("ServerProtocol:ClientConnected")]
         protocols_clientConnected,
         [Description("ServerProtocol:ClientDisconnected")]

@@ -69,7 +69,7 @@ namespace GyroPrompt.Network_Objects
                         IPAddress clientIpAddress = ((IPEndPoint)client.Client.RemoteEndPoint).Address;
                         string clientIP_ = clientIpAddress.ToString();
 
-                        runProtocol(TCPServerProtocols.protocols_clientConnected, $"AttemptedConnection:{clientIP_}");
+                        runProtocol(TCPServerProtocols.protocols_attemptedConnection, $"AttemptedConnection:{clientIP_}");
                         // Immediately filter out blacklisted connections
                         if (IPAddressBook.ContainsKey(clientIpAddress))
                         {
