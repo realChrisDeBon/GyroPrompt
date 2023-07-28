@@ -20,10 +20,13 @@ namespace GyroPrompt.Network_Objects
         {
             string outputEventMessage = GetDescription(protocol);
             outputEventMessage += " " + eventMessage;
-            toplevelParser.eventMessage_ = outputEventMessage;
-            if (clientProtocols.ContainsKey(protocol))
+            lock (toplevelParser.eventMessageLock)
             {
-                toplevelParser.executeTask(clientProtocols[protocol].taskList, clientProtocols[protocol].taskType, clientProtocols[protocol].scriptDelay);
+                toplevelParser.eventMessage_ = outputEventMessage;
+                if (clientProtocols.ContainsKey(protocol))
+                {
+                    toplevelParser.executeTask(clientProtocols[protocol].taskList, clientProtocols[protocol].taskType, clientProtocols[protocol].scriptDelay);
+                }
             }
         }
 
@@ -92,11 +95,13 @@ namespace GyroPrompt.Network_Objects
                     dataPacket incomingDataPacket = JsonConvert.DeserializeObject<dataPacket>(message);
                     // set a bool of 'RerouteToLocalStack' so in the future datapackets can first land in incomingDataPackets
                     // then optionally be automatically sent to local stack
-                    incomingDataPackets.Add(incomingDataPacket);
-                    toplevelParser.addPacketToStack(incomingDataPacket);
-                    string objtypeStr = GetDescription(incomingDataPacket.objType);
-                    runProtocol(TCPClientProtocols.protocols_receiveDataPacket, $"Sender:{incomingDataPacket.senderAddress} ID:{incomingDataPacket.ID} ObjectType:{objtypeStr}");
-
+                    lock (toplevelParser.dpStackLock)
+                    {
+                        incomingDataPackets.Add(incomingDataPacket);
+                        toplevelParser.addPacketToStack(incomingDataPacket);
+                        string objtypeStr = GetDescription(incomingDataPacket.objType);
+                        runProtocol(TCPClientProtocols.protocols_receiveDataPacket, $"Sender:{incomingDataPacket.senderAddress} ID:{incomingDataPacket.ID} ObjectType:{objtypeStr}");
+                    }
                     if (bytesRead == 0)
                     {
                         hasStarted = false;
@@ -104,13 +109,13 @@ namespace GyroPrompt.Network_Objects
                         break; // Server disconnected
                     }
                 }
-            } catch
+            }
+            catch
             {
                 runProtocol(TCPClientProtocols.protocols_clientDisconnect, "");
                 client.Dispose();
                 client.Close();
             }
-           
         }
 
     }

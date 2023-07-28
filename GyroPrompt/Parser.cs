@@ -2,6 +2,7 @@
 using GyroPrompt.Basic_Functions;
 using GyroPrompt.Basic_Functions.Object_Modifiers;
 using GyroPrompt.Basic_Objects.Collections;
+using GyroPrompt.Basic_Objects.Collections.Arrays;
 using GyroPrompt.Basic_Objects.Component;
 using GyroPrompt.Basic_Objects.GUIComponents;
 using GyroPrompt.Basic_Objects.Variables;
@@ -12,8 +13,10 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections;
 using System.ComponentModel;
+using System.Configuration;
 using System.Drawing;
 using System.Globalization;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -31,6 +34,8 @@ public enum objectClass
     Variable,
     [Description("environmental variable")]
     EnvironmentalVariable,
+    [Description("array")]
+    VarArray,
     [Description("list")]
     List,
     [Description("task list")]
@@ -45,7 +50,6 @@ public enum objectClass
     Function
 }
 
-
 namespace GyroPrompt
 {
     public class Parser
@@ -56,16 +60,19 @@ namespace GyroPrompt
         /// </summary>
         public List<LocalVariable> local_variables = new List<LocalVariable>();
         public List<object> environmental_variables = new List<object>();
-        public List<LocalList> local_arrays = new List<LocalList>();
+        public List<LocalList> local_lists = new List<LocalList>();
+        public ArrayList local_arrays = new ArrayList();
         public List<TaskList> tasklists_inuse = new List<TaskList>();
         public Dictionary<string, string[]> local_function = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        
+
         // Mostly network related lists and objects
         public ArrayList activeTCPObjects = new ArrayList();
         public List<ClientSide> activeClients = new List<ClientSide>();
         public List<ServerSide> activeServers = new List<ServerSide>();
         public List<dataPacket> datapacketStack = new List<dataPacket>();
+        public object dpStackLock = new object();
 
+        public object eventMessageLock = new object();
         public const string eventmsg_str = "event_message";
         public const string datapacketid_str = "datapacket_ID";
         public const string datapacketsndr_str = "datapacket_sender";
@@ -78,21 +85,17 @@ namespace GyroPrompt
                 eventMessage = value;
                 LocalVariable em = local_variables.Find(e => e.Name == eventmsg_str);
                 em.Value = value;
-                //DEBUG: Console.WriteLine(value.ToString()); 
             }
         }
         public void addPacketToStack(dataPacket dpToStack)
         {
-            datapacketStack.Add(dpToStack);
-            parseDP(dpToStack);
+                datapacketStack.Add(dpToStack);
+                parseDP(dpToStack);
         }
         public void parseDP(dataPacket dpIn)
         {
             LocalVariable tempID_ = local_variables.Find(y => y.Name == datapacketid_str);
-            if (tempID_ != null)
-            {
-                tempID_.Value = dpIn.ID;
-            }
+            tempID_.Value = dpIn.ID;
             LocalVariable tempSender_ = local_variables.Find(z => z.Name == datapacketsndr_str);
             tempSender_.Value = dpIn.senderAddress;
             LocalList temp = new LocalList();
@@ -237,8 +240,13 @@ namespace GyroPrompt
             set { ScriptDelay = value; }
         }
 
-        public readonly string[] validBoolValues = { "0", "false", "False", "1", "true", "True" }; // Going to redo bool declaration/set soon to enforce consistency
-        
+        public Dictionary<string, bool> booldict = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "True", true},
+            { "False", false},
+            { "1", true},
+            { "0", false},
+        };
 
         // Some basic initializations for the environment
         public void setenvironment()
@@ -665,6 +673,182 @@ namespace GyroPrompt
                             errorHandler.ThrowError(1300, null, null, split_input[1], null, expectedFormat);
                             no_issues = false;
                         }
+                    }
+                }
+                // Detect a new variable array declatation
+                if (split_input[0].StartsWith("new_array_", StringComparison.OrdinalIgnoreCase))
+                {
+                    entry_made = true;
+                    string expectedFormat = "new_array_type newname value(s)" + Environment.NewLine + "type is replaced with bool, int, float or string and all values are separated with vertical pipe";
+
+                    if (split_input.Length < 3)
+                    {
+                        errorHandler.ThrowError(1100, "new_array_type", null, null, null, expectedFormat);
+
+                        return;
+                    }
+                    string expectedVariableType = split_input[0].Remove(0, 10), expectedArrayName = SetVariableValue(split_input[1]), initialValues = "", badValsFounds = "";
+                    bool validVarType = false, validName = ContainsOnlyLettersAndNumbers(expectedArrayName), nameAlreadyUsed = NameInUse(expectedArrayName), clearToProceed = true, someBadVals = false;
+                    Array_Type arrayType = Array_Type.None;
+
+                    switch(true)
+                    {
+                        case bool b when expectedVariableType.Equals("bool", StringComparison.OrdinalIgnoreCase):
+                            arrayType = Array_Type.Boolean;
+                            validVarType = true;
+                            break;
+                        case bool b when expectedVariableType.Equals("int", StringComparison.OrdinalIgnoreCase):
+                            arrayType = Array_Type.Int;
+                            validVarType = true;
+                            break;
+                        case bool b when expectedVariableType.Equals("string", StringComparison.OrdinalIgnoreCase):
+                            arrayType = Array_Type.String;
+                            validVarType = true;
+                            break;
+                        case bool b when expectedVariableType.Equals("float", StringComparison.OrdinalIgnoreCase):
+                            arrayType = Array_Type.Float;
+                            validVarType = true;
+                            break;
+                        default:
+                            // Throw error & return
+                            errorHandler.ThrowError(1400, "array type", null, expectedVariableType, "a bool, int, float or string", expectedFormat);
+                            return;
+                            break;
+                    }
+
+                    if (validVarType == false)
+                    {
+                        // Throw error & return
+                        // Redundant but still
+                        clearToProceed = false;
+                        errorHandler.ThrowError(1400, "array type", null, expectedVariableType, "a bool, int, float or string", expectedFormat);
+                        return;
+                    }
+                    if (validName == false)
+                    {
+                        // Throw error & return
+                        clearToProceed = false;
+                        errorHandler.ThrowError(1600, expectedArrayName, null, null, null, expectedFormat);
+                        return;
+                    }
+                    if (nameAlreadyUsed == true)
+                    {
+                        // Throw error & return
+                        clearToProceed = false;
+                        errorHandler.ThrowError(1300, null, null, expectedArrayName, null, expectedFormat);
+                        return;
+                    }
+                    if (clearToProceed == true)
+                    {
+                        int pos = 3;
+                        int len = split_input.Length;
+                        foreach(string s in split_input.Skip(2))
+                        {
+                            initialValues += SetVariableValue(s);
+                            if (pos != len)
+                            {
+                                initialValues += " ";
+                            }
+                            pos++;
+                        }
+
+                        string[] initialValuesSplit = initialValues.Split('|');
+
+                        switch (arrayType)
+                        {
+                            case Array_Type.None:
+
+                                break;
+                            case Array_Type.Boolean:
+                                List<bool> valsToPassb = new List<bool>();
+                                foreach(string q in initialValuesSplit)
+                                {
+                                    if (booldict.ContainsKey(q))
+                                    {
+                                        valsToPassb.Add(booldict[q]);
+                                    } else
+                                    {
+                                        badValsFounds += q + " ";
+                                        someBadVals = true;
+                                    }
+                                }
+
+                                bool_array newboolarray = new bool_array(expectedArrayName, valsToPassb);
+                                local_arrays.Add(newboolarray);
+                                namesInUse.Add(expectedArrayName, objectClass.VarArray);
+                                if (someBadVals == true)
+                                {
+                                    // Throw error
+                                    errorHandler.ThrowError(1400, "bool array", null, badValsFounds, "True/False", expectedFormat);
+                                }
+                                break;
+                            case Array_Type.Int:
+                                List<int> valsToPassi = new List<int>();
+                                foreach (string e in initialValuesSplit)
+                                {
+                                    if (IsNumeric(e.Trim()) == true)
+                                    {
+                                        valsToPassi.Add(Int32.Parse(e.Trim()));
+                                    }
+                                    else
+                                    {
+                                        badValsFounds += e + " ";
+                                        someBadVals = true;
+                                    }
+                                }
+
+                                int_array newintarray = new int_array(expectedArrayName, valsToPassi);
+                                local_arrays.Add(newintarray);
+                                namesInUse.Add(expectedArrayName, objectClass.VarArray);
+                                if (someBadVals == true)
+                                {
+                                    // Throw error
+                                    errorHandler.ThrowError(1400, "integer array", null, badValsFounds, "a valid integer", expectedFormat);
+                                }
+                                break;
+                            case Array_Type.String:
+                                List<string> valsToPasss = new List<string>();
+                                foreach (string m in initialValuesSplit)
+                                {
+                                    valsToPasss.Add(m);
+                                }
+
+                                str_array newstrarray = new str_array(expectedArrayName, valsToPasss);
+                                local_arrays.Add(newstrarray);
+                                namesInUse.Add(expectedArrayName, objectClass.VarArray);
+                                if (someBadVals == true)
+                                {
+                                    // Throw error
+                                    errorHandler.ThrowError(1400, "string array", null, badValsFounds, "a valid string", expectedFormat);
+                                }
+                                break;
+                            case Array_Type.Float:
+                                List<float> valsToPassf = new List<float>();
+                                foreach (string m in initialValuesSplit)
+                                {
+                                    bool float_check = float.TryParse(m, NumberStyles.Float, CultureInfo.InvariantCulture.NumberFormat, out float result);
+                                    if (float_check == true)
+                                    {
+                                        valsToPassf.Add(float.Parse(m, CultureInfo.InvariantCulture.NumberFormat));
+                                    }
+                                    else
+                                    {
+                                        badValsFounds += m + " ";
+                                        someBadVals = true;
+                                    }
+                                }
+
+                                float_array newfloatarray = new float_array(expectedArrayName, valsToPassf);
+                                local_arrays.Add(newfloatarray);
+                                namesInUse.Add(expectedArrayName, objectClass.VarArray);
+                                if (someBadVals == true)
+                                {
+                                    // Throw error
+                                    errorHandler.ThrowError(1400, "float array", null, badValsFounds, "a valid float", expectedFormat);
+                                }
+                                break;
+                        }
+
                     }
                 }
                 // Modify variable values
@@ -1107,7 +1291,7 @@ namespace GyroPrompt
                 if (split_input[0].Equals("if", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
-                    string expectedFormat = "if variable = value then command(s) OR if variable = value then command(s) else command(s)\nIf value is reference to variable, variable name should be bracketed [ ]";
+                    string expectedFormat = "if variable = value then command(s) OR if variable = value then command(s) else command(s)" + Environment.NewLine + "If value is reference to variable, variable name should be bracketed [ ]";
                     string first_value = SetVariableValue(split_input[1]).TrimEnd();
                     bool first_value_exists = LocalVariableExists(first_value);
                     if (first_value_exists == true)
@@ -1255,7 +1439,7 @@ namespace GyroPrompt
                 if (split_input[0].Equals("while", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
-                    string expectedFormat = "while variable = value do command(s)\nIf value is reference to variable, variable name should be bracketed [ ]";
+                    string expectedFormat = "while variable = value do command(s)" + Environment.NewLine + "If value is reference to variable, variable name should be bracketed [ ]";
                     string first_value = SetVariableValue(split_input[1]).TrimEnd();
                     bool first_value_exists = LocalVariableExists(first_value);
                     if (first_value_exists == true)
@@ -1494,7 +1678,7 @@ namespace GyroPrompt
                 if (split_input[0].Equals("readkey", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
-                    string expectedFormat = "readkey strvariable prompt\nFinal parameter prompt is optional.";
+                    string expectedFormat = "readkey strvariable prompt" + Environment.NewLine + "Final parameter prompt is optional.";
                     if (split_input.Length >= 2)
                     {
                         string var_ = SetVariableValue(split_input[1]);
@@ -1553,7 +1737,7 @@ namespace GyroPrompt
                 if (split_input[0].Equals("readint", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
-                    string expectedFormat = "readint intvariable prompt|errormessage\nFinal parameter prompt and errormessage should be separated by vertical pipe | and are optional.";
+                    string expectedFormat = "readint intvariable prompt|errormessage" + Environment.NewLine + "Final parameter prompt and errormessage should be separated by vertical pipe | and are optional.";
                     if (split_input.Length >= 2)
                     {
                         string var_ = SetVariableValue(split_input[1]);
@@ -1988,7 +2172,7 @@ namespace GyroPrompt
                                         }
                                         break;
                                     case (objectClass.List):
-                                        foreach (LocalList list in local_arrays)
+                                        foreach (LocalList list in local_lists)
                                         {
                                             if (list.Name == objToSerialize)
                                             {
@@ -2250,7 +2434,7 @@ namespace GyroPrompt
                                                             }
                                                             break;
                                                         case (objectClass.List):
-                                                            foreach (LocalList list in local_arrays)
+                                                            foreach (LocalList list in local_lists)
                                                             {
                                                                 if (list.Name == receivingObject)
                                                                 {
@@ -2394,7 +2578,7 @@ namespace GyroPrompt
                                                                     }
                                                                        newlist_.items.Add(newvariable);
                                                                 }
-                                                                local_arrays.Add(newlist_);
+                                                                local_lists.Add(newlist_);
                                                                 namesInUse.Add(receivingObject, objectClass.List);
                                                                 valid_command = true;
                                                         break;
@@ -2499,7 +2683,7 @@ namespace GyroPrompt
                         // new_gui_item button Buttontext Tasklist x y width height
                         // This will create a new GUI button named 'Buttontext', when clicked will execute the tasklist 'Tasklist' by name
                         // The button's x y coordinates and width height are taken as the last 4 parameters (all integers)
-                        string expectedFormat = "new_gui_item button newname taskname XY:0,0 HW:0,0 Textcolor:White Backcolor:Black Text:Click me|\nMinimum required parameters are newname and taskname, all following are optional.";
+                        string expectedFormat = "new_gui_item button newname taskname XY:0,0 HW:0,0 Textcolor:White Backcolor:Black Text:Click me|" + Environment.NewLine + "Minimum required parameters are newname and taskname, all following are optional.";
                         if (split_input.Length >= 4)
                         {
                             //new_gui_item Button name Taslklist
@@ -2706,7 +2890,7 @@ namespace GyroPrompt
                     }
                     if (split_input[1].Equals("Textfield", StringComparison.OrdinalIgnoreCase))
                     {
-                        string expectedFormat = "new_gui_item textfield newname XY:0,0 HW:0,0 Textcolor:White Backcolor:Black Readonly:True/False Multiline:True/False Text:Default text|\nMinimum required parameters are newname, all following are optional.";
+                        string expectedFormat = "new_gui_item textfield newname XY:0,0 HW:0,0 Textcolor:White Backcolor:Black Readonly:True/False Multiline:True/False Text:Default text|" + Environment.NewLine + "Minimum required parameters are newname, all following are optional.";
                         if (split_input.Length >= 3)
                         {
                             bool validName = GUIObjectsInUse.ContainsKey(split_input[2]);
@@ -2962,7 +3146,7 @@ namespace GyroPrompt
                     }
                     if (split_input[1].Equals("Menubar", StringComparison.OrdinalIgnoreCase))
                     {
-                        string expectedFormat = "new_gui_item menubar newname Menuitems:listname(s) Menutasks:taskname(s)|\nMinimum required parameters are newname and at least 1 list with 1 item.";
+                        string expectedFormat = "new_gui_item menubar newname Menuitems:listname(s) Menutasks:taskname(s)|" + Environment.NewLine + "Minimum required parameters are newname and at least 1 list with 1 item.";
                         if (split_input.Length >= 3)
                         {
                             bool minimumList = false;
@@ -2990,7 +3174,7 @@ namespace GyroPrompt
                                         string[] _listname = _placeholder.Split(',');
                                         foreach(string r in _listname)
                                         {
-                                            LocalList newmenu = local_arrays.Find(j => j.Name == r.TrimEnd());
+                                            LocalList newmenu = local_lists.Find(j => j.Name == r.TrimEnd());
                                             if (newmenu != null)
                                             {
                                                 if (newmenu.arrayType == ArrayType.String)
@@ -3042,7 +3226,7 @@ namespace GyroPrompt
                     }
                     if (split_input[1].Equals("Label", StringComparison.OrdinalIgnoreCase))
                     {
-                        string expectedFormat = "new_gui_item label newname XY:0,0 HW:0,0 Textcolor:White Backcolor:Black Text:Default text|\nMinimum required parameters are newname, all following are optional.";
+                        string expectedFormat = "new_gui_item label newname XY:0,0 HW:0,0 Textcolor:White Backcolor:Black Text:Default text|" + Environment.NewLine + "Minimum required parameters are newname, all following are optional.";
 
                         if (split_input.Length >= 3)
                         {
@@ -3237,7 +3421,7 @@ namespace GyroPrompt
                     }
                     if (split_input[1].Equals("Checkbox", StringComparison.OrdinalIgnoreCase))
                     {
-                        string expectedFormat = "new_gui_item checkbox newname XY:0,0 HW:0,0 Textcolor:White Backcolor:Black LinkBool:boolvariable Checked:True/False Text:Default text|\nMinimum required parameters are newname, all following are optional.";
+                        string expectedFormat = "new_gui_item checkbox newname XY:0,0 HW:0,0 Textcolor:White Backcolor:Black LinkBool:boolvariable Checked:True/False Text:Default text|" + Environment.NewLine + "Minimum required parameters are newname, all following are optional.";
 
                         if (split_input.Length >= 3)
                         {
@@ -3738,7 +3922,7 @@ namespace GyroPrompt
                 if (split_input[0].Equals("gui_item_setx", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
-                    string expectedFormat = "gui_item_setx objectname number/percent/fill/leftof/rightof 1/object\nnumber/percent/fill expects integer value, leftof/rightof expects an object name";
+                    string expectedFormat = "gui_item_setx objectname number/percent/fill/leftof/rightof 1/object" + Environment.NewLine + "number/percent/fill expects integer value, leftof/rightof expects an object name";
                     if (split_input.Length == 4)
                     {
                         string guiObjectName = split_input[1];
@@ -4613,7 +4797,7 @@ namespace GyroPrompt
                     entry_made = true;
                     if (GUIModeEnabled == true)
                     {
-                        string expectedFormat = "msgbox Text:Default message| Title:Default title| Buttons:OK/YESNO,boolvariable\nIf button set it yesno, a bool variable is expected after comma. If button set is ok, nothing else is expected.";
+                        string expectedFormat = "msgbox Text:Default message| Title:Default title| Buttons:OK/YESNO,boolvariable" + Environment.NewLine + "If button set it yesno, a bool variable is expected after comma. If button set is ok, nothing else is expected.";
                         bool extracting = false;
                             bool extractingTitle = false;
                             bool hasText = false;
@@ -4909,7 +5093,7 @@ namespace GyroPrompt
                                     {
                                         string _placeholder = s.Remove(0, 10);
                                         bool listExists, listIsStringList = false;
-                                        LocalList templist = local_arrays.Find(x => x.Name == _placeholder);
+                                        LocalList templist = local_lists.Find(x => x.Name == _placeholder);
                                         if (templist != null)
                                         {
                                             listExists = true;
@@ -5055,7 +5239,7 @@ namespace GyroPrompt
                                     {
                                         string _placeholder = s.Remove(0, 10);
                                         bool listExists, listIsStringList = false;
-                                        LocalList templist = local_arrays.Find(x => x.Name == _placeholder);
+                                        LocalList templist = local_lists.Find(x => x.Name == _placeholder);
                                         if (templist != null)
                                         {
                                             listExists = true;
@@ -5180,7 +5364,7 @@ namespace GyroPrompt
                                 LocalList newArray = new LocalList();
                                 newArray.Name = listName;
                                 newArray.arrayType = new_arrayType;
-                                local_arrays.Add(newArray);
+                                local_lists.Add(newArray);
                                 namesInUse.Add(listName, objectClass.List);
                                 valid_command = true;
                             }
@@ -5210,7 +5394,7 @@ namespace GyroPrompt
                         {
                             bool foundList = false;
                             string badVariable = "";
-                            foreach (LocalList list in local_arrays)
+                            foreach (LocalList list in local_lists)
                             {
                                 if (list.Name == listName)
                                 {
@@ -5248,7 +5432,7 @@ namespace GyroPrompt
                         {
                             if (varExists == true)
                             {
-                                foreach (LocalList array in local_arrays)
+                                foreach (LocalList array in local_lists)
                                 {
                                     if (array.Name == listName)
                                     {
@@ -5289,7 +5473,7 @@ namespace GyroPrompt
                         bool arrayExists = false;
                         if (varExists == true)
                         {
-                            foreach (LocalList array in local_arrays)
+                            foreach (LocalList array in local_lists)
                             {
                                 if (array.Name == listName)
                                 {
@@ -5321,7 +5505,7 @@ namespace GyroPrompt
                         bool arrayExist = false;
                         string arrayName = split_input[1];
 
-                        foreach (LocalList localLists in local_arrays)
+                        foreach (LocalList localLists in local_lists)
                         {
                             if (localLists.Name == arrayName)
                             {
@@ -5439,7 +5623,7 @@ namespace GyroPrompt
                     if (split_input.Length == 2)
                     {
                         bool listExists = false;
-                        foreach (LocalList list_ in local_arrays)
+                        foreach (LocalList list_ in local_lists)
                         {
                             if (list_.Name == listName)
                             {
@@ -5565,7 +5749,7 @@ namespace GyroPrompt
                         bool listEmpty = false;
                         bool listIsString = false;
                         // Make sure if there is a list with this name, it is empty
-                        foreach(LocalList list_ in local_arrays)
+                        foreach(LocalList list_ in local_lists)
                         {
                             if (list_.Name == locallist_)
                             {
@@ -5595,7 +5779,7 @@ namespace GyroPrompt
                             }
                             if (issuccess == true)
                             {
-                                local_arrays.Add(locallist);
+                                local_lists.Add(locallist);
                                 valid_command = true;
                             }
                         } else if ((listExists == true) && (listEmpty == true))
@@ -5614,7 +5798,7 @@ namespace GyroPrompt
                                 }
                                 if (issuccess == true)
                                 {
-                                    foreach(LocalList lists_ in local_arrays)
+                                    foreach(LocalList lists_ in local_lists)
                                     {
                                         if (lists_.Name == locallist_)
                                         {
@@ -5788,7 +5972,7 @@ namespace GyroPrompt
                 if (split_input[0].Equals("new_task", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
-                    string expectedFormat = "new_task newname inline/background 100\nFinal parameter should be integer and is optional.";
+                    string expectedFormat = "new_task newname inline/background 100" + Environment.NewLine + "Final parameter should be integer and is optional.";
                     string taskName_;
                     TaskType taskType_;
                     int scriptDelay_;
@@ -6517,7 +6701,7 @@ namespace GyroPrompt
                 if (split_input[0].Equals("new_datapacket", StringComparison.OrdinalIgnoreCase)) 
                 {
                     entry_made = true;
-                    string expectedFormat = "new_datapacket TCPObject:clientname/servername ID:value| Data:object\nID must end with vertical pipe | and Data must refer to object by name.";
+                    string expectedFormat = "new_datapacket TCPObject:clientname/servername ID:value| Data:object" + Environment.NewLine + "ID must end with vertical pipe | and Data must refer to object by name.";
                     bool hasDestination = false;
                     bool hasData = false;
                     bool hasID = false;
@@ -6729,7 +6913,7 @@ namespace GyroPrompt
                                 }
                                 break;
                             case objectClass.List:
-                                LocalList temp2_ = local_arrays.Find(y => y.Name == objName);
+                                LocalList temp2_ = local_lists.Find(y => y.Name == objName);
                                 if (temp2_ != null)
                                 {
                                     outgoingDP.objType = NetObjType.ObjList;
@@ -6771,7 +6955,7 @@ namespace GyroPrompt
                 if (split_input[0].Equals("datapacket_send", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
-                    string expectedFormat = "datapacket_send clientname/servername packetid *all\nFinal parameter all is optional and will send all datapackets with specified ID. If not included, first datapacket found with ID is sent.";
+                    string expectedFormat = "datapacket_send clientname/servername packetid *all" + Environment.NewLine + "Final parameter all is optional and will send all datapackets with specified ID. If not included, first datapacket found with ID is sent.";
                     if ((split_input.Length >= 3) && (split_input.Length < 5))
                     {
                         bool sendingAll = false; 
@@ -6938,7 +7122,7 @@ namespace GyroPrompt
                     }
                 }
 
-            } catch (Exception error){ Console.WriteLine($"Fatal error encountered."); }
+            } catch (Exception error){ Console.WriteLine($"Fatal error encountered.{error}"); }
         }
         
         // Executes a script file line-by-line
@@ -7128,6 +7312,91 @@ namespace GyroPrompt
                     string processedTimeDate = timedate_handler.returnDateTime(_placeholder);
                     a += processedTimeDate;
                 }
+                // Then check for array
+                if (capturedText.StartsWith("Array:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] nonIntValues = { "Length" };
+                    string _placeholder = capturedText.Remove(0, 6), expectedArrayName = "", requestedIndex = "";
+                    bool validName = false, validType = false, validIndex = false, nonIntegerValue = false;
+                    Array_Type arraytype_ = Array_Type.None;
+                    if (!_placeholder.Contains(","))
+                    {
+                        Console.WriteLine("Expecting array name and index position separated by comma.");
+                        return;
+                    }
+                    else
+                    {
+                        string[] placeholderSplit = _placeholder.Split(",");
+                        if (placeholderSplit.Length != 2)
+                        {
+                            Console.WriteLine("Cannot take more than 1 comma-separated value.");
+                            return;
+                        }
+                        else
+                        {
+                            expectedArrayName = placeholderSplit[0];
+                            requestedIndex = ConvertNumericalVariable(placeholderSplit[1]).TrimEnd();
+                            validIndex = IsNumeric(requestedIndex);
+                            if (namesInUse.ContainsKey(expectedArrayName)) { validName = true; } else { Console.WriteLine($"Could not find or locate {expectedArrayName}"); return; }
+                            if (namesInUse[expectedArrayName] == objectClass.VarArray) { validType = true; } else { Console.WriteLine($"Wrong type of variable or object: {expectedArrayName}, expecting: array of type bool, int, string or float"); return; }
+                        }
+
+                        foreach (string s in nonIntValues)
+                        {
+                            if (requestedIndex.Equals(s, StringComparison.OrdinalIgnoreCase))
+                            {
+                                nonIntegerValue = true;
+                                break;
+                            }
+                        }
+                        if ((validIndex == false) && (nonIntegerValue == false))
+                        {
+                            Console.WriteLine($"Not a valid integer: {ConvertNumericalVariable(placeholderSplit[1])}");
+                            return;
+                        }
+
+                        if ((nonIntegerValue == false) && (validIndex == true))
+                        {
+                            int indx = Int32.Parse(requestedIndex);
+
+                            foreach (array_baseitem array_ in local_arrays)
+                            {
+                                if (array_.Name == expectedArrayName)
+                                {
+                                    if (indx > array_.numberOfElements)
+                                    {
+                                        Console.WriteLine($"Array {expectedArrayName} has {array_.numberOfElements.ToString()} elements, requested index {requestedIndex} is invalid.");
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        a += (array_.getElementAt(indx));
+                                    }
+                                }
+                            }
+
+                        }
+                        else if ((nonIntegerValue == true) && (validIndex == false))
+                        {
+                            foreach (array_baseitem array_ in local_arrays)
+                            {
+                                if (array_.Name == expectedArrayName)
+                                {
+                                    switch (requestedIndex.ToLower())
+                                    {
+                                        case "length":
+                                            a += (array_.numberOfElements.ToString());
+                                            return;
+                                            break;
+                                        default:
+                                            return;
+                                            break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 // Then check for list items
                 if (capturedText.StartsWith("List:", StringComparison.OrdinalIgnoreCase))
                 {
@@ -7158,7 +7427,7 @@ namespace GyroPrompt
                                 string a_ = ConvertNumericalVariable(items_[1]);
                                 int indexednumber = Int32.Parse(a_);
 
-                                foreach (LocalList list in local_arrays)
+                                foreach (LocalList list in local_lists)
                                 {
                                     if (list.Name == items_[0])
                                     {
@@ -7205,7 +7474,7 @@ namespace GyroPrompt
                             if (varExist == true)
                             {
                                 bool validList = false;
-                                foreach (LocalList list in local_arrays)
+                                foreach (LocalList list in local_lists)
                                 {
                                     if (list.Name == items_[0])
                                     {
@@ -7233,7 +7502,7 @@ namespace GyroPrompt
                     {
                         string place_ = _placeholder.Remove(0, 7);
                         bool validlist = false;
-                        foreach (LocalList list in local_arrays)
+                        foreach (LocalList list in local_lists)
                         {
                             if (list.Name == place_)
                             {
@@ -7718,8 +7987,91 @@ namespace GyroPrompt
                     string processedTimeDate = timedate_handler.returnDateTime(_placeholder);
                     Console.Write(processedTimeDate);
                 }
+                // Then check for an array refernce
+                if (capturedText.StartsWith("Array:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] nonIntValues = { "Length" };
+                    string _placeholder = capturedText.Remove(0, 6), expectedArrayName = "", requestedIndex = "";
+                    bool validName = false, validType = false, validIndex = false, nonIntegerValue = false;
+                    Array_Type arraytype_ = Array_Type.None;
+                    if (!_placeholder.Contains(","))
+                    {
+                        Console.WriteLine("Expecting array name and index position separated by comma.");
+                        return;
+                    }
+                    else
+                    {
+                        string[] placeholderSplit = _placeholder.Split(",");
+                        if (placeholderSplit.Length != 2)
+                        {
+                            Console.WriteLine("Cannot take more than 1 comma-separated value.");
+                            return;
+                        } else
+                        {
+                            expectedArrayName = placeholderSplit[0];
+                            requestedIndex = ConvertNumericalVariable(placeholderSplit[1]).TrimEnd();
+                            validIndex = IsNumeric(requestedIndex);
+                            if (namesInUse.ContainsKey(expectedArrayName)) { validName = true; } else { Console.WriteLine($"Could not find or locate {expectedArrayName}"); return; }
+                            if (namesInUse[expectedArrayName] == objectClass.VarArray) { validType = true; } else { Console.WriteLine($"Wrong type of variable or object: {expectedArrayName}, expecting: array of type bool, int, string or float"); return; }
+                        }
+
+                        foreach (string s in nonIntValues)
+                        {
+                            if (requestedIndex.Equals(s, StringComparison.OrdinalIgnoreCase))
+                            {
+                                nonIntegerValue = true;
+                                break;
+                            }
+                        }
+                        if ((validIndex == false) && (nonIntegerValue == false))
+                        {
+                            Console.WriteLine($"Not a valid integer: {ConvertNumericalVariable(placeholderSplit[1])}");
+                            return;
+                        } 
+                        
+                        if ((nonIntegerValue == false) && (validIndex == true))
+                        {
+                            int indx = Int32.Parse(requestedIndex);
+
+                            foreach (array_baseitem array_ in local_arrays) 
+                            {
+                                if (array_.Name == expectedArrayName)
+                                {
+                                    if (indx > array_.numberOfElements)
+                                    {
+                                        Console.WriteLine($"Array {expectedArrayName} has {array_.numberOfElements.ToString()} elements, requested index {requestedIndex} is invalid.");
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        Console.Write(array_.getElementAt(indx));
+                                    }
+                                }
+                            }
+
+                        } else if ((nonIntegerValue == true) && (validIndex == false))
+                        {
+                            foreach (array_baseitem array_ in local_arrays)
+                            {
+                                if (array_.Name == expectedArrayName)
+                                {
+                                    switch (requestedIndex.ToLower())
+                                    {
+                                        case "length":
+                                            Console.Write(array_.numberOfElements.ToString());
+                                            return;
+                                            break;
+                                        default:
+                                            return;
+                                            break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 // Then check for a list reference
-                if (capturedText.StartsWith("List:"))
+                if (capturedText.StartsWith("List:", StringComparison.OrdinalIgnoreCase))
                 {
                     string _placeholder = capturedText.Remove(0, 5);
                     if ((_placeholder.StartsWith("NameAt:", StringComparison.OrdinalIgnoreCase)) || (_placeholder.StartsWith("ValueAt:", StringComparison.OrdinalIgnoreCase)))
@@ -7750,7 +8102,7 @@ namespace GyroPrompt
 
                                 int indexednumber = Int32.Parse(a_);
 
-                                foreach (LocalList list in local_arrays)
+                                foreach (LocalList list in local_lists)
                                 {
                                     if (list.Name == items_[0])
                                     {
@@ -7795,7 +8147,7 @@ namespace GyroPrompt
                             if (varExist == true)
                             {
                                 bool validList = false;
-                                foreach (LocalList list in local_arrays)
+                                foreach (LocalList list in local_lists)
                                 {
                                     if (list.Name == items_[0])
                                     {
@@ -7821,7 +8173,7 @@ namespace GyroPrompt
                         {
                             string cplace_ = _placeholder.Remove(0, 7);
                             bool validlist = false;
-                            foreach (LocalList list in local_arrays)
+                            foreach (LocalList list in local_lists)
                             {
                                 if (list.Name == cplace_)
                                 {
@@ -7844,7 +8196,7 @@ namespace GyroPrompt
                     {
                         string place_ = _placeholder.Remove(0, 7);
                         bool validlist = false;
-                        foreach (LocalList list in local_arrays)
+                        foreach (LocalList list in local_lists)
                         {
                             if (list.Name == place_)
                             {
@@ -8357,6 +8709,38 @@ namespace GyroPrompt
             return true;
         }
         ///////////////////////////////////////////////////
+        public Array_Type getArrayType(string arrayName)
+        {
+            foreach (int_array a in local_arrays)
+            {
+                if (a.Name == arrayName)
+                {
+                    return a.arrayType;
+                }
+            }
+            foreach (float_array b in local_arrays)
+            {
+                if (b.Name == arrayName)
+                {
+                    return b.arrayType;
+                }
+            }
+            foreach (bool_array c in local_arrays)
+            {
+                if(c.Name == arrayName)
+                {
+                    return c.arrayType;
+                }
+            }
+            foreach(str_array d in local_arrays)
+            {
+                if(d.Name == arrayName)
+                {
+                    return d.arrayType;
+                }
+            }
+            return Array_Type.None;
+        }
         public string GetDescription(Enum value)
         {
             Type type = value.GetType();
@@ -8377,5 +8761,6 @@ namespace GyroPrompt
             }
             return null;
         }
+
     }
 }

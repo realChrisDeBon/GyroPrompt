@@ -195,10 +195,13 @@ namespace GyroPrompt.Network_Objects
                     dataPacket incomingDataPacket = JsonConvert.DeserializeObject<dataPacket>(dataPacketReceived);
                     // set a bool of 'RerouteToLocalStack' so in the future datapackets can first land in incomingDataPackets
                     // then optionally be automatically sent to local stack
-                    server.incomingDataPackets.Add(incomingDataPacket);
-                    toplvlParser.addPacketToStack(incomingDataPacket);
-                    string objtypeStr = server.GetDescription(incomingDataPacket.objType);
-                    server.runProtocol(TCPServerProtocols.protocols_receiveDataPacket, $"Sender:{incomingDataPacket.senderAddress} ID:{incomingDataPacket.ID} ObjectType:{objtypeStr}");
+                    lock (toplvlParser.dpStackLock)
+                    {
+                        server.incomingDataPackets.Add(incomingDataPacket);
+                        toplvlParser.addPacketToStack(incomingDataPacket);
+                        string objtypeStr = server.GetDescription(incomingDataPacket.objType);
+                        server.runProtocol(TCPServerProtocols.protocols_receiveDataPacket, $"Sender:{incomingDataPacket.senderAddress} ID:{incomingDataPacket.ID} ObjectType:{objtypeStr}");
+                    }
                 }
 
 
