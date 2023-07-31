@@ -868,25 +868,13 @@ namespace GyroPrompt
                                 if (split_input[2] == "=")
                                 {
                                     string a = "";
-                                    if (split_input.Length > 3)
-                                    {
-                                        // Recombine the string if necessary
-                                        int len = split_input.Length;
-                                        int pos = 3;
-                                        foreach (string s in split_input.Skip(3))
-                                        {
-                                            a += SetVariableValue(s);
-                                            if (pos != len)
-                                            {
-                                                a += " ";
-                                            }
-                                            pos++;
-                                        }
-                                    }
+                                    string a__ = $"set {var_name} = ";
+                                    string a_c = SetVariableValue(input.Remove(0, a__.Length));
+                                   
                                     switch (var.Type)
                                     {
                                         case VariableType.String:
-                                            var.Value = a;
+                                            var.Value = a_c;
                                             valid_command = true;
                                             break;
                                         case VariableType.Int:
@@ -918,31 +906,19 @@ namespace GyroPrompt
                                             }
                                             break;
                                         case VariableType.Boolean:
-                                            string[] acceptableValue = { "true", "false", "1", "0" };
+                                            string val = SetVariableValue(split_input[3]);
                                             bool validInput = false;
-                                            foreach (string s in acceptableValue)
+                                            if (booldict.ContainsKey(val))
                                             {
-                                                if (split_input[3].Equals(s, StringComparison.OrdinalIgnoreCase) == true)
-                                                {
-                                                    if ((s == "true") || (s == "1"))
-                                                    {
-                                                        validInput = true;
-                                                        var.Value = "True";
-                                                        valid_command = true;
-                                                        break;
-                                                    }
-                                                    else if ((s == "0") || (s == "false"))
-                                                    {
-                                                        validInput = true;
-                                                        var.Value = "False";
-                                                        valid_command = true;
-                                                        break;
-                                                    }
-                                                }
+                                                bool temp__ = booldict[val];
+                                                validInput = true;
+                                                var.Value = temp__.ToString();
+                                                valid_command = true;
                                             }
+                                            
                                             if (validInput == false)
                                             {
-                                                errorHandler.ThrowError(1400, $"bool", null, split_input[3], split_input[3], expectedFormat);
+                                                errorHandler.ThrowError(1400, $"bool", null, split_input[3], "True/False", expectedFormat);
                                             }
                                             break;
                                     }
@@ -1315,7 +1291,11 @@ namespace GyroPrompt
                                 }
                                 else
                                 {
-                                    condition_ += b + " ";
+                                    condition_ += b;
+                                    if (!split_input[x + 1].Equals("then", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        condition_ += " ";
+                                    }
                                     x++;
                                 }
                             }
@@ -1463,7 +1443,11 @@ namespace GyroPrompt
                                 }
                                 else
                                 {
-                                    condition_ += b + " ";
+                                    condition_ += b;
+                                    if (!split_input[x + 1].Equals("do", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        condition_ += " ";
+                                    }
                                     x++;
                                 }
                             }
@@ -7109,11 +7093,6 @@ namespace GyroPrompt
                     }
                 }
 
-                if (split_input[0].Equals("BEEP", StringComparison.OrdinalIgnoreCase))
-                {
-                    Console.Beep(1000, 1000);
-                }
-
                 if ((valid_command == false) && (entry_made == false))
                 {
                     if (input != "")
@@ -7122,7 +7101,7 @@ namespace GyroPrompt
                     }
                 }
 
-            } catch (Exception error){ Console.WriteLine($"Fatal error encountered.{error}"); }
+            } catch (Exception error){ Console.WriteLine($"Fatal error encountered."); }
         }
         
         // Executes a script file line-by-line
@@ -7253,6 +7232,122 @@ namespace GyroPrompt
                 {
                     a = a + environmentalVars[capturedText].ToString();
                 }
+                // Check if object is in range of
+                if (capturedText.StartsWith("InRange:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string _placeholder = capturedText.Remove(0, 8);
+                    bool validVar = false, validInt = false, validMin = false, validMax = false, clearToProcees = false;
+                    string lowestval = "", highestval = "", expectedVariable = "", compstr = ""; int minval = -1, maxval = -1, compval = -1, validChecks = 0;
+                    if (!_placeholder.Contains(","))
+                    {
+                        Console.WriteLine("Expecting integer name, lowest value, and highest value separated by comma.");
+                        return;
+                    }
+                    string[] placeholderSplit = _placeholder.Split(',');
+                    if (placeholderSplit.Length != 3)
+                    {
+                        Console.WriteLine("Cannot take more or less than 3 comma-separated value.");
+                        return;
+                    } else
+                    {
+                        expectedVariable = SetVariableValue(placeholderSplit[0]);
+                        validVar = LocalVariableExists(expectedVariable);
+                        if (validVar == true)
+                        {
+                            LocalVariable expectedNumericalVar = local_variables.Find(o => o.Name == expectedVariable);
+                            if (IsNumeric(ConvertNumericalVariable(expectedNumericalVar.Value.TrimEnd()))) { compstr = ConvertNumericalVariable(expectedNumericalVar.Value.TrimEnd()); validInt = true; } else { Console.WriteLine($"Not a valid number: {ConvertNumericalVariable(placeholderSplit[1])}"); return; }
+                        } else
+                        {
+                            Console.WriteLine($"Could not find or locate {expectedVariable}"); return;
+                        }
+                        lowestval = ConvertNumericalVariable(placeholderSplit[1]);
+                        highestval = ConvertNumericalVariable(placeholderSplit[2]);
+                        validMin = IsNumeric(lowestval);
+                        validMax = IsNumeric(highestval);
+                        
+                        if (validInt == true) { compval = Int32.Parse(compstr); validChecks++; } else { Console.WriteLine($"Not a valid number: {compval}."); return; }
+                        if (validMin == true) { minval = Int32.Parse(lowestval); validChecks++; } else { Console.WriteLine($"Not a valid number: {lowestval}. If you are referencing a variable within [ ] brackets, make sure to use {{ }} brackets."); return; }
+                        if (validMax == true) { maxval = Int32.Parse(highestval); validChecks++; } else { Console.WriteLine($"Not a valid number: {highestval}. If you are referencing a variable within [ ] brackets, make sure to use {{ }} brackets."); return; }
+                        if (minval >= maxval) { Console.WriteLine($"Expecting lower value then higher value. {minval} is not less than {maxval}"); return; }
+                        if ((minval < maxval) && (minval != maxval)) { validChecks++; }
+
+                        if (validChecks == 4)
+                        {
+                            if ((compval < maxval) && (compval > minval))
+                            {
+                                a += "True";
+                            } else
+                            {
+                                a += "False";
+                            }
+                        }
+                    }
+
+                }
+                // Check is object contains
+                if (capturedText.StartsWith("Contains:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string _placeholder = capturedText.Remove(0, 9);
+                    bool validVar = false, caseSensitive = false;
+                    string expectedVariable = "", comparingValue = "";
+                    if ((_placeholder.StartsWith("CS:", StringComparison.OrdinalIgnoreCase))||(_placeholder.StartsWith("NCS:", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        string placeholder2_ = "";
+                        if (_placeholder.StartsWith("CS:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            caseSensitive = true;
+                            placeholder2_ += _placeholder.Remove(0, 3);
+                        } else if (_placeholder.StartsWith("NCS:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            caseSensitive = false;
+                            placeholder2_ += _placeholder.Remove(0, 4);
+                        }
+
+                        if (placeholder2_.Contains(','))
+                        {
+                            string[] placeholderSplit = placeholder2_.Split(',');
+                            if (placeholderSplit.Length == 2)
+                            {
+                                expectedVariable += placeholderSplit[0];
+                                comparingValue += SetVariableValue(placeholderSplit[1]);
+                                validVar = LocalVariableExists(expectedVariable);
+                            } else
+                            {
+                                Console.WriteLine("Cannot take more or less than 2 comma-separated value."); return;
+                            }
+                        } else
+                        {
+                            Console.WriteLine("Expecting variable name and comparing value separated by comma."); return;
+                        }
+
+                        if (validVar == true)
+                        {
+                            LocalVariable tempvariable_ = local_variables.Find(i => i.Name ==  expectedVariable);
+                            if (tempvariable_ != null)
+                            {
+                                string temp__ = tempvariable_.Value;
+                                if (caseSensitive == true)
+                                {
+                                    if (temp__.Contains(comparingValue, StringComparison.Ordinal)) { a += "True"; } else { a += "False"; }
+                                } else
+                                {
+                                    if (temp__.Contains(comparingValue, StringComparison.OrdinalIgnoreCase)) { a += "True"; } else { a += "False"; }
+                                }
+                            } else
+                            {
+                                // Redundancy never hurt anyone
+                                Console.WriteLine($"Could not find or locate {expectedVariable}"); return;
+                            }
+                        } else
+                        {
+                            Console.WriteLine($"Could not find or locate {expectedVariable}"); return;
+                        }
+
+                    } else
+                    {
+                        Console.WriteLine("Contains: must be followed with CS: for case-sensitive or NCS: for not case-sensitive."); return;
+                    }
+                }
                 // Then check for any equations to calculate
                 if (capturedText.StartsWith("Calculate:", StringComparison.OrdinalIgnoreCase))
                 {
@@ -7351,7 +7446,7 @@ namespace GyroPrompt
                         }
                         if ((validIndex == false) && (nonIntegerValue == false))
                         {
-                            Console.WriteLine($"Not a valid integer: {ConvertNumericalVariable(placeholderSplit[1])}");
+                            Console.WriteLine($"Not a valid integer: {requestedIndex}. If you are referencing a variable within [ ] brackets, make sure to use {{ }} brackets");
                             return;
                         }
 
@@ -7453,6 +7548,9 @@ namespace GyroPrompt
                                 {
                                     Console.WriteLine($"Could not locate list: {items_[0]}.");
                                 }
+                            } else
+                            {
+                                Console.WriteLine($"Not a valid number: {ConvertNumericalVariable(items_[1])}. If you are referencing a variable within [ ] brackets, make sure to use {{ }} brackets");
                             }
 
                         } else if (_placeholder.StartsWith("ValueAt:", StringComparison.OrdinalIgnoreCase))
@@ -7934,6 +8032,132 @@ namespace GyroPrompt
                 if (environmentalVars.ContainsKey(capturedText))
                 {
                     Console.Write(environmentalVars[capturedText].ToString());
+                }
+                // Check if object is in range of
+                if (capturedText.StartsWith("InRange:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string _placeholder = capturedText.Remove(0, 8);
+                    bool validVar = false, validInt = false, validMin = false, validMax = false, clearToProcees = false;
+                    string lowestval = "", highestval = "", expectedVariable = "", compstr = ""; int minval = -1, maxval = -1, compval = -1, validChecks = 0;
+                    if (!_placeholder.Contains(","))
+                    {
+                        Console.WriteLine("Expecting integer name, lowest value, and highest value separated by comma.");
+                        return;
+                    }
+                    string[] placeholderSplit = _placeholder.Split(',');
+                    if (placeholderSplit.Length != 3)
+                    {
+                        Console.WriteLine("Cannot take more or less than 3 comma-separated value.");
+                        return;
+                    }
+                    else
+                    {
+                        expectedVariable = SetVariableValue(placeholderSplit[0]);
+                        validVar = LocalVariableExists(expectedVariable);
+                        if (validVar == true)
+                        {
+                            LocalVariable expectedNumericalVar = local_variables.Find(o => o.Name == expectedVariable);
+                            if (IsNumeric(ConvertNumericalVariable(expectedNumericalVar.Value.TrimEnd()))) { compstr = ConvertNumericalVariable(expectedNumericalVar.Value.TrimEnd()); validInt = true; } else { Console.WriteLine($"Not a valid number: {ConvertNumericalVariable(placeholderSplit[1])}"); return; }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not find or locate {expectedVariable}"); return;
+                        }
+                        lowestval = ConvertNumericalVariable(placeholderSplit[1]);
+                        highestval = ConvertNumericalVariable(placeholderSplit[2]);
+                        validMin = IsNumeric(lowestval);
+                        validMax = IsNumeric(highestval);
+
+                        if (validInt == true) { compval = Int32.Parse(compstr); validChecks++; } else { Console.WriteLine($"Not a valid number: {compval}."); return; }
+                        if (validMin == true) { minval = Int32.Parse(lowestval); validChecks++; } else { Console.WriteLine($"Not a valid number: {lowestval}. If you are referencing a variable within [ ] brackets, make sure to use {{ }} brackets."); return; }
+                        if (validMax == true) { maxval = Int32.Parse(highestval); validChecks++; } else { Console.WriteLine($"Not a valid number: {highestval}. If you are referencing a variable within [ ] brackets, make sure to use {{ }} brackets."); return; }
+                        if (minval >= maxval) { Console.WriteLine($"Expecting lower value then higher value. {minval} is not less than {maxval}"); return; }
+                        if ((minval < maxval) && (minval != maxval)) { validChecks++; }
+
+                        if (validChecks == 4)
+                        {
+                            if ((compval < maxval) && (compval > minval))
+                            {
+                                Console.Write("True");
+                            }
+                            else
+                            {
+                                Console.Write("False");
+                            }
+                        }
+                    }
+
+                }
+                // Check is object contains
+                if (capturedText.StartsWith("Contains:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string _placeholder = capturedText.Remove(0, 9);
+                    bool validVar = false, caseSensitive = false;
+                    string expectedVariable = "", comparingValue = "";
+                    if ((_placeholder.StartsWith("CS:", StringComparison.OrdinalIgnoreCase)) || (_placeholder.StartsWith("NCS:", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        string placeholder2_ = "";
+                        if (_placeholder.StartsWith("CS:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            caseSensitive = true;
+                            placeholder2_ += _placeholder.Remove(0, 3);
+                        }
+                        else if (_placeholder.StartsWith("NCS:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            caseSensitive = false;
+                            placeholder2_ += _placeholder.Remove(0, 4);
+                        }
+
+                        if (placeholder2_.Contains(','))
+                        {
+                            string[] placeholderSplit = placeholder2_.Split(',');
+                            if (placeholderSplit.Length == 2)
+                            {
+                                expectedVariable += placeholderSplit[0];
+                                comparingValue += SetVariableValue(placeholderSplit[1]);
+                                validVar = LocalVariableExists(expectedVariable);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Cannot take more or less than 2 comma-separated value."); return;
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Expecting variable name and comparing value separated by comma."); return;
+                        }
+
+                        if (validVar == true)
+                        {
+                            LocalVariable tempvariable_ = local_variables.Find(i => i.Name == expectedVariable);
+                            if (tempvariable_ != null)
+                            {
+                                string temp__ = tempvariable_.Value;
+                                if (caseSensitive == false)
+                                {
+                                    if (temp__.Contains(comparingValue, StringComparison.OrdinalIgnoreCase)) { Console.Write("True"); } else { Console.Write("False"); }
+                                } else
+                                {
+                                    if (temp__.Contains(comparingValue, StringComparison.Ordinal)) { Console.Write("True"); } else { Console.Write("False"); }
+
+                                }
+                            }
+                            else
+                            {
+                                // Redundancy never hurt anyone
+                                Console.WriteLine($"Could not find or locate {expectedVariable}"); return;
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Could not find or locate {expectedVariable}"); return;
+                        }
+
+                    }
+                    else
+                    {
+                        Console.WriteLine("Contains: must be followed with CS: for case-sensitive or NCS: for not case-sensitive."); return;
+                    }
                 }
                 // Then check for any equations to calculate
                 if (capturedText.StartsWith("Calculate:", StringComparison.OrdinalIgnoreCase))
