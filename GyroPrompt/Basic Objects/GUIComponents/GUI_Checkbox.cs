@@ -61,6 +61,8 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                     }
                 }
             };
+
+            objview = newCheckbox;
         }
 
         public void addLinkedBool(string boolName)
@@ -123,15 +125,15 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 newCheckbox.X = Pos.Right(obj);
             }
         }
-        public void SetText(string text)
+        public override void SetText(string text)
         {
             newCheckbox.Text = text;
         }
-        public string GetText()
+        public override string GetText()
         {
             return newCheckbox.Text.ToString();
         }
-        public void SetXCoord(int x_, coordValue filler)
+        public override void SetXCoord(int x_, coordValue filler)
         {
             try
             {
@@ -153,7 +155,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
-        public void SetYCoord(int x_, coordValue filler)
+        public override void SetYCoord(int x_, coordValue filler)
         {
             try
             {

@@ -50,12 +50,13 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             };
 
 
+            objview = textView;
         }
-        public string GetText()
+        public override string GetText()
         {
             return textView.Text.ToString();
         }
-        public void SetText(string text)
+        public override void SetText(string text)
         {
             textView.Text = text;
         }
@@ -114,7 +115,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 textView.X = Pos.Right(obj);
             }
         }
-        public void SetXCoord(int x_, coordValue filler)
+        public override void SetXCoord(int x_, coordValue filler)
         {
             try
             {
@@ -136,7 +137,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
-        public void SetYCoord(int x_, coordValue filler)
+        public override void SetYCoord(int x_, coordValue filler)
         {
             try
             {

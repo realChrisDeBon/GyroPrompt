@@ -7,14 +7,84 @@ using System.Threading.Tasks;
 using Microsoft.VisualBasic;
 using GyroPrompt.Basic_Objects.Collections;
 using GyroPrompt.Basic_Objects.Variables;
+using System.Reflection.Metadata;
+using NStack;
 
 namespace GyroPrompt.Basic_Objects.Component
 {
+
     public class FilesystemInterface
     {
-       
+        public Parser topparse;
+
+
+        public Dictionary<string, Action<string, string>> commandDirectoryVoid = new Dictionary<string, Action<string, string>>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, Func<string, string, string[]>> commandDirectoryReturnString = new Dictionary<string, Func<string, string, string[]>>(StringComparer.OrdinalIgnoreCase);
+
+        // Action uses placeholder
+        public Dictionary<string, bool> actionsWithPlaceholder = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+        {
+            {"delete", true}, {"sethidden", true}, {"setvisible", true}, {"mkdir", true}, {"rmdir", true}, {"readall", true}
+        };
+        public Dictionary<string, bool> outputsToFile = new Dictionary<string, bool>()
+        {
+            {"write", true }, {"append", true }
+        };
+
+        // Action declarations
+        public Action<string, string> WriteOver = new Action<string, string>(WriteOverFile);
+        public Action<string, string> AppendTo = new Action<string, string>(AppendToFile);
+        public Action<string, string> Delete = new Action<string, string>(DeleteFile);
+        public Action<string, string> CopyTo = new Action<string, string>(CopyFileToLocation);
+        public Action<string, string> MoveTo = new Action<string, string>(MoveFileToLocation);
+        public Action<string, string> SetHidden = new Action<string, string>(SetFileToHidden);
+        public Action<string, string> SetVisible = new Action<string, string>(SetHiddenFileToVisible);
+        public Action<string, string> CreateDir = new Action<string, string>(CreateDirectory);
+        public Action<string, string> DelDir = new Action<string, string>(RemoveDirectory);
+        public Action<string, string> CopyDir = new Action<string, string>(CopyDirectoryToLocation);
+        public Action<string, string> MoveDir = new Action<string, string>(MoveDirectoryToLocation);
+        // Func declarations
+        public Func<string, string, string[]> ReadFile = new Func<string, string, string[]>(ReadEntireFile);
+        public Func<string, string, string[]> ReadFileIntoList = new Func<string, string, string[]>(ReadFileToList);
+        // Predicate declarations
+
+        public void LoadComDict()
+        {
+            // Actions
+            commandDirectoryVoid.Add("write", WriteOver);
+            commandDirectoryVoid.Add("append", AppendTo);
+            commandDirectoryVoid.Add("delete", Delete);
+            commandDirectoryVoid.Add("copy", CopyTo);
+            commandDirectoryVoid.Add("move", MoveTo);
+            commandDirectoryVoid.Add("sethidden", SetHidden);
+            commandDirectoryVoid.Add("setvisible", SetVisible);
+            commandDirectoryVoid.Add("mkdir", CreateDir);
+            commandDirectoryVoid.Add("rmdir", DelDir);
+            commandDirectoryVoid.Add("copydir", CopyDir);
+            commandDirectoryVoid.Add("movedir", MoveDir);
+
+            // Functions
+            commandDirectoryReturnString.Add("realall", ReadFile);
+            commandDirectoryReturnString.Add("readtolist", ReadFileIntoList);
+
+        }
+        public bool HasOutputToFile(string command)
+        {
+            if (outputsToFile.ContainsKey(command))
+            {
+                return true;
+            } else
+            {
+                return false;
+            }
+        }
+        public string fileName(string path)
+        {
+            return Path.GetFileName(path);
+        }
+
         // File read write move copy
-        public void WriteOverFile(string path, string contents)
+        static void WriteOverFile(string path, string contents)
         {
             try
             {
@@ -25,19 +95,19 @@ namespace GyroPrompt.Basic_Objects.Component
                 Console.WriteLine($"Could not write to file {path}");
             }
         }
-        public void AppendToFile(string path, string contents)
+        static void AppendToFile(string path, string contents)
         {
 
                 File.AppendAllText(path, contents);
 
         }
-        public void WriteListToFile(string path, LocalList lineList)
+        static void WriteListToFile(string path, LocalList lineList)
         {
             try
             {
-                foreach(LocalVariable variable in lineList.items)
+                foreach(Variables.LocalVariable variable in lineList.items)
                 {
-                    File.AppendText(variable.Value + "\n");
+                    File.AppendText(variable.Value + Environment.NewLine);
                 }
             }
             catch
@@ -45,19 +115,21 @@ namespace GyroPrompt.Basic_Objects.Component
                 Console.WriteLine($"There was an error writing list to file.");
             }
         }
-        public string ReadEntireFile(string path)
+        static string[] ReadEntireFile(string path, string placeholder)
         {
             try
             {
-                return File.ReadAllText(path);
+                string[] filecontents = File.ReadAllLines(path);
+                return filecontents;
             } catch
             {
                 Console.WriteLine($"Could not read file {path}");
                 return null;
             }
         }
-        public string ReadFileLine(string path, int linenumber)
+        static string ReadFileLine(string path, string linenumber_)
         {
+            int linenumber = Int32.Parse(linenumber_);
             try
             {
                 return File.ReadLines(path).Skip(linenumber - 1).FirstOrDefault();
@@ -67,43 +139,21 @@ namespace GyroPrompt.Basic_Objects.Component
                 return null;
             }
         }
-        public LocalList ReadFileToList(string path, string lstname)
+        static string[] ReadFileToList(string path, string placeholder)
         {
-            LocalList list = new LocalList();
-            if (File.Exists(path))
+            try
             {
-                try
-                {
-                    string[] filecontents = File.ReadAllLines(path);
-                    FileInfo fileInfo = new FileInfo(path);
-                    string filename = Path.GetFileNameWithoutExtension(fileInfo.Name);
-                    int x = 1;
-                    foreach (string line in filecontents)
-                    {
-                        StringVariable newline = new StringVariable();
-                        newline.Name = $"{filename}line{x}";
-                        newline.Type = VariableType.String;
-                        newline.Value = line;
-                        list.items.Add(newline);
-                        list.numberOfElements++;
-                        x++;
-                    }
-                    list.Name = $"{lstname}";
-                    list.arrayType = ArrayType.String;
-                    return list;
-                }
-                catch
-                {
-                    Console.WriteLine($"Error reading file {path} to list.");
-                    return null;
-                }
-            } else
+                string[] filecontents = File.ReadAllLines(path);
+                return filecontents;
+            }
+            catch
             {
                 Console.WriteLine($"Could not read file {path}");
                 return null;
             }
         }
-        public void DeleteFile(string path)
+
+        static void DeleteFile(string path, string placeholder)
         {
             try
             {
@@ -114,7 +164,7 @@ namespace GyroPrompt.Basic_Objects.Component
                 Console.WriteLine($"Could not delete file {path}");
             }
         }
-        public void CopyFileToLocation(string path, string pathDestination)
+        static void CopyFileToLocation(string path, string pathDestination)
         {
             try
             {
@@ -125,7 +175,7 @@ namespace GyroPrompt.Basic_Objects.Component
                 Console.WriteLine($"Could not copy file {path} to {pathDestination}");
             }
         }
-        public void MoveFileToLocation(string path, string pathDestination)
+        static void MoveFileToLocation(string path, string pathDestination)
         {
             try
             {
@@ -136,7 +186,7 @@ namespace GyroPrompt.Basic_Objects.Component
                 Console.WriteLine($"Could not move file {path} to {pathDestination}");
             }
         }
-        public void SetFileToHidden(string path)
+        static void SetFileToHidden(string path, string placeholder)
         {
             try
             {
@@ -154,7 +204,7 @@ namespace GyroPrompt.Basic_Objects.Component
                 Console.WriteLine($"Could not set {path} to hidden");
             }
         }
-        public void SetHiddenFileToVisible(string path)
+        static void SetHiddenFileToVisible(string path, string placeholder)
         {
             try
             {
@@ -173,31 +223,32 @@ namespace GyroPrompt.Basic_Objects.Component
                 Console.WriteLine($"Could not set {path} to visible");
             }
         }
-        
+
         // Directories read write move copy
-        public void CreateDirectory(string path)
+        static void CreateDirectory(string path, string placeholder)
         {
             try
             {
-                CreateDirectory(path);
+                Directory.CreateDirectory(path);
             }
             catch
             {
                 Console.WriteLine($"Could not create directory {path}");
             }
         }
-        public void RemoveDirectory(string path)
+        static void RemoveDirectory(string path, string placeholder)
         {
             try
             {
-                RemoveDirectory(path);
+                
+                Directory.Delete(path);
             }
             catch
             {
                 Console.WriteLine($"Could not remove directory {path}");
             }
         }
-        public void CopyDirectoryToLocation(string path, string DestinationPath)
+        static void CopyDirectoryToLocation(string path, string DestinationPath)
         {
             try
             {
@@ -208,7 +259,7 @@ namespace GyroPrompt.Basic_Objects.Component
                 Console.WriteLine($"Could not move directory {path} to {DestinationPath}");
             }
         }
-        public void MoveDirectoryToLocation(string path, string pathDestination)
+        static void MoveDirectoryToLocation(string path, string pathDestination)
         {
             try
             {
@@ -221,7 +272,7 @@ namespace GyroPrompt.Basic_Objects.Component
         }
 
         // Return unique directories
-        private string GetStartupFolderPath()
+        private string GetStartupFolderPath(string a, string b)
         {
             string startupFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
             return startupFolderPath;

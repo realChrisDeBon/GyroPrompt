@@ -2,6 +2,7 @@
 using GyroPrompt.Basic_Objects.Variables;
 using Microsoft.VisualBasic.FileIO;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -14,11 +15,15 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 {
     public class ConsoleOutputDirector
     {
-        public List<GUI_Button> GUIButtonsToAdd = new List<GUI_Button>();
-        public List<GUI_textfield> GUITextFieldsToAdd = new List<GUI_textfield>();
-        public List<GUI_Menubar> GUIMenuBarsToAdd = new List<GUI_Menubar>();
-        public List<GUI_Label> GUILabelsToAdd = new List<GUI_Label>();
-        public List<GUI_Checkbox> GUICheckboxToAdd = new List<GUI_Checkbox>();
+
+         public List<GUI_Button> GUIButtonsToAdd = new List<GUI_Button>();
+         public List<GUI_textfield> GUITextFieldsToAdd = new List<GUI_textfield>();
+         public List<GUI_Menubar> GUIMenuBarsToAdd = new List<GUI_Menubar>();
+         public List<GUI_Label> GUILabelsToAdd = new List<GUI_Label>();
+         public List<GUI_Checkbox> GUICheckboxToAdd = new List<GUI_Checkbox>();
+
+
+        public ArrayList viewobjects = new ArrayList();
         public bool runningPermision = true;
         public Window mainWindow;
         public SaveDialog saveDialog;
@@ -64,27 +69,16 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             };
 
 
+            foreach (GUI_BaseItem obj in viewobjects)
+            {
+                mainWindow.Add(obj.objview);
+            }
             // Take every GUI object within GUIItemsToAdd and add it to mainWindow
             foreach (GUI_Menubar item in GUIMenuBarsToAdd)
             {
                 top.Add(item.menuBar);
             }
-            foreach (GUI_textfield item_ in GUITextFieldsToAdd)
-            {
-                mainWindow.Add(item_.textView);
-            }
-            foreach (GUI_Label item_ in GUILabelsToAdd)
-            {
-                mainWindow.Add(item_.newlabel);
-            }
-            foreach (GUI_Button item in GUIButtonsToAdd)
-            {
-                mainWindow.Add(item.newButton);
-            }
-            foreach (GUI_Checkbox item in GUICheckboxToAdd)
-            {
-                mainWindow.Add(item.newCheckbox);
-            }
+
             try
             {
                 // Execute application

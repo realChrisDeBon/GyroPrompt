@@ -1,13 +1,13 @@
 ﻿
-using GyroPrompt.Basic_Functions;
-using GyroPrompt.Basic_Functions.Object_Modifiers;
-using GyroPrompt.Basic_Objects.Collections;
-using GyroPrompt.Basic_Objects.Collections.Arrays;
-using GyroPrompt.Basic_Objects.Component;
-using GyroPrompt.Basic_Objects.GUIComponents;
-using GyroPrompt.Basic_Objects.Variables;
-using GyroPrompt.Network_Objects;
-using GyroPrompt.Network_Objects.TCPSocket;
+global using GyroPrompt.Basic_Functions;
+global using GyroPrompt.Basic_Functions.Object_Modifiers;
+global using GyroPrompt.Basic_Objects.Collections;
+global using GyroPrompt.Basic_Objects.Collections.Arrays;
+global using GyroPrompt.Basic_Objects.Component;
+global using GyroPrompt.Basic_Objects.GUIComponents;
+global using GyroPrompt.Basic_Objects.Variables;
+global using GyroPrompt.Network_Objects;
+global using GyroPrompt.Network_Objects.TCPSocket;
 using GyroPrompt.Setup;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
@@ -64,6 +64,7 @@ namespace GyroPrompt
         public ArrayList local_arrays = new ArrayList();
         public List<TaskList> tasklists_inuse = new List<TaskList>();
         public Dictionary<string, string[]> local_function = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        
 
         // Mostly network related lists and objects
         public ArrayList activeTCPObjects = new ArrayList();
@@ -177,6 +178,14 @@ namespace GyroPrompt
         }
         public IDictionary<string, ConsoleColor> keyConsoleColor = new Dictionary<string, ConsoleColor>(StringComparer.OrdinalIgnoreCase);
         public IDictionary<string, Terminal.Gui.Color> terminalColor = new Dictionary<string, Terminal.Gui.Color>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<GUIObjectType, bool> objectCanRepos = new Dictionary<GUIObjectType, bool>()
+        {
+                            { GUIObjectType.Button, true},
+                            { GUIObjectType.Textfield, true},
+                            { GUIObjectType.Checkbox, true},
+                            { GUIObjectType.Label, true},
+        };
+        public Dictionary<GUIObjectType, bool> objectHasTextAccess = new Dictionary<GUIObjectType, bool>();
         public void setConsoleStatus(ConsoleInfo _consoleinfo)
         {
             Console.ForegroundColor = _consoleinfo.status_forecolor;
@@ -303,6 +312,8 @@ namespace GyroPrompt
             terminalColor.Add("Magenta", Color.BrightMagenta);
             terminalColor.Add("White", Color.White);
 
+            objectHasTextAccess = objectCanRepos;
+
             StringVariable datapacketvalue = new()
             {
                 Name = datapacketval_str,
@@ -343,6 +354,9 @@ namespace GyroPrompt
             condition_checker.LoadOperations(); // Load enum types for operators
             errorHandler.topLevelParser = this; // Hand error handler a reference to instance of this parser
             errorHandler.GUIConsole = consoleDirector; // Hand error handler a reference to instance of console director
+
+            filesystem.topparse = this;
+            filesystem.LoadComDict();
         }
         
 
@@ -2851,6 +2865,7 @@ namespace GyroPrompt
 
                                         GUI_Button newbutton = new GUI_Button(this, btnName, tsklist, text, x, y, wid, hei, foregrn, backgrn);
                                         consoleDirector.GUIButtonsToAdd.Add(newbutton);
+                                        consoleDirector.viewobjects.Add(newbutton);
                                         GUIObjectsInUse.Add(btnName, newbutton);
                                         namesInUse.Add(btnName, objectClass.GUIObj);
                                         valid_command = true;
@@ -3115,6 +3130,7 @@ namespace GyroPrompt
 
                                 GUI_textfield newtextfield = new GUI_textfield(txtFieldName, x, y, wid, hei, isMultiline, text, isReadonly, foregrn, backgrn);
                                 consoleDirector.GUITextFieldsToAdd.Add(newtextfield);
+                                consoleDirector.viewobjects.Add(newtextfield);
                                 GUIObjectsInUse.Add(newtextfield.GUIObjName, newtextfield);
                                 valid_command = true;
 
@@ -3387,9 +3403,10 @@ namespace GyroPrompt
                                     return;
                                 }
 
-                                GUI_Label newlabel = new GUI_Label(labelName, text, x, y, wid, hei, foregrn, backgrn);
-                                consoleDirector.GUILabelsToAdd.Add(newlabel);
-                                GUIObjectsInUse.Add(newlabel.GUIObjName, newlabel);
+                                GUI_Label newlabel_ = new GUI_Label(labelName, text, x, y, wid, hei, foregrn, backgrn);
+                                consoleDirector.GUILabelsToAdd.Add(newlabel_);
+                                consoleDirector.viewobjects.Add(newlabel_);
+                                GUIObjectsInUse.Add(newlabel_.GUIObjName, newlabel_);
                                 valid_command = true;
 
                             }
@@ -3653,6 +3670,7 @@ namespace GyroPrompt
                                 }
                                 GUI_Checkbox newcheckbox = new GUI_Checkbox(this, expectedName, text, x, y, wid, hei, isChecked, hasLinkedBools, listOfBools_, foregrn, backgrn);
                                 consoleDirector.GUICheckboxToAdd.Add(newcheckbox);
+                                consoleDirector.viewobjects.Add(newcheckbox);
                                 GUIObjectsInUse.Add(expectedName, newcheckbox);
                                 valid_command = true;
 
@@ -3705,62 +3723,34 @@ namespace GyroPrompt
                                 if (validNumber == true)
                                 {
                                     bool foundAndChangedWidth = false;
-                                    switch (guiobjecttype)
+                                    foreach (GUI_BaseItem targetObject_ in consoleDirector.viewobjects)
                                     {
-                                        case GUIObjectType.Button:
-                                            foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
+                                        if (targetObject_.GUIObjName == guiObjectName)
+                                        {
+                                            if (objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
                                             {
-                                                if (guibtn.GUIObjName == guiObjectName)
-                                                {
-                                                    guibtn.SetWidth(xx, filval);
-                                                    foundAndChangedWidth = true;
-                                                    break;
-                                                }
+                                                targetObject_.SetWidth(xx, filval);
+                                                foundAndChangedWidth = true;
+                                                break;
                                             }
-                                            break;
-                                        case GUIObjectType.Textfield:
-                                            foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
+                                            else
                                             {
-                                                if (guitxt.GUIObjName == guiObjectName)
-                                                {
-                                                    guitxt.SetWidth(xx, filval);
-                                                    foundAndChangedWidth = true;
-                                                    break;
-                                                }
+                                                // Throw error of wrong type then return;
+                                                string badtype = GetDescription(targetObject_.GUIObjectType);
+                                                errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
+                                                return;
                                             }
-                                            break;
-                                        case GUIObjectType.Label:
-                                            foreach (GUI_Label guilbl in consoleDirector.GUILabelsToAdd)
-                                            {
-                                                if (guilbl.GUIObjName == guiObjectName)
-                                                {
-                                                    guilbl.SetWidth(xx, filval);
-                                                    foundAndChangedWidth = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        case GUIObjectType.Checkbox:
-                                            foreach (GUI_Checkbox guichbx in consoleDirector.GUICheckboxToAdd)
-                                            {
-                                                if (guichbx.GUIObjName == guiObjectName)
-                                                {
-                                                    guichbx.SetWidth(xx, filval);
-                                                    foundAndChangedWidth = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        default:
-                                            // Object not found but somehow a quantum misfire of code happened and we ended up here
-                                            foundAndChangedWidth = false;
-                                            break;
+                                        }
                                     }
+
 
                                     if (foundAndChangedWidth == false)
                                     {
-                                        Console.WriteLine("Object type cannot accept argument for setwidth.");
-                                    } else
+                                        // Throw error of wrong type
+                                        string badtype = GetDescription(guiobjecttype);
+                                        errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
+                                    }
+                                    else
                                     {
                                         valid_command = true;
                                     }
@@ -3824,60 +3814,33 @@ namespace GyroPrompt
                                 if (validNumber == true)
                                 {
                                     bool foundAndChangedHeight = false;
-                                    switch (guiobjecttype)
+                                    foreach (GUI_BaseItem targetObject_ in consoleDirector.viewobjects)
                                     {
-                                        case GUIObjectType.Button:
-                                            foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
+                                        if (targetObject_.GUIObjName == guiObjectName)
+                                        {
+                                            if (objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
                                             {
-                                                if (guibtn.GUIObjName == guiObjectName)
-                                                {
-                                                    guibtn.SetHeight(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        case GUIObjectType.Textfield:
-                                            foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
+                                                targetObject_.SetHeight(xx, filval);
+                                                foundAndChangedHeight = true;
+                                                break;
+                                            } else
                                             {
-                                                if (guitxt.GUIObjName == guiObjectName)
-                                                {
-                                                    guitxt.SetHeight(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
-                                                }
+                                                // Throw error of wrong type then return;
+                                                string badtype = GetDescription(targetObject_.GUIObjectType);
+                                                errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
+                                                return;
                                             }
-                                            break;
-                                        case GUIObjectType.Label:
-                                            foreach (GUI_Label guilbl in consoleDirector.GUILabelsToAdd)
-                                            {
-                                                if (guilbl.GUIObjName == guiObjectName)
-                                                {
-                                                    guilbl.SetHeight(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        case GUIObjectType.Checkbox:
-                                            foreach (GUI_Checkbox guichbx in consoleDirector.GUICheckboxToAdd)
-                                            {
-                                                if (guichbx.GUIObjName == guiObjectName)
-                                                {
-                                                    guichbx.SetHeight(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                }
-                                            }
-                                            break;
-                                        default:
-                                            // Object not found but somehow a quantum misfire of code happened and we ended up here
-                                            foundAndChangedHeight = false;
-                                            break;
+                                        }
                                     }
+
                                     if (foundAndChangedHeight == false)
                                     {
-                                        Console.WriteLine("Object type cannot accept argument for setheight.");
-                                    } else
+                                        // Throw error of wrong type
+                                        string badtype = GetDescription(guiobjecttype);
+                                        errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
+
+                                    }
+                                    else
                                     {
                                         valid_command = true;
                                     }
@@ -3909,7 +3872,7 @@ namespace GyroPrompt
                     string expectedFormat = "gui_item_setx objectname number/percent/fill/leftof/rightof 1/object" + Environment.NewLine + "number/percent/fill expects integer value, leftof/rightof expects an object name";
                     if (split_input.Length == 4)
                     {
-                        string guiObjectName = split_input[1];
+                         string guiObjectName = split_input[1];
                         if (GUIObjectsInUse.ContainsKey(guiObjectName))
                         {
                             GUIObjectType guiobjecttype = GUIObjectsInUse[guiObjectName].GUIObjectType;
@@ -3951,61 +3914,30 @@ namespace GyroPrompt
                                     int xx = Int32.Parse(a_);
                                     if (validNumber == true)
                                     {
-                                        bool foundAndChangedHeight = false;
-                                        switch (guiobjecttype)
+                                        bool foundAndChangedX = false;
+                                        foreach(GUI_BaseItem targetObject_ in consoleDirector.viewobjects)
                                         {
-                                            case GUIObjectType.Button:
-                                                foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
+                                            if (targetObject_.GUIObjName == guiObjectName)
+                                            {
+                                                if (objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
                                                 {
-                                                    if (guibtn.GUIObjName == guiObjectName)
-                                                    {
-                                                        guibtn.SetXCoord(xx, filval);
-                                                        foundAndChangedHeight = true;
-                                                        break;
-                                                    }
-                                                }
-                                                break;
-                                            case GUIObjectType.Textfield:
-                                                foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
+                                                    targetObject_.SetXCoord(xx, filval);
+                                                    foundAndChangedX = true;
+                                                    break;
+                                                } else
                                                 {
-                                                    if (guitxt.GUIObjName == guiObjectName)
-                                                    {
-                                                        guitxt.SetXCoord(xx, filval);
-                                                        foundAndChangedHeight = true;
-                                                        break;
-                                                    }
+                                                    // Throw error of wrong type
+                                                    string badtype = GetDescription(targetObject_.GUIObjectType);
+                                                    errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
                                                 }
-                                                break;
-                                            case GUIObjectType.Label:
-                                                foreach (GUI_Label guilbl in consoleDirector.GUILabelsToAdd)
-                                                {
-                                                    if (guilbl.GUIObjName == guiObjectName)
-                                                    {
-                                                        guilbl.SetXCoord(xx, filval);
-                                                        foundAndChangedHeight = true;
-                                                        break;
-                                                    }
-                                                }
-                                                break;
-                                            case GUIObjectType.Checkbox:
-                                                foreach (GUI_Checkbox guichbx in consoleDirector.GUICheckboxToAdd)
-                                                {
-                                                    if (guichbx.GUIObjName == guiObjectName)
-                                                    {
-                                                        guichbx.SetXCoord(xx, filval);
-                                                        foundAndChangedHeight = true;
-                                                        break;
-                                                    }
-                                                }
-                                                break;
-                                            default:
-                                                // Object not found but somehow a quantum misfire of code happened and we ended up here
-                                                foundAndChangedHeight = false;
-                                                break;
+                                            }
                                         }
-                                        if (foundAndChangedHeight == false)
+
+                                        if (foundAndChangedX == false)
                                         {
-                                            Console.WriteLine("Object type cannot accept argument for setx.");
+                                            // Throw error of wrong type
+                                            string badtype = GetDescription(guiobjecttype);
+                                            errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
                                         } else
                                         {
                                             valid_command = true;
@@ -4023,156 +3955,43 @@ namespace GyroPrompt
                                     // Holy shit I could have just used GUIObjectType guiobj = GUIObjectsInUse[guidingObject].GUIObjectType; and skipped this retarded ass nesting I did wtf I need to fix this later
                                     if (guidingObjExists == true)
                                     {
-                                        GUI_textfield textitem_ = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName ==  guidingObject);
-                                        GUI_Button buttonitem_ = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guidingObject);
-                                        GUI_Label labelitem_ = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guidingObject);
-                                        GUI_Checkbox checkboxitem = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == guidingObject);
-                                        if (textitem_ != null)
+                                        foreach(GUI_BaseItem guidingobj_ in consoleDirector.viewobjects)
                                         {
-                                            switch (guiobjecttype)
+                                            if (guidingobj_.GUIObjName == guidingObject)
                                             {
-                                                case GUIObjectType.Button:
-                                                    GUI_Button positioningButton = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningButton != null)
+                                                if (objectCanRepos.ContainsKey(guidingobj_.GUIObjectType))
+                                                {
+                                                    foreach(GUI_BaseItem targetObject in consoleDirector.viewobjects)
                                                     {
-                                                        positioningButton.SetToLeftOrRight(textitem_.textView, filval);
+                                                        if (targetObject.GUIObjName == guiObjectName)
+                                                        {
+                                                            if (objectCanRepos.ContainsKey(targetObject.GUIObjectType))
+                                                            {
+                                                                targetObject.SetToLeftOrRight(guidingobj_.objview, filval);
+                                                                valid_command = true;
+                                                                break;
+                                                            } else
+                                                            {
+                                                                // Throw error for wrong type
+                                                                string badtype = GetDescription(targetObject.GUIObjectType);
+                                                                errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
+                                                                return;
+
+                                                            }
+                                                        }
                                                     }
-                                                    break;
-                                                case GUIObjectType.Textfield:
-                                                    GUI_textfield positioningTextfield = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningTextfield != null)
-                                                    {
-                                                        positioningTextfield.SetToLeftOrRight(textitem_.textView, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Label:
-                                                    GUI_Label positioningLabel = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningLabel != null)
-                                                    {
-                                                        positioningLabel.SetToLeftOrRight(textitem_.textView, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Checkbox:
-                                                    GUI_Checkbox positioningCheckbox = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningCheckbox != null)
-                                                    {
-                                                        positioningCheckbox.SetToLeftOrRight(textitem_.textView, filval);
-                                                    }
-                                                    break;
-                                                default:
-                                                    break;
+
+                                                } else
+                                                {
+                                                    // Throw error for wrong type
+                                                    string badtype = GetDescription(guidingobj_.GUIObjectType);
+                                                    errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
+                                                    return;
+
+                                                }
                                             }
-                                        } else if (buttonitem_!= null)
-                                        {
-                                            switch (guiobjecttype)
-                                            {
-                                                case GUIObjectType.Button:
-                                                    GUI_Button positioningButton = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningButton != null)
-                                                    {
-                                                        positioningButton.SetToLeftOrRight(buttonitem_.newButton, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Textfield:
-                                                    GUI_textfield positioningTextfield = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningTextfield != null)
-                                                    {
-                                                        positioningTextfield.SetToLeftOrRight(buttonitem_.newButton, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Label:
-                                                    GUI_Label positioningLabel = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningLabel != null)
-                                                    {
-                                                        positioningLabel.SetToLeftOrRight(buttonitem_.newButton, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Checkbox:
-                                                    GUI_Checkbox positioningCheckbox = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningCheckbox != null)
-                                                    {
-                                                        positioningCheckbox.SetToLeftOrRight(buttonitem_.newButton, filval);
-                                                    }
-                                                    break;
-                                                default:
-                                                    break;
-                                            }
-                                        } else if (labelitem_ != null)
-                                        {
-                                            switch (guiobjecttype)
-                                            {
-                                                case GUIObjectType.Button:
-                                                    GUI_Button positioningButton = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningButton != null)
-                                                    {
-                                                        positioningButton.SetToLeftOrRight(labelitem_.newlabel, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Textfield:
-                                                    GUI_textfield positioningTextfield = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningTextfield != null)
-                                                    {
-                                                        positioningTextfield.SetToLeftOrRight(labelitem_.newlabel, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Label:
-                                                    GUI_Label positioningLabel = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningLabel != null)
-                                                    {
-                                                        positioningLabel.SetToLeftOrRight(labelitem_.newlabel, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Checkbox:
-                                                    GUI_Checkbox positioningCheckbox = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningCheckbox != null)
-                                                    {
-                                                        positioningCheckbox.SetToLeftOrRight(labelitem_.newlabel, filval);
-                                                    }
-                                                    break;
-                                                default:
-                                                    break;
-                                            }
-                                        } else if (checkboxitem != null)
-                                        {
-                                            switch(guiobjecttype)
-                                            {
-                                                case GUIObjectType.Button:
-                                                    GUI_Button positioningButton = consoleDirector.GUIButtonsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningButton != null)
-                                                    {
-                                                        positioningButton.SetToLeftOrRight(checkboxitem.newCheckbox, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Textfield:
-                                                    GUI_textfield positioningTextfield = consoleDirector.GUITextFieldsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningTextfield != null)
-                                                    {
-                                                        positioningTextfield.SetToLeftOrRight(checkboxitem.newCheckbox, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Label:
-                                                    GUI_Label positioningLabel = consoleDirector.GUILabelsToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningLabel != null)
-                                                    {
-                                                        positioningLabel.SetToLeftOrRight(checkboxitem.newCheckbox, filval);
-                                                    }
-                                                    break;
-                                                case GUIObjectType.Checkbox:
-                                                    GUI_Checkbox positioningCheckbox = consoleDirector.GUICheckboxToAdd.Find(z => z.GUIObjName == guiObjectName);
-                                                    if (positioningCheckbox != null)
-                                                    {
-                                                        positioningCheckbox.SetToLeftOrRight(checkboxitem.newCheckbox, filval);
-                                                    }
-                                                    break;
-                                                default:
-                                                    break;
-                                            }
-                                        } else
-                                        {
-                                            errorHandler.ThrowError(1200, null, guidingObject, null, null, expectedFormat);
                                         }
-
-
+                                    
                                     } else
                                     {
                                         errorHandler.ThrowError(1200, null, guidingObject, null, null, expectedFormat);
@@ -4232,62 +4051,34 @@ namespace GyroPrompt
                                 int xx = Int32.Parse(a_);
                                 if (validNumber == true)
                                 {
-                                    bool foundAndChangedHeight = false;
-                                    switch (guiobjecttype)
+                                    bool foundAndChangedY = false;
+                                    foreach (GUI_BaseItem targetObject_ in consoleDirector.viewobjects)
                                     {
-                                        case GUIObjectType.Button:
-                                            foreach (GUI_Button guibtn in consoleDirector.GUIButtonsToAdd)
+                                        if (targetObject_.GUIObjName == guiObjectName)
+                                        {
+                                            if (objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
                                             {
-                                                if (guibtn.GUIObjName == guiObjectName)
-                                                {
-                                                    guibtn.SetYCoord(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        case GUIObjectType.Textfield:
-                                            foreach (GUI_textfield guitxt in consoleDirector.GUITextFieldsToAdd)
+                                                targetObject_.SetYCoord(xx, filval);
+                                                foundAndChangedY = true;
+                                                break;
+                                            } else
                                             {
-                                                if (guitxt.GUIObjName == guiObjectName)
-                                                {
-                                                    guitxt.SetYCoord(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
-                                                }
+                                                // Throw error of wrong type
+                                                string badtype = GetDescription(targetObject_.GUIObjectType);
+                                                errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
+                                                return;
                                             }
-                                            break;
-                                        case GUIObjectType.Label:
-                                            foreach (GUI_Label guilbl in consoleDirector.GUILabelsToAdd)
-                                            {
-                                                if (guilbl.GUIObjName == guiObjectName)
-                                                {
-                                                    guilbl.SetYCoord(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        case GUIObjectType.Checkbox:
-                                            foreach (GUI_Checkbox guichbx in consoleDirector.GUICheckboxToAdd)
-                                            {
-                                                if (guichbx.GUIObjName == guiObjectName)
-                                                {
-                                                    guichbx.SetYCoord(xx, filval);
-                                                    foundAndChangedHeight = true;
-                                                    break;
-                                                }
-                                            }
-                                            break;
-                                        default:
-                                            // Object not found but somehow a quantum misfire of code happened and we ended up here
-                                            foundAndChangedHeight = false;
-                                            break;
+                                        }
                                     }
-                                    if (foundAndChangedHeight == false)
+
+                                    if (foundAndChangedY == false)
                                     {
-                                        Console.WriteLine("Object type cannot accept argument for sety.");
-                                    } else
+                                        // Throw error of wrong type
+                                        string badtype = GetDescription(guiobjecttype);
+                                        errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
+
+                                    }
+                                    else
                                     {
                                         valid_command = true;
                                     }
@@ -4331,108 +4122,43 @@ namespace GyroPrompt
                         {
                            
                             GUIObjectType objtype = GUIObjectsInUse[guiObjectName].GUIObjectType;
-                            switch (objtype)
+
+                            foreach(GUI_BaseItem targetObject in consoleDirector.viewobjects)
                             {
-                                case GUIObjectType.Textfield:
-                                    foreach (GUI_textfield txtfield in consoleDirector.GUITextFieldsToAdd)
+                                if (targetObject.GUIObjName == guiObjectName)
+                                {
+                                    if (objectCanRepos.ContainsKey(targetObject.GUIObjectType))
                                     {
-                                        if (txtfield.GUIObjName == guiObjectName)
+                                        LocalVariable expectedStringVar = local_variables.Find(u => u.Name == variableName);
+                                        if (expectedStringVar != null)
                                         {
-                                            foreach (LocalVariable var in local_variables)
+                                            if (expectedStringVar.Type == VariableType.String)
                                             {
-                                                if (var.Name == variableName)
-                                                {
-                                                    if (var.Type == VariableType.String)
-                                                    {
-                                                        var.Value = txtfield.textfieldtext;
-                                                        valid_command = true;
-                                                        break;
-                                                    } else
-                                                    {
-                                                        errorHandler.ThrowError(2100, null, null, var.Name, "string variable", expectedFormat);
-                                                        break;
-                                                    }
-                                                }
+                                                expectedStringVar.Value = targetObject.GetText();
+                                                valid_command = true;
+                                                break;
+                                            } else
+                                            {
+                                                // Not a valid string variable
+                                                errorHandler.ThrowError(2100, null, null, variableName, "string variable", expectedFormat);
+                                                break;
                                             }
+                                        } else
+                                        {
+                                            // Redundant error throw - item not found
+                                            errorHandler.ThrowError(1200, null, variableName, null, null, expectedFormat);
+                                            return;
                                         }
-                                    }
-                                    break;
-                                case GUIObjectType.Button:
-                                    foreach (GUI_Button buttonobj in consoleDirector.GUIButtonsToAdd)
+                                    } else
                                     {
-                                        if (buttonobj.GUIObjName == guiObjectName)
-                                        {
-                                            foreach (LocalVariable var in local_variables)
-                                            {
-                                                if (var.Name == variableName)
-                                                {
-                                                    if (var.Type == VariableType.String)
-                                                    {
-                                                        var.Value = buttonobj.newButton.Text.ToString();
-                                                        valid_command = true;
-                                                        break;
-                                                    } else
-                                                    {
-                                                        errorHandler.ThrowError(2100, null, null, var.Name, "string variable", expectedFormat);
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        // Throw type error then return;
+                                        string badtype = GetDescription(targetObject.GUIObjectType);
+                                        errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
+                                        return;
                                     }
-                                    break;
-                                case GUIObjectType.Label:
-                                    foreach (GUI_Label lbltxt in consoleDirector.GUILabelsToAdd)
-                                    {
-                                        if (lbltxt.GUIObjName == guiObjectName)
-                                        {
-                                            foreach (LocalVariable var in local_variables)
-                                            {
-                                                if (var.Name == variableName)
-                                                {
-                                                    if (var.Type == VariableType.String)
-                                                    {
-                                                        var.Value = lbltxt.newlabel.Text.ToString();
-                                                        valid_command = true;
-                                                        break;
-                                                    }
-                                                    else
-                                                    {
-                                                        errorHandler.ThrowError(2100, null, null, var.Name, "string variable", expectedFormat);
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                            
-                                        }
-                                    }
-                                    break;
-                                case GUIObjectType.Checkbox:
-                                    foreach (GUI_Checkbox chkbox in consoleDirector.GUICheckboxToAdd)
-                                    {
-                                        if (chkbox.GUIObjName == guiObjectName)
-                                        {
-                                            foreach (LocalVariable var in local_variables)
-                                            {
-                                                if (var.Name == variableName)
-                                                {
-                                                    if (var.Type == VariableType.String)
-                                                    {
-                                                        var.Value = chkbox.newCheckbox.Text.ToString();
-                                                        valid_command = true;
-                                                        break;
-                                                    }
-                                                    else
-                                                    {
-                                                        errorHandler.ThrowError(2100, null, null, var.Name, "string variable", expectedFormat);
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    break;
+                                }
                             }
+
                         } else if ((validVriable == true) && (guiObjectExists == false)){
                             errorHandler.ThrowError(1200, null, guiObjectName, null, null, expectedFormat);
                         } else if ((validVriable == false) && (guiObjectExists == true)) {
@@ -4476,53 +4202,26 @@ namespace GyroPrompt
                         bool guiObjectExists = (GUIObjectsInUse.ContainsKey(guiObjectName));
                         if (guiObjectExists == true)
                         {
-                            GUIObjectType objtype = GUIObjectsInUse[guiObjectName].GUIObjectType;
-                            switch (objtype)
-                            { 
-                                case GUIObjectType.Textfield:
-                                    foreach (GUI_textfield txtfield in consoleDirector.GUITextFieldsToAdd)
+                            foreach (GUI_BaseItem targetObject in consoleDirector.viewobjects)
+                            {
+                                if (targetObject.GUIObjName == guiObjectName)
+                                {
+                                    if (objectCanRepos.ContainsKey(targetObject.GUIObjectType))
                                     {
-                                        if (txtfield.GUIObjName == guiObjectName)
-                                        {
-                                            txtfield.SetText(textToSetTo);
-                                            valid_command = true;
-                                        }
+                                        targetObject.SetText(textToSetTo);
+                                        valid_command = true;
+                                        break;
                                     }
-                                    break;
-                                case GUIObjectType.Button:
-                                    foreach (GUI_Button buttonobj in consoleDirector.GUIButtonsToAdd)
+                                    else
                                     {
-                                        if (buttonobj.GUIObjName == guiObjectName)
-                                        {
-                                            buttonobj.SetText(textToSetTo);
-                                            valid_command = true;
-                                        }
+                                        // Throw type error then return;
+                                        string badtype = GetDescription(targetObject.GUIObjectType);
+                                        errorHandler.ThrowError(2100, null, null, badtype, "GUI object with text field", expectedFormat);
+                                        return;
                                     }
-                                    break;
-                                case GUIObjectType.Label:
-                                    foreach (GUI_Label labelobj in consoleDirector.GUILabelsToAdd)
-                                    {
-                                        if (labelobj.GUIObjName == guiObjectName)
-                                        {
-                                            labelobj.SetText(textToSetTo);
-                                            valid_command = true;
-                                        }
-                                    }
-                                    break;
-                                case GUIObjectType.Checkbox:
-                                    foreach (GUI_Checkbox chkbox in consoleDirector.GUICheckboxToAdd)
-                                    {
-                                        if (chkbox.GUIObjName == guiObjectName)
-                                        {
-                                            chkbox.SetText(textToSetTo);
-                                            valid_command = true;
-                                        }
-                                    }
-                                    break;
-                                default:
-                                    Console.WriteLine($"Cannot set text to {guiObjectName}");
-                                    break;
+                                }
                             }
+
                         }
                         else if (guiObjectExists == false)
                         {
@@ -5645,299 +5344,143 @@ namespace GyroPrompt
                 /// filesystem_copydir currentpath targetpath                             <- copy directory in current path to targetpath
                 /// filesystem_movedir current path targetpath                           <- move directory from current path to targetpath
                 /// <summary>
-                if (split_input[0].Equals("filesystem_write", StringComparison.OrdinalIgnoreCase))
+                
+                if (split_input[0].StartsWith("filesystem_", StringComparison.OrdinalIgnoreCase))
                 {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_write filepath value";
-                    if (split_input.Length >= 3)
-                    {
-                        string path_ = SetVariableValue(split_input[1]);
-                        string content_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
-                        filesystem.WriteOverFile(path_, content_);
-                        valid_command = true;
-                    } else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_write", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("filesystem_append", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_append filepath value";
-                    if (split_input.Length >= 3)
-                    {
-                        string path_ = SetVariableValue(split_input[1]);
-                        string content_ = SetVariableValue(string.Join(" ", split_input.Skip(2)));
-                        filesystem.AppendToFile(path_, content_);
-                        valid_command = true;
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_append", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("filesystem_readall", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_readall filepath strvariable";
-                    if (split_input.Length == 3)
-                    {
-                        bool varexists = LocalVariableExists(split_input[2]);
-                        if (varexists == true)
-                        {
-                            try
-                            {
-                                string a_ = filesystem.ReadEntireFile(split_input[1]);
-                                if (a_ == null)
-                                {
-                                    foreach (LocalVariable var in local_variables)
-                                    {
-                                        if (var.Name == split_input[2])
-                                        {
-                                            if (var.Type == VariableType.String)
-                                            {
-                                                var.Value = a_;
-                                                valid_command = true;
-                                            }
-                                            else
-                                            {
-                                                Console.WriteLine($"{split_input[2]} not a valid string variable.");
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                                Console.WriteLine($"Error occurred when reading from file {split_input[1]}");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"{split_input[2]} not a valid string variable.");
-                        }
-                    } else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_readall", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("filesystem_readtolist", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_readtolist filepath strlist";
-                    if (split_input.Length == 3)
-                    {
-                        string path_ = SetVariableValue(split_input[1]);
-                        string locallist_ = SetVariableValue(split_input[2]);
-                        bool listExists = false;
-                        bool listEmpty = false;
-                        bool listIsString = false;
-                        // Make sure if there is a list with this name, it is empty
-                        foreach(LocalList list_ in local_lists)
-                        {
-                            if (list_.Name == locallist_)
-                            {
-                                listExists = true;
-                                if (list_.numberOfElements == 0)
-                                {
-                                    listEmpty = true; // It exists but it is empty (usable)
-                                    if (list_.arrayType == ArrayType.String)
-                                    {
-                                        listIsString = true;
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                        
-                        if (listExists == false)
-                        {
-                            LocalList locallist = new LocalList();
-                            bool issuccess = true;
-                            try
-                            {
-                                locallist = filesystem.ReadFileToList(path_, locallist_);
-                            } catch
-                            {
-                                issuccess = false;
-                            }
-                            if (issuccess == true)
-                            {
-                                local_lists.Add(locallist);
-                                valid_command = true;
-                            }
-                        } else if ((listExists == true) && (listEmpty == true))
-                        {
-                            if (listIsString == true)
-                            {
-                                LocalList locallist = new LocalList();
-                                bool issuccess = true;
-                                try
-                                {
-                                    locallist = filesystem.ReadFileToList(path_, locallist_);
-                                }
-                                catch
-                                {
-                                    issuccess = false;
-                                }
-                                if (issuccess == true)
-                                {
-                                    foreach(LocalList lists_ in local_lists)
-                                    {
-                                        if (lists_.Name == locallist_)
-                                        {
+                    bool validCommand = false, hasOut = false, hasPlaceholder = false, expectsReturn = false, variableExists = false, validVariable = false;
+                    int inputLen = split_input.Length;
+                    string _placeholder = split_input[0].Remove(0, 11).ToLower(), writtenOut = "";
+                    string expectedFormat = "will work this soon";
 
-                                            foreach(LocalVariable var in locallist.items)
+                    if (filesystem.commandDirectoryVoid.ContainsKey(_placeholder))
+                    {
+                        entry_made = true;
+                        if (inputLen < 2)
+                        {
+                            // Throw format error
+                            errorHandler.ThrowError(1100, split_input[0], null, null, null, expectedFormat);
+                            return;
+                        }
+                        if (filesystem.actionsWithPlaceholder.ContainsKey(_placeholder)) { hasPlaceholder = true; }
+                        if (filesystem.outputsToFile.ContainsKey(_placeholder))
+                        {
+                            hasOut = true;
+                            // Rebuild string
+                            string temp_ = split_input[0] + " " + split_input[1] + " ";
+                            string temp_2 = input.Replace(temp_, "");
+                            writtenOut += SetVariableValue(temp_2);
+                        }
+                        if ((hasPlaceholder == false)&&(inputLen < 3)) { errorHandler.ThrowError(1100, split_input[0], null, null, null, expectedFormat); return; } // <----- Throw format error
+
+                        if (hasPlaceholder == true)
+                        {
+                            filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], "");
+                        } else if (hasOut == true)
+                        {
+                            filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], writtenOut);
+                        } else
+                        {
+                            filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], split_input[2]);
+                        }
+                    }
+
+                    if (filesystem.commandDirectoryReturnString.ContainsKey(_placeholder))
+                    {
+                        objectClass expectedReturnType = default;
+                        string expectedObjectName = split_input[2];
+                        string expectedPath = split_input[1];
+                        switch (_placeholder)
+                        {
+                            case "readtolist":
+                                expectedReturnType = objectClass.List;
+                                string[] filecontents = filesystem.commandDirectoryReturnString[_placeholder].Invoke(expectedPath, "");
+                                if (filecontents == null)
+                                {
+                                    // Throw error then return
+                                    return;
+                                }
+                                string filename = filesystem.fileName(expectedPath);
+                                LocalList expectList = local_lists.Find(str => str.Name == expectedObjectName);
+                                if (expectList != null)
+                                {
+                                    if (expectList.arrayType == ArrayType.String)
+                                    {
+                                        if (expectList.items.Count == 0)
+                                        {
+                                            int x = 0;
+                                            foreach (string w in filecontents)
                                             {
-                                                lists_.items.Add(var);
-                                                lists_.numberOfElements++;
+                                                LocalVariable temp_ = new LocalVariable();
+                                                temp_.Name = $"{filename},line{x}";
+                                                temp_.Value = w;
+                                                expectList.items.Add(temp_);
+                                                x++;
                                             }
-                                            valid_command = true;
+                                        } else
+                                        {
+                                            // Throw error bad type
+                                            errorHandler.ThrowError(2100, null, null, expectedObjectName, "empty string list", expectedFormat);
                                             break;
                                         }
                                     }
+                                    else
+                                    {
+                                        // Throw error bad type
+                                        errorHandler.ThrowError(2100, null, null, expectedObjectName, "empty string list", expectedFormat);
+                                        break;
+                                    }
                                 }
-
-
-                            } else
-                            {
-                                Console.WriteLine($"If providing name of list that already exists, it must be an empty string list.");
-                            }
-                        } else
-                        {
-                            Console.WriteLine($"If providing name of list that already exists, it must be an empty string list.");
+                                else
+                                {
+                                    LocalList newlist = new LocalList();
+                                    newlist.arrayType = ArrayType.String;
+                                    newlist.Name = expectedObjectName;
+                                    int x = 0;
+                                    foreach(string w in filecontents)
+                                    {
+                                        LocalVariable temp_ = new LocalVariable();
+                                        temp_.Name = $"{filename},line{x}";
+                                        temp_.Value = w;
+                                        newlist.items.Add(temp_);
+                                        x++;
+                                    }
+                                    namesInUse.Add(expectedObjectName, objectClass.List);
+                                    local_lists.Add(newlist);
+                                }
+                                break;
+                            case "readall":
+                                expectedReturnType = objectClass.Variable;
+                                string[] filecontents_ = filesystem.commandDirectoryReturnString[_placeholder].Invoke(expectedPath, "");
+                                LocalVariable expectString = local_variables.Find(str => str.Name == expectedObjectName);
+                                if (expectString != null)
+                                {
+                                    if (expectString.Type == VariableType.String)
+                                    {
+                                        expectString.Value = "";
+                                        foreach(string q in filecontents_)
+                                        {
+                                            expectString.Value += q + Environment.NewLine;
+                                        }
+                                    } else
+                                    {
+                                        // Throw error bad type
+                                        errorHandler.ThrowError(2100, null, null, expectedObjectName, "string variable", expectedFormat);
+                                        break;
+                                    }
+                                } else
+                                {
+                                    // Throw error not found
+                                    errorHandler.ThrowError(1200, null, expectedObjectName, null, null, expectedFormat);
+                                    break;
+                                }
+                                break;
+                            default:
+                                // Throw error for bad parameter
+                                break;
                         }
                     }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_readtolist", null, null, null, expectedFormat);
-                    }
                 }
-                if (split_input[0].Equals("filesystem_delete", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_delete filepath";
-                    if (split_input.Length == 2)
-                    {
-                        filesystem.DeleteFile(split_input[1]);
-                        valid_command = true;
-                    } else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_delete", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("filesystem_copy", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_copy currentpath targetpath";
-                    if (split_input.Length == 3)
-                    {
-                        filesystem.CopyFileToLocation(split_input[1], split_input[2]);
-                        valid_command = true;
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_copy", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("filesystem_move", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_move currentpath targetpath";
-                    if (split_input.Length == 3)
-                        {
-                            filesystem.MoveFileToLocation(split_input[1], split_input[2]);
-                        valid_command = true;
-                    }
-                        else
-                        {
-                        errorHandler.ThrowError(1100, "filesystem_move", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("filesystem_sethidden", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_sethidden filepath";
-                    if (split_input.Length == 2)
-                    {
-                        filesystem.SetFileToHidden(split_input[1]);
-                        valid_command = true;
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_sethidden", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("filesystem_setvisible", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_setvisible filepath";
-                    if (split_input.Length == 2)
-                    {
-                        filesystem.SetHiddenFileToVisible(split_input[1]);
-                        valid_command = true;
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_setvisible", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("filesystem_mkdir", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_mkdir path";
-                    if (split_input.Length == 2)
-                    {
-                        filesystem.CreateDirectory(split_input[1]);
-                        valid_command = true;
-                    } else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_setvisible", null, null, null, expectedFormat);
 
-                    }
-                }
-                if (split_input[0].Equals("filesystem_rmdir", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_rmdir path";
-                    if (split_input.Length == 2)
-                    {
-                        filesystem.RemoveDirectory(split_input[1]);
-                        valid_command = true;
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_rmdir", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("filesystem_copydir", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_copydir currentpath targetpath";
-                    if (split_input.Length == 3)
-                    {
-                        filesystem.CopyDirectoryToLocation(split_input[1], split_input[2]);
-                        valid_command = true;
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_copydir", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("filesystem_movedir", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "filesystem_movdir currentpath targetpath";
-                    if (split_input.Length == 3)
-                    {
-                        filesystem.MoveDirectoryToLocation(split_input[1], split_input[2]);
-                        valid_command = true;
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "filesystem_movdir", null, null, null, expectedFormat);
-                    }
-                }
 
                 /// <summary>
                 /// Tasks are a list of commands than can be executed as a background task (on a separate thread) or in-line with the main code.
@@ -6680,6 +6223,152 @@ namespace GyroPrompt
                     {
                         errorHandler.ThrowError(1100, entryCommand, null, null, null, expectedFormat);
                     }
+                }
+                if (
+                    ((split_input[0].StartsWith("tcp_client_", StringComparison.OrdinalIgnoreCase)) || (split_input[0].StartsWith("tcp_server_"))) && 
+                    ((split_input[0].EndsWith("_whitelist", StringComparison.OrdinalIgnoreCase)) || (split_input[0].EndsWith("blacklist")))
+                    )
+                {
+                    entry_made = true;
+                    string designation = "tcp_client_whitelist", eaction = "";
+                    string expectedFormat = "tcp_client_whitelist clientname add/remove 127.0.0.1|127.0.0.2|etc", badVals = "";
+                    bool validTCPObject = false, foundObject = false, foundBadVal = false, minimum1goodval = false, hadAddOrRemove = false;
+                    int serverOrClient = -1, whiteOrblack = -1, addOrRemove = -1, validCount = 0, goodValsAdded = 0; // 0 for client, 1 for server ||| 0 for white, 1 for black ||| 0 for add, 1 for remove
+
+                    // Did user specify a server or client
+                    string srv_clnt = split_input[0].ToLower();
+                    switch (srv_clnt)
+                    {
+                        case { } when srv_clnt.StartsWith("tcp_client_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_whitelist", StringComparison.OrdinalIgnoreCase):
+                            serverOrClient = 0;
+                            whiteOrblack = 0;
+                            expectedFormat = "tcp_client_whitelist clientname add/remove 127.0.0.1|127.0.0.2|etc";
+                            designation = "tcp_client_whitelist";
+                            break;
+                        case { } when srv_clnt.StartsWith("tcp_client_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_blacklist", StringComparison.OrdinalIgnoreCase):
+                            serverOrClient = 0;
+                            whiteOrblack = 1;
+                            expectedFormat = "tcp_client_blacklist clientname add/remove 127.0.0.1|127.0.0.2|etc";
+                            designation = "tcp_client_blacklist";
+                            break;
+                        case { } when srv_clnt.StartsWith("tcp_server_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_whitelist", StringComparison.OrdinalIgnoreCase):
+                            serverOrClient = 1;
+                            whiteOrblack = 0;
+                            expectedFormat = "tcp_server_whitelist servername add/remove 127.0.0.1|127.0.0.2|etc";
+                            designation = "tcp_server_whitelist";
+                            break;
+                        case { } when srv_clnt.StartsWith("tcp_server_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_blacklist", StringComparison.OrdinalIgnoreCase):
+                            serverOrClient = 1;
+                            whiteOrblack = 1;
+                            expectedFormat = "tcp_server_blacklist servername add/remove 127.0.0.1|127.0.0.2|etc";
+                            designation = "tcp_server_blacklist";
+                            break;
+                        default:
+                            // Throw 1100 format error kinda redundant
+                            errorHandler.ThrowError(1100, "tcp_client_whitelist/blacklist or tcp_server_whitelist/blacklist", null, null, null, expectedFormat);
+                            break;
+                    }
+
+                    // Minimum format check
+                    if (split_input.Length < 4)
+                    {
+                        // Throw 1100 format error
+                        errorHandler.ThrowError(1100, "tcp_client_whitelist/blacklist or tcp_server_whitelist/blacklist", null, null, null, expectedFormat);
+                        return;
+                    }
+
+                    // Does the client/server exist
+                    string expectedTCPName = split_input[1];
+                    foundObject = NameInUse(expectedTCPName);
+                    if (foundObject == true) { validTCPObject = (namesInUse[expectedTCPName] == objectClass.TCPNetObj); }
+
+                    // Did user define add/remove
+                    string expectedAction = split_input[2].ToLower();
+                    switch (expectedAction)
+                    {
+                        case "add":
+                            hadAddOrRemove = true;
+                            addOrRemove = 0;
+                            eaction += "added";
+                            break;
+                        case "remove":
+                            hadAddOrRemove = true;
+                            addOrRemove = 1;
+                            eaction += "removed";
+                            break;
+                        default:
+                            // Throw 1400 bad value error
+                            errorHandler.ThrowError(1400, designation, null, expectedAction, "add/remove", expectedFormat);
+                            return;
+                            break;
+                    }
+
+                    if (foundObject == true) { validCount++; } else { errorHandler.ThrowError(1200, null, expectedTCPName, null, null, expectedFormat); return; }
+                    if (validTCPObject == true) { validCount++; } else { errorHandler.ThrowError(2100, null, null, GetDescription(namesInUse[expectedTCPName]), "TCP object", expectedFormat); return; }
+                    if (hadAddOrRemove == true) { validCount++; } else { errorHandler.ThrowError(1400, designation, null, expectedAction, "add/remove", expectedFormat); return; } // Redundant error check
+
+                    if (validCount == 3)
+                    {
+                        IPAddress ipAddress;
+                        string[] expectedIPAddresses = split_input[3].Split('|');
+                        IPStatus ipDesignation = default;
+                        if (whiteOrblack == 0) { ipDesignation = IPStatus.Whitelist; } else if (whiteOrblack == 1) { ipDesignation = IPStatus.Blacklist; }
+                        foreach(TCPNetSettings tcpobj in activeTCPObjects)
+                        {
+                            if (tcpobj.ParentName == expectedTCPName)
+                            {
+                                foreach(string ipAddressString in expectedIPAddresses)
+                                {
+                                    if (IPAddress.TryParse(ipAddressString, out ipAddress))
+                                    {
+                                        if (addOrRemove == 1)
+                                        {
+                                            if (tcpobj.IPAddressBook.ContainsKey(ipAddress))
+                                            {
+                                                tcpobj.IPAddressBook.Remove(ipAddress);
+                                                minimum1goodval = true;
+                                                valid_command = true;
+                                                goodValsAdded++;
+                                            }
+                                            
+                                        } else if (addOrRemove == 0)
+                                        {
+                                            tcpobj.IPAddressBook.Add(ipAddress, ipDesignation);
+                                            minimum1goodval = true;
+                                            valid_command = true;
+                                            goodValsAdded++;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        foundBadVal = true;
+                                        badVals += ipAddressString + " ";
+                                    }
+                                }
+                            }
+                        }
+
+                        if (minimum1goodval == true)
+                        {
+                            badVals += $"- {goodValsAdded} items were successfully {eaction}.";
+                            if (foundBadVal == true) {
+                                errorHandler.ThrowError(1400, designation, null, badVals, "valid IP address", expectedFormat);
+                            }
+                        } else
+                        {
+                            if (foundBadVal == true) {
+                                errorHandler.ThrowError(1400, designation, null, badVals, "valid IP address", expectedFormat);
+                            } else
+                            {
+                                errorHandler.ThrowError(1700, null, "valid IP address", null, null, expectedFormat);
+
+                            }
+                        }
+
+                    }
+
+
+
                 }
                 // Data packet stuff
                 if (split_input[0].Equals("new_datapacket", StringComparison.OrdinalIgnoreCase)) 

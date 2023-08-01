@@ -37,6 +37,8 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             {
                 
             };
+
+            objview = newlabel;
         }
         public override void SetWidth(int x_, coordVal filler)
         {
@@ -92,16 +94,16 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 newlabel.X = Pos.Right(obj);
             }
         }
-        public void SetText(string text)
+        public override void SetText(string text)
         {
             newlabel.Text = text;
             newlabel.SetNeedsDisplay();
         }
-        public string GetText()
+        public override string GetText()
         {
             return newlabel.Text.ToString();
         }
-        public void SetXCoord(int x_, coordValue filler)
+        public override void SetXCoord(int x_, coordValue filler)
         {
             try
             {
@@ -123,7 +125,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
-        public void SetYCoord(int x_, coordValue filler)
+        public override void SetYCoord(int x_, coordValue filler)
         {
             try
             {

@@ -19,25 +19,25 @@ namespace GyroPrompt.Network_Functions
             string message = "";
             switch(reply.Status)
             {
-                case IPStatus.Success:
+                case System.Net.NetworkInformation.IPStatus.Success:
                     string a = reply.RoundtripTime.ToString();
                     break;
-                case IPStatus.DestinationNetworkUnreachable:
+                case System.Net.NetworkInformation.IPStatus.DestinationNetworkUnreachable:
 
                     break;
-                case IPStatus.DestinationHostUnreachable:
+                case System.Net.NetworkInformation.IPStatus.DestinationHostUnreachable:
 
                     break;
-                case IPStatus.DestinationProhibited:
+                case System.Net.NetworkInformation.IPStatus.DestinationProhibited:
 
                     break;
-                case IPStatus.BadDestination:
+                case System.Net.NetworkInformation.IPStatus.BadDestination:
 
                     break;
-                case IPStatus.HardwareError:
+                case System.Net.NetworkInformation.IPStatus.HardwareError:
 
                     break;
-                case IPStatus.BadRoute:
+                case System.Net.NetworkInformation.IPStatus.BadRoute:
 
                     break;
             }

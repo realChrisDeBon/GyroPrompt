@@ -43,6 +43,8 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             {
                 btnClicked();
             };
+
+            objview = newButton;
         }
         public void btnClicked()
         {
@@ -103,15 +105,15 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 newButton.X = Pos.Right(obj);
             }
         }
-        public void SetText (string text)
+        public override void SetText (string text)
         {
             newButton.Text = text;
         }
-        public string GetText()
+        public override string GetText()
         {
             return newButton.Text.ToString();
         }
-        public void SetXCoord(int x_, coordValue filler)
+        public override void SetXCoord(int x_, coordValue filler)
         {
             try
             {
@@ -133,7 +135,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
-        public void SetYCoord(int x_, coordValue filler)
+        public override void SetYCoord(int x_, coordValue filler)
         {
             try
             {
