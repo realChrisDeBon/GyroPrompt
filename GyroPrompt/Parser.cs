@@ -892,12 +892,12 @@ namespace GyroPrompt
                                             valid_command = true;
                                             break;
                                         case VariableType.Int:
-                                            string placeholder = SetVariableValue(a);
+                                            string placeholder = SetVariableValue(a).Trim();
                                             string b = ConvertNumericalVariable(placeholder).Trim();
-                                            bool isnumber = IsNumeric(b);
+                                            bool isnumber = IsNumeric(a_c);
                                             if (isnumber == true)
                                             {
-                                                var.Value = b;
+                                                var.Value = a_c;
                                                 valid_command = true;
                                             }
                                             else
@@ -908,10 +908,10 @@ namespace GyroPrompt
                                         case VariableType.Float:
                                             string placeholder2 = SetVariableValue(a);
                                             string b_ = ConvertNumericalVariable(placeholder2).Trim();
-                                            bool isfloat = float.TryParse(b_, NumberStyles.Float, CultureInfo.InvariantCulture.NumberFormat, out float result);
+                                            bool isfloat = float.TryParse(a_c, NumberStyles.Float, CultureInfo.InvariantCulture.NumberFormat, out float result);
                                             if (isfloat == true)
                                             {
-                                                var.Value = b_;
+                                                var.Value = a_c;
                                                 valid_command = true;
                                             }
                                             else
@@ -922,7 +922,7 @@ namespace GyroPrompt
                                         case VariableType.Boolean:
                                             string val = SetVariableValue(split_input[3]);
                                             bool validInput = false;
-                                            if (booldict.ContainsKey(val))
+                                            if (booldict.ContainsKey(a_c))
                                             {
                                                 bool temp__ = booldict[val];
                                                 validInput = true;
@@ -5375,17 +5375,21 @@ namespace GyroPrompt
                         if (hasPlaceholder == true)
                         {
                             filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], "");
+                            valid_command = true;
                         } else if (hasOut == true)
                         {
                             filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], writtenOut);
+                            valid_command = true;
                         } else
                         {
                             filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], split_input[2]);
+                            valid_command = true;
                         }
                     }
 
                     if (filesystem.commandDirectoryReturnString.ContainsKey(_placeholder))
                     {
+                        entry_made = true;
                         objectClass expectedReturnType = default;
                         string expectedObjectName = split_input[2];
                         string expectedPath = split_input[1];
@@ -5414,8 +5418,10 @@ namespace GyroPrompt
                                                 temp_.Name = $"{filename},line{x}";
                                                 temp_.Value = w;
                                                 expectList.items.Add(temp_);
+                                                expectList.numberOfElements++;
                                                 x++;
                                             }
+                                            valid_command = true;
                                         } else
                                         {
                                             // Throw error bad type
@@ -5442,10 +5448,12 @@ namespace GyroPrompt
                                         temp_.Name = $"{filename},line{x}";
                                         temp_.Value = w;
                                         newlist.items.Add(temp_);
+                                        newlist.numberOfElements++;
                                         x++;
                                     }
                                     namesInUse.Add(expectedObjectName, objectClass.List);
                                     local_lists.Add(newlist);
+                                    valid_command = true;
                                 }
                                 break;
                             case "readall":
@@ -5461,6 +5469,7 @@ namespace GyroPrompt
                                         {
                                             expectString.Value += q + Environment.NewLine;
                                         }
+                                        valid_command = true;
                                     } else
                                     {
                                         // Throw error bad type
