@@ -14,6 +14,7 @@ using System;
 using System.Collections;
 using System.ComponentModel;
 using System.Configuration;
+using System.Data;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -64,7 +65,7 @@ namespace GyroPrompt
         public ArrayList local_arrays = new ArrayList();
         public List<TaskList> tasklists_inuse = new List<TaskList>();
         public Dictionary<string, string[]> local_function = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        
+
 
         // Mostly network related lists and objects
         public ArrayList activeTCPObjects = new ArrayList();
@@ -82,7 +83,7 @@ namespace GyroPrompt
         public string eventMessage_
         {
             get { return eventMessage; }
-            set { 
+            set {
                 eventMessage = value;
                 LocalVariable em = local_variables.Find(e => e.Name == eventmsg_str);
                 em.Value = value;
@@ -90,8 +91,8 @@ namespace GyroPrompt
         }
         public void addPacketToStack(dataPacket dpToStack)
         {
-                datapacketStack.Add(dpToStack);
-                parseDP(dpToStack);
+            datapacketStack.Add(dpToStack);
+            parseDP(dpToStack);
         }
         public void parseDP(dataPacket dpIn)
         {
@@ -102,7 +103,7 @@ namespace GyroPrompt
             LocalList temp = new LocalList();
             LocalVariable temp_ = local_variables.Find(x => x.Name == datapacketval_str);
             temp_.Value = dpIn.objData;
-            
+
             if (temp_ == null)
             {
                 return;
@@ -140,7 +141,7 @@ namespace GyroPrompt
         public FilesystemInterface filesystem = new FilesystemInterface();
         public DataHasher datahasher = new DataHasher();
         public DataSerializer dataserializer = new DataSerializer();
-        
+
         public IDictionary<string, objectClass> namesInUse = new Dictionary<string, objectClass>();
         public bool running_script = false; // Used for determining if a script is being ran
         public int current_line = 0; // Used for reading scripts
@@ -157,9 +158,9 @@ namespace GyroPrompt
 
         public bool GUIModeEnabled = false;
         public string ConsoleOutCatcher = "";
-        ConsoleOutputDirector consoleDirector = new ConsoleOutputDirector();
+        public ConsoleOutputDirector consoleDirector = new ConsoleOutputDirector();
         public IDictionary<string, GUI_BaseItem> GUIObjectsInUse = new Dictionary<string, GUI_BaseItem>(StringComparer.OrdinalIgnoreCase);
-        
+
         /// <summary>
         /// Below are environmental variables. These are meant for the users to be able to interact with the console settings and modify the environment.
         /// The ConsoleInfo struct/method and keyConsoleKey IDictionary enable easier manipulation of console colors and to save current settings to be recalled.
@@ -178,14 +179,7 @@ namespace GyroPrompt
         }
         public IDictionary<string, ConsoleColor> keyConsoleColor = new Dictionary<string, ConsoleColor>(StringComparer.OrdinalIgnoreCase);
         public IDictionary<string, Terminal.Gui.Color> terminalColor = new Dictionary<string, Terminal.Gui.Color>(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<GUIObjectType, bool> objectCanRepos = new Dictionary<GUIObjectType, bool>()
-        {
-                            { GUIObjectType.Button, true},
-                            { GUIObjectType.Textfield, true},
-                            { GUIObjectType.Checkbox, true},
-                            { GUIObjectType.Label, true},
-        };
-        public Dictionary<GUIObjectType, bool> objectHasTextAccess = new Dictionary<GUIObjectType, bool>();
+
         public void setConsoleStatus(ConsoleInfo _consoleinfo)
         {
             Console.ForegroundColor = _consoleinfo.status_forecolor;
@@ -312,7 +306,7 @@ namespace GyroPrompt
             terminalColor.Add("Magenta", Color.BrightMagenta);
             terminalColor.Add("White", Color.White);
 
-            objectHasTextAccess = objectCanRepos;
+
 
             StringVariable datapacketvalue = new()
             {
@@ -358,7 +352,7 @@ namespace GyroPrompt
             filesystem.topparse = this;
             filesystem.LoadComDict();
         }
-        
+
 
         /// <summary>
         /// Parser will handle input looped as opposed to the program entry point's Main()
@@ -366,23 +360,23 @@ namespace GyroPrompt
         /// </summary>
         public void beginInputLoop()
         {
-            
+
             TextWriter originOut = Console.Out;
             while (true)
             {
-                if (GUIModeEnabled == true) 
+                if (GUIModeEnabled == true)
                 {
                     using (var writer = new StringWriter())
                     {
-                            Console.SetOut(writer);
-                            //Console.Write("GyroPrompt > ");
-                            string command = Console.ReadLine();
-                            parse(command);
-                            ConsoleOutCatcher = ConsoleOutCatcher + (writer.ToString());
+                        Console.SetOut(writer);
+                        //Console.Write("GyroPrompt > ");
+                        string command = Console.ReadLine();
+                        parse(command);
+                        ConsoleOutCatcher = ConsoleOutCatcher + (writer.ToString());
                         writer.Flush();
                         if (GUIModeEnabled == false) { Console.SetOut(originOut); }
                     }
-                } else if (GUIModeEnabled == false) 
+                } else if (GUIModeEnabled == false)
                 {
                     if (Console.Out != originOut)
                     {
@@ -394,7 +388,7 @@ namespace GyroPrompt
                 }
             }
         }
-        
+
         public void parse(string input)
         {
             try
@@ -489,14 +483,14 @@ namespace GyroPrompt
                         split_input[3].Split();
                         string aa = SetVariableValue(split_input[3]);
                         aa.ToLower();
-                        if (aa.Equals("False",StringComparison.OrdinalIgnoreCase) || aa == "0") { proper_value = true; }
+                        if (aa.Equals("False", StringComparison.OrdinalIgnoreCase) || aa == "0") { proper_value = true; }
                         if (aa.Equals("True", StringComparison.OrdinalIgnoreCase) || aa == "1") { proper_value = true; }
 
 
                         if (proper_value == true)
                         {
                             bool name_check = NameInUse(split_input[1]);
-                            if (name_check == true) { 
+                            if (name_check == true) {
                                 no_issues = false;
                                 errorHandler.ThrowError(1300, null, null, split_input[1], null, expectedFormat);
                             }
@@ -705,7 +699,7 @@ namespace GyroPrompt
                     bool validVarType = false, validName = ContainsOnlyLettersAndNumbers(expectedArrayName), nameAlreadyUsed = NameInUse(expectedArrayName), clearToProceed = true, someBadVals = false;
                     Array_Type arrayType = Array_Type.None;
 
-                    switch(true)
+                    switch (true)
                     {
                         case bool b when expectedVariableType.Equals("bool", StringComparison.OrdinalIgnoreCase):
                             arrayType = Array_Type.Boolean;
@@ -756,7 +750,7 @@ namespace GyroPrompt
                     {
                         int pos = 3;
                         int len = split_input.Length;
-                        foreach(string s in split_input.Skip(2))
+                        foreach (string s in split_input.Skip(2))
                         {
                             initialValues += SetVariableValue(s);
                             if (pos != len)
@@ -775,7 +769,7 @@ namespace GyroPrompt
                                 break;
                             case Array_Type.Boolean:
                                 List<bool> valsToPassb = new List<bool>();
-                                foreach(string q in initialValuesSplit)
+                                foreach (string q in initialValuesSplit)
                                 {
                                     if (booldict.ContainsKey(q))
                                     {
@@ -884,7 +878,7 @@ namespace GyroPrompt
                                     string a = "";
                                     string a__ = $"set {var_name} = ";
                                     string a_c = SetVariableValue(input.Remove(0, a__.Length));
-                                   
+
                                     switch (var.Type)
                                     {
                                         case VariableType.String:
@@ -929,7 +923,7 @@ namespace GyroPrompt
                                                 var.Value = temp__.ToString();
                                                 valid_command = true;
                                             }
-                                            
+
                                             if (validInput == false)
                                             {
                                                 errorHandler.ThrowError(1400, $"bool", null, split_input[3], "True/False", expectedFormat);
@@ -1184,7 +1178,7 @@ namespace GyroPrompt
                                         break;
                                     case "title":
                                         string newTitle = "";
-                                        for(int xx = 3; xx < split_input.Length; xx++)
+                                        for (int xx = 3; xx < split_input.Length; xx++)
                                         {
                                             newTitle += SetVariableValue(split_input[xx]);
                                             if (xx != split_input.Length - 1)
@@ -1197,7 +1191,7 @@ namespace GyroPrompt
                                         break;
                                     case "prompt":
                                         string a__ = SetVariableValue(split_input[3]);
-                                        string[] validValues = {"True", "On", "False", "Off" };
+                                        string[] validValues = { "True", "On", "False", "Off" };
                                         bool validinput = false;
                                         int x = 0;
                                         foreach (string ss in validValues)
@@ -1356,7 +1350,7 @@ namespace GyroPrompt
                                     {
                                         // Since both are numerical, we can use an operator that compares their value by greater/less than
                                         condition_is_met = condition_checker.ConditionChecked(operator_, var_val.Trim(), conditon_checkvariables.Trim());
-                                        
+
                                     }
                                     else
                                     {
@@ -1379,15 +1373,15 @@ namespace GyroPrompt
                                             catch
                                             {
                                                 //Error with specific command
-                                                
+
                                             }
-                                            
+
                                         }
                                     }
                                     catch
                                     {
                                         // General error
-                                        
+
                                     }
                                 }
                                 else if ((condition_is_met == false) && (else_statement_exists == true))
@@ -1411,7 +1405,7 @@ namespace GyroPrompt
                                     }
                                     catch
                                     {
-                                        
+
                                     }
                                 }
                             }
@@ -1508,7 +1502,7 @@ namespace GyroPrompt
                                                         catch
                                                         {
                                                             //Error with specific command, exiting 'while' loop
-                                                            
+
                                                             break;
                                                         }
                                                     }
@@ -1516,7 +1510,7 @@ namespace GyroPrompt
                                                 catch
                                                 {
                                                     // General error, exiting 'while' loop
-                                                    
+
                                                     break;
                                                 }
                                             }
@@ -1563,7 +1557,7 @@ namespace GyroPrompt
                                                     catch
                                                     {
                                                         // General error, exiting 'while' loop
-                                                        
+
                                                         break;
                                                     }
                                                 }
@@ -1743,23 +1737,23 @@ namespace GyroPrompt
                         string[] prompt_ = new string[2];
                         bool delimiterDetecter = false;
 
-                            string placeholder = string.Join(" ", split_input.Skip(2));
-                            foreach(char c in placeholder)
+                        string placeholder = string.Join(" ", split_input.Skip(2));
+                        foreach (char c in placeholder)
+                        {
+                            if (c != '|')
                             {
-                                if (c != '|')
+                                if (delimiterDetecter == false)
                                 {
-                                    if (delimiterDetecter == false)
-                                    {
-                                        prompt_[0] += c;
-                                    } else if (delimiterDetecter == true)
-                                        {
-                                        prompt_[1] += c;
-                                        }
-                                } else if (c == '|')
+                                    prompt_[0] += c;
+                                } else if (delimiterDetecter == true)
                                 {
-                                    delimiterDetecter = true;
+                                    prompt_[1] += c;
                                 }
+                            } else if (c == '|')
+                            {
+                                delimiterDetecter = true;
                             }
+                        }
 
                         bool validvar_ = LocalVariableExists(var_);
                         if (validvar_ == true)
@@ -1831,7 +1825,7 @@ namespace GyroPrompt
                                 // Recombine all strings
                                 int pos = 3;
                                 int len = split_input.Length;
-                                foreach(string s in split_input.Skip(2))
+                                foreach (string s in split_input.Skip(2))
                                 {
                                     valuesPresplit += SetVariableValue(s);
                                     if (pos != len)
@@ -1874,7 +1868,7 @@ namespace GyroPrompt
                         errorHandler.ThrowError(1100, "string_replace", null, null, null, expectedFormat);
                         return;
                     }
-                    
+
                 }
                 if (split_input[0].Equals("string_remove", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1991,7 +1985,7 @@ namespace GyroPrompt
                         }
                         // Then split it by vertical pipe or put single line
                         string[] commandListSplit = commandListUnsplit.Split('|');
-                        string[] commandsNotSplit = { commandListUnsplit }; 
+                        string[] commandsNotSplit = { commandListUnsplit };
                         if (verticalPipeSplit == true)
                         {
                             local_function.Add(expectedFunctionName, commandListSplit);
@@ -2012,7 +2006,7 @@ namespace GyroPrompt
                         string functionToExecute = split_input[1];
                         if (local_function.ContainsKey(functionToExecute))
                         {
-                            foreach(string command_ in local_function[functionToExecute])
+                            foreach (string command_ in local_function[functionToExecute])
                             {
                                 parse(command_);
                             }
@@ -2264,14 +2258,14 @@ namespace GyroPrompt
                                 {
 
                                     string notsplitData = expectedStringVar.Value;
-                                    
+
                                     // Trim the beginning and ending curly brackets
-                                    
-                                    string gg = notsplitData.Replace("{","");
-                                    string hh = gg.Replace("}","");
+
+                                    string gg = notsplitData.Replace("{", "");
+                                    string hh = gg.Replace("}", "");
                                     notsplitData = hh.TrimEnd();
 
-                                    
+
                                     // Grab the items within the list if they exist (they'll be within square brackets)
                                     int startIndex = notsplitData.IndexOf('[');
                                     int endIndex = notsplitData.IndexOf(']');
@@ -2282,7 +2276,7 @@ namespace GyroPrompt
                                         informationBetweenBrackets = notsplitData.Substring(startIndex + 1, endIndex - startIndex - 1);
                                         // Add each item to the foundElement dictionary
                                         string[] newvars = informationBetweenBrackets.Split(',');
-                                        for(int i = 0; i < newvars.Length; i++)
+                                        for (int i = 0; i < newvars.Length; i++)
                                         {
                                             if (newvars[i].Contains("\"Name\":"))
                                             {
@@ -2453,7 +2447,7 @@ namespace GyroPrompt
                                                                             list.arrayType = ArrayType.Boolean;
                                                                             break;
                                                                     }
-                                                                    foreach(var newvar in foundElement)
+                                                                    foreach (var newvar in foundElement)
                                                                     {
                                                                         LocalVariable newvariable = new LocalVariable();
                                                                         newvariable.Name = (newvar.Key);
@@ -2486,7 +2480,7 @@ namespace GyroPrompt
                                                             {
                                                                 if (datapckt.ID == stringSerialized)
                                                                 {
-                                                                    
+
                                                                     valid_command = true;
                                                                 }
                                                             }
@@ -2502,7 +2496,7 @@ namespace GyroPrompt
                                                     errorHandler.ThrowError(2100, null, null, $"{receivingObject} is a {GetDescription(namesInUse[receivingObject])}", $"{GetDescription(expectedClass)}", expectedFormat);
                                                 }
                                             }
-                                            else 
+                                            else
                                             {
                                                 // receiving object does not exist, we will create new object rather than find existing
                                                 switch (expectedClass)
@@ -2517,21 +2511,21 @@ namespace GyroPrompt
                                                         newvar_.Name = receivingObject;
                                                         newvar_.Value = newvalue;
 
-                                                                switch (valtype)
-                                                                {
-                                                                    case 0:
-                                                                        newvar_.Type = VariableType.String;
-                                                                        break;
-                                                                    case 1:
-                                                                        newvar_.Type = VariableType.Int;
-                                                                        break;
-                                                                    case 2:
-                                                                        newvar_.Type = VariableType.Float;
-                                                                        break;
-                                                                    case 3:
-                                                                        newvar_.Type = VariableType.Boolean;
-                                                                        break;
-                                                                }
+                                                        switch (valtype)
+                                                        {
+                                                            case 0:
+                                                                newvar_.Type = VariableType.String;
+                                                                break;
+                                                            case 1:
+                                                                newvar_.Type = VariableType.Int;
+                                                                break;
+                                                            case 2:
+                                                                newvar_.Type = VariableType.Float;
+                                                                break;
+                                                            case 3:
+                                                                newvar_.Type = VariableType.Boolean;
+                                                                break;
+                                                        }
                                                         local_variables.Add(newvar_);
                                                         namesInUse.Add(receivingObject, objectClass.Variable);
                                                         valid_command = true;
@@ -2539,46 +2533,46 @@ namespace GyroPrompt
                                                     case (objectClass.List):
                                                         LocalList newlist_ = new LocalList();
                                                         newlist_.Name = receivingObject;
-                                                                switch (valtype)
-                                                                {
-                                                                    case 0:
-                                                                        newlist_.arrayType = ArrayType.String;
-                                                                        break;
-                                                                    case 1:
-                                                                        newlist_.arrayType = ArrayType.Int;
-                                                                        break;
-                                                                    case 2:
-                                                                        newlist_.arrayType = ArrayType.Float;
-                                                                        break;
-                                                                    case 3:
-                                                                        newlist_.arrayType = ArrayType.Boolean;
-                                                                        break;
-                                                                }
-                                                                foreach (var newvar in foundElement)
-                                                                {
-                                                                    LocalVariable newvariable = new LocalVariable();
-                                                                    newvariable.Name = (newvar.Key);
-                                                                    newvariable.Value = (newvar.Value);
-                                                                    switch (valtype)
-                                                                    {
-                                                                        case 0:
-                                                                            newvariable.Type = VariableType.String;
-                                                                            break;
-                                                                        case 1:
-                                                                            newvariable.Type = VariableType.Int;
-                                                                            break;
-                                                                        case 2:
-                                                                            newvariable.Type = VariableType.Float;
-                                                                            break;
-                                                                        case 3:
-                                                                            newvariable.Type = VariableType.Boolean;
-                                                                            break;
-                                                                    }
-                                                                       newlist_.items.Add(newvariable);
-                                                                }
-                                                                local_lists.Add(newlist_);
-                                                                namesInUse.Add(receivingObject, objectClass.List);
-                                                                valid_command = true;
+                                                        switch (valtype)
+                                                        {
+                                                            case 0:
+                                                                newlist_.arrayType = ArrayType.String;
+                                                                break;
+                                                            case 1:
+                                                                newlist_.arrayType = ArrayType.Int;
+                                                                break;
+                                                            case 2:
+                                                                newlist_.arrayType = ArrayType.Float;
+                                                                break;
+                                                            case 3:
+                                                                newlist_.arrayType = ArrayType.Boolean;
+                                                                break;
+                                                        }
+                                                        foreach (var newvar in foundElement)
+                                                        {
+                                                            LocalVariable newvariable = new LocalVariable();
+                                                            newvariable.Name = (newvar.Key);
+                                                            newvariable.Value = (newvar.Value);
+                                                            switch (valtype)
+                                                            {
+                                                                case 0:
+                                                                    newvariable.Type = VariableType.String;
+                                                                    break;
+                                                                case 1:
+                                                                    newvariable.Type = VariableType.Int;
+                                                                    break;
+                                                                case 2:
+                                                                    newvariable.Type = VariableType.Float;
+                                                                    break;
+                                                                case 3:
+                                                                    newvariable.Type = VariableType.Boolean;
+                                                                    break;
+                                                            }
+                                                            newlist_.items.Add(newvariable);
+                                                        }
+                                                        local_lists.Add(newlist_);
+                                                        namesInUse.Add(receivingObject, objectClass.List);
+                                                        valid_command = true;
                                                         break;
                                                     case (objectClass.DataPacket):
                                                         foreach (dataPacket datapckt in datapacketStack)
@@ -2619,7 +2613,7 @@ namespace GyroPrompt
                         errorHandler.ThrowError(1100, "json_deserialize", null, null, null, expectedFormat);
                     }
                 }
-                
+
                 ///<summary>
                 /// GUI items can transform the application into a more robust Terminal User Interface. GUI items will only
                 /// display when top level bool GUIModeOn is set to true. 
@@ -2633,6 +2627,7 @@ namespace GyroPrompt
                 /// gui_item_setheight name fillvalue number                   <- sets height of object 'name'. FillValue: Percent (number becomes percent), Number (number becomes height value), Fill (number ignored, object will auto fill)
                 /// gui_item_gettext name variable                            <- sets value of 'variable' to object 'name' text
                 /// gui_item_settext name value[...]                         <- sets text of object 'name' to value (reads like a string)
+                /// gui_item_port name containerobject                      <- transfers GUI object to specified container (tab conrol, frame, panel, etc)
                 /// </summary>
                 if (split_input[0].Equals("gui_mode", StringComparison.OrdinalIgnoreCase))
                 {
@@ -2646,7 +2641,7 @@ namespace GyroPrompt
                     }
                     else if (split_input[1].Equals("off", StringComparison.OrdinalIgnoreCase))
                     {
-                            TurnGUIModeOff();
+                        TurnGUIModeOff();
                     } else if (split_input[1].Equals("reset", StringComparison.OrdinalIgnoreCase))
                     {
                         resetView();
@@ -2714,12 +2709,12 @@ namespace GyroPrompt
                                         Color foregrn = Color.White;
                                         validTask = true;
                                         bool extracting = false;
-                                        foreach(string s in split_input.Skip(4))
+                                        foreach (string s in split_input.Skip(4))
                                         {
                                             if (extracting == true)
                                             {
                                                 string q = SetVariableValue(s);
-                                                foreach (char  c in q)
+                                                foreach (char c in q)
                                                 {
                                                     if (c != '|')
                                                     {
@@ -2729,7 +2724,7 @@ namespace GyroPrompt
                                                         extracting = false;
                                                     }
                                                 }
-                                                if(extracting == true)
+                                                if (extracting == true)
                                                 {
                                                     text += " ";
                                                 }
@@ -2808,7 +2803,7 @@ namespace GyroPrompt
                                                     string b = SetVariableValue(_placeholder);
                                                     extracting = true;
                                                     bool pipefound = false;
-                                                    foreach(char c in b)
+                                                    foreach (char c in b)
                                                     {
                                                         if (c != '|')
                                                         {
@@ -3039,7 +3034,7 @@ namespace GyroPrompt
                                             string[] validValues = { "False", "false", "0", "True", "true", "1" };
                                             int val = 0;
                                             bool correctValue = false;
-                                            for(val = 0; val < validValues.Length; val++)
+                                            for (val = 0; val < validValues.Length; val++)
                                             {
                                                 if (q == validValues[val])
                                                 {
@@ -3146,17 +3141,22 @@ namespace GyroPrompt
                     }
                     if (split_input[1].Equals("Menubar", StringComparison.OrdinalIgnoreCase))
                     {
-                        string expectedFormat = "new_gui_item menubar newname Menuitems:listname(s) Menutasks:taskname(s)|" + Environment.NewLine + "Minimum required parameters are newname and at least 1 list with 1 item.";
+                        string expectedFormat = "new_gui_item menubar newname Menuitems:File Menutasks:File,Open,functiona-File,Save,functionb" + Environment.NewLine + "Minimum required parameters are newname and at least 1 list with 1 item.";
                         if (split_input.Length >= 3)
                         {
                             bool minimumList = false;
                             string menuBarName = split_input[2];
-                            List<LocalList> menuItemsToPass = new List<LocalList>();
-                            List<TaskList> taskListToPass = new List<TaskList>();
-                            bool validName = GUIObjectsInUse.ContainsKey(menuBarName);
-                            if (validName == false)
+                            List<string> topItemsToPadd = new List<string>();
+                            List<string> subItemsToPass = new List<string>();
+                            bool goodValsFound = false, badValsFound = false;
+                            int goodValCount = 0;
+                            string badVals = "";
+
+
+                            bool nameIsUsed = GUIObjectsInUse.ContainsKey(menuBarName);
+                            if (nameIsUsed == false)
                             {
-                                validName = NameInUse(menuBarName);
+                                nameIsUsed = NameInUse(menuBarName);
                             }
                             bool validCharacters = ContainsOnlyLettersAndNumbers(menuBarName);
                             if (validCharacters == false)
@@ -3164,51 +3164,133 @@ namespace GyroPrompt
                                 errorHandler.ThrowError(1600, menuBarName);
                                 return;
                             }
-                            if (validName == false)
+                            if (nameIsUsed == false)
                             {
                                 foreach (string s in split_input.Skip(3))
                                 {
                                     if (s.StartsWith("Menuitems:", StringComparison.OrdinalIgnoreCase))
                                     {
                                         string _placeholder = s.Remove(0, 10);
-                                        string[] _listname = _placeholder.Split(',');
-                                        foreach(string r in _listname)
+                                        string[] _listname = _placeholder.Split('-');
+                                        foreach(string q in _listname)
                                         {
-                                            LocalList newmenu = local_lists.Find(j => j.Name == r.TrimEnd());
-                                            if (newmenu != null)
+                                            string[] temp_ = q.Split(',');
+                                            if (temp_.Length == 1)
                                             {
-                                                if (newmenu.arrayType == ArrayType.String)
-                                                {
-                                                    menuItemsToPass.Add(newmenu);
-                                                    minimumList = true;
-                                                } else
-                                                {
-                                                    Console.WriteLine($"{newmenu.Name} is not string list.");
-                                                }
+                                                // We assume this is a top level menu bar item that will have child menu items
+                                                topItemsToPadd.Add(temp_[0]);
+                                                Console.WriteLine($"Added to parentitems: {temp_[0]}");
+                                                goodValsFound = true;
+                                                minimumList = true;
+                                                goodValCount++;
                                             }
                                         }
+
+                                        
                                     }
                                     if (s.StartsWith("Menutasks:", StringComparison.OrdinalIgnoreCase))
                                     {
                                         string _placeholder = s.Remove(0, 10);
-                                        string[] _listname = _placeholder.Split(',');
-                                        foreach (string r in _listname)
+                                        string[] _listname = _placeholder.Split('-');
+                                        // MenuItems: must proceed MenuTasks: or we throw an error
+                                        if (minimumList == false)
                                         {
-                                            TaskList newtasklist = tasklists_inuse.Find(j => j.taskName == r.TrimEnd());
-                                            if (newtasklist != null)
+                                            errorHandler.ThrowError(1100, "new_gui_item menubar", null, null, null, "Menuitems: must chronologically proceed Menutasks:"); // Override typical expectedFormat string to clarify in this instance
+                                            return;
+                                        }
+                                        Dictionary<int, string> indexToExpectedCall = new Dictionary<int, string>();
+                                        int yy = 0;
+                                        foreach (string expectedItem in _listname)
+                                        {
+                                            string expectedCommand = "";
+                                            string expectedCall = "";
+                                            string replacement = "";
+
+                                            string[] postSplit = expectedItem.Split(',');
+                                            if (postSplit.Length > 2) 
                                             {
-                                                taskListToPass.Add(newtasklist);
+                                                string expectedParentName = postSplit[0];
+                                                expectedCommand += postSplit[2];
+                                                bool validCommandCall = ((namesInUse[expectedCommand] == objectClass.TaskList) || (namesInUse[expectedCommand] == objectClass.Function));
+                                                bool validParent = false;
+                                                string seekParent = topItemsToPadd.Find(l => l == expectedParentName);
+                                                if (seekParent != null)
+                                                {
+                                                    validParent = true;
+                                                }
+
+                                                if ((validCommandCall == true)&&(validParent == true))
+                                                {
+                                                    switch (namesInUse[expectedCommand])
+                                                    {
+                                                        case objectClass.TaskList:
+                                                            expectedCall += "task_execute ";
+                                                            break;
+                                                        case objectClass.Function:
+                                                            expectedCall += "function ";
+                                                            break;
+                                                    }
+                                                    foreach (string a in postSplit.SkipLast(1))
+                                                    {
+                                                        replacement += $"{a},";
+                                                    }
+                                                    replacement += $"{expectedCall}{expectedCommand}";
+                                                    subItemsToPass.Add(expectedItem);
+                                                    indexToExpectedCall.Add(yy, replacement);
+                                                    goodValCount++;
+
+                                                }
+                                                if (validCommandCall == false)
+                                                {
+                                                    badValsFound = true;
+                                                    badVals += $"{expectedItem} ({expectedCommand} is not valid task or function) ";
+                                                }
+                                                yy++;
+                                            }
+                                            else
+                                            {
+                                                // Append bad values
+                                                badValsFound = true;
+                                                badVals += $"{expectedItem} (expecting parent,child,task/function) ";
+                                            }
+                                        }
+
+                                        // We're checking values that have already been cleared to proceed
+                                        for(int p = 0; p < subItemsToPass.Count; p++)
+                                        {
+                                            if (indexToExpectedCall.ContainsKey(p))
+                                            {
+                                                subItemsToPass[p] = indexToExpectedCall[p];
                                             }
                                         }
                                     }
-
                                 }
                                 if (minimumList == true)
                                 {
-                                    GUI_Menubar newmenubar = new GUI_Menubar(this, menuBarName, menuItemsToPass, taskListToPass);
-                                    consoleDirector.GUIMenuBarsToAdd.Add(newmenubar);
-                                    GUIObjectsInUse.Add(newmenubar.GUIObjName, newmenubar);
-                                    valid_command = true;
+                                    if (goodValsFound == true)
+                                    {
+                                        Console.Write($"DEBUG: Topitems{topItemsToPadd.Count} \nSubitems{subItemsToPass.Count}\n");
+                                        for(int t = 0; t < topItemsToPadd.Count; t++)
+                                        {
+                                            Console.WriteLine($"{t}:{topItemsToPadd[t]}");
+                                        }
+                                        for (int l = 0; l < subItemsToPass.Count; l++)
+                                        {
+                                            Console.WriteLine($"{l}:{subItemsToPass[l]}");
+                                        }
+                                        GUI_Menubar newmenubar = new GUI_Menubar(this, menuBarName, topItemsToPadd, subItemsToPass);
+                                        consoleDirector.GUIMenuBarsToAdd.Add(newmenubar);
+                                        GUIObjectsInUse.Add(newmenubar.GUIObjName, newmenubar);
+                                        valid_command = true;
+                                        if (badValsFound == true)
+                                        {
+                                            badVals += $"<- item(s) were ignored. {goodValCount} items successfully created.";
+                                            errorHandler.ThrowError(1100, null, null, badVals, null, expectedFormat);
+                                        }
+                                    } else
+                                    {
+
+                                    }
                                 } else
                                 {
                                     Console.WriteLine("Menubar requires minimum 1 list with 1 item.");
@@ -3509,7 +3591,7 @@ namespace GyroPrompt
                                                 errorHandler.ThrowError(1700, null, "1 bool variable", null, null, expectedFormat);
                                             }
                                         }
-                                        
+
                                         if (s.StartsWith("XY:", StringComparison.OrdinalIgnoreCase))
                                         {
                                             string _placeholder = s.Remove(0, 3);
@@ -3606,7 +3688,7 @@ namespace GyroPrompt
                                         {
                                             string _placeholder = s.Remove(0, 8);
                                             string q = SetVariableValue(_placeholder).TrimEnd();
-                                            string[] validValues = { "False", "false","No", "no", "0", "True", "true","Yes","yes", "1" };
+                                            string[] validValues = { "False", "false", "No", "no", "0", "True", "true", "Yes", "yes", "1" };
                                             int val = 0;
                                             bool correctValue = false;
                                             for (val = 0; val < validValues.Length; val++)
@@ -3683,6 +3765,240 @@ namespace GyroPrompt
                             errorHandler.ThrowError(1100, "new_gui_item checkbox", null, null, null, expectedFormat);
                         }
                     }
+                    if (split_input[1].Equals("Tabcontainer", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string expectedFormat = "new_gui_item tabcontainer newname XY:0,0 HW:0,0 Textcolor:White Backcolor:Black Tabs:name,text:name,text:name,text:etc..|" + Environment.NewLine + "Minimum required parameters are newname, all following are optional.";
+                        if (split_input.Length > 3)
+                        {
+                            string expectedName = split_input[2];
+                            bool nameInUse = GUIObjectsInUse.ContainsKey(expectedName);
+                            if (nameInUse == false)
+                            {
+                                nameInUse = NameInUse(split_input[2]);
+                            }
+                            bool validCharacters = ContainsOnlyLettersAndNumbers(expectedName);
+                            if (validCharacters == false)
+                            {
+                                errorHandler.ThrowError(1600, expectedName);
+                                return;
+                            }
+                            if (nameInUse == false)
+                            {
+                                int x = 0;
+                                int y = 0;
+                                int wid = 10;
+                                int hei = 8;
+                                string text = "Checkbox";
+                                Color backgrn = Color.Black;
+                                Color foregrn = Color.White;
+                                bool extracting = false;
+                                bool foundBadVals = false, foundGoodVals = true;
+                                int goodVals = 0;
+                                string badVals = "";
+
+                                foreach (string s in split_input)
+                                {
+                                    if (extracting == true)
+                                    {
+                                        string q = SetVariableValue(s);
+                                        foreach (char c in q)
+                                        {
+                                            if (c != '|')
+                                            {
+                                                text += c;
+                                            }
+                                            else
+                                            {
+                                                extracting = false;
+                                            }
+                                        }
+                                        if (extracting == true)
+                                        {
+                                            text += " ";
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (s.StartsWith("XY:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 3);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            string[] b = a.Split(',');
+                                            if (b.Length == 2)
+                                            {
+                                                bool validx = IsNumeric(b[0]);
+                                                bool validy = IsNumeric(b[1]);
+                                                if (validx == true)
+                                                {
+                                                    if (validy == true)
+                                                    {
+                                                        x = Int32.Parse(b[0]);
+                                                        y = Int32.Parse(b[1]);
+                                                    }
+                                                    else
+                                                    {
+                                                        errorHandler.ThrowError(1400, $"Y", null, b[1], "integer value", expectedFormat);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    errorHandler.ThrowError(1400, $"X", null, b[0], "integer value", expectedFormat);
+                                                }
+
+                                            }
+                                            else
+                                            {
+                                                errorHandler.ThrowError(1500, null, null, null, "X,Y", expectedFormat);
+                                            }
+                                        }
+                                        if (s.StartsWith("HW:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 3);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            string[] b = a.Split(',');
+                                            if (b.Length == 2)
+                                            {
+                                                bool validh = IsNumeric(b[0]);
+                                                bool validw = IsNumeric(b[1]);
+                                                if (validh == true)
+                                                {
+                                                    if (validw == true)
+                                                    {
+                                                        hei = Int32.Parse(b[0]);
+                                                        wid = Int32.Parse(b[1]);
+                                                    }
+                                                    else
+                                                    {
+                                                        errorHandler.ThrowError(1400, $"height", null, b[1], "integer value", expectedFormat);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    errorHandler.ThrowError(1400, $"X", null, b[0], "integer value", expectedFormat);
+                                                }
+
+                                            }
+                                            else
+                                            {
+                                                errorHandler.ThrowError(1500, null, null, null, "height,width", expectedFormat);
+                                            }
+                                        }
+                                        if (s.StartsWith("Tabs:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            text = "";
+                                            string _placeholder = s.Remove(0, 5);
+                                            string b = SetVariableValue(_placeholder);
+                                            extracting = true;
+                                            bool pipefound = false;
+                                            foreach (char c in b)
+                                            {
+                                                if (c != '|')
+                                                {
+                                                    text += c;
+                                                }
+                                                else
+                                                {
+                                                    pipefound = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (pipefound == true)
+                                            {
+                                                extracting = false;
+                                            }
+                                            else
+                                            {
+                                                text += " ";
+                                            }
+                                        }
+
+                                        if (s.StartsWith("Textcolor:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 10);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            if (terminalColor.ContainsKey(a))
+                                            {
+                                                foregrn = terminalColor[a];
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"{a} is not valid color.");
+                                            }
+                                        }
+                                        if (s.StartsWith("Backcolor:", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string _placeholder = s.Remove(0, 10);
+                                            string a = ConvertNumericalVariable(_placeholder);
+                                            if (terminalColor.ContainsKey(a))
+                                            {
+                                                backgrn = terminalColor[a];
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine($"{a} is not valid color.");
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (extracting == true)
+                                {
+                                    errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
+                                    return;
+                                }
+                                string[] expectedNewTabs = text.Split('-');
+                                // Brief check of names provided
+                                List<int> badtabnames = new List<int>();
+                                int xx = 0;
+                                foreach(string q in expectedNewTabs)
+                                {
+                                    string[] temp_ = q.Split(',');
+                                    if (GUIObjectsInUse.ContainsKey(temp_[0]))
+                                    {
+                                        // Bad tab name
+                                        badtabnames.Add(xx);
+                                        foundBadVals = true;
+                                        badVals += $"{q} ";
+                                    } else
+                                    {
+                                        foundGoodVals = true;
+                                        goodVals++;
+                                    }
+                                    xx++;
+                                }
+                                foreach(int ii in badtabnames)
+                                {
+                                    expectedNewTabs[ii] = "BADVALUE";
+                                }
+
+                                if (foundGoodVals == true)
+                                {
+                                    GUI_TabContainer newtabcontainer = new GUI_TabContainer(this, expectedName, expectedNewTabs, x, y, wid, hei, foregrn, backgrn);
+                                    consoleDirector.viewobjects.Add(newtabcontainer);
+                                    GUIObjectsInUse.Add(expectedName, newtabcontainer);
+                                    valid_command = true;
+                                    if (foundBadVals == true)
+                                    {
+                                        badVals += $"<- item(s) were ignored. {goodVals} items successfully created.";
+                                        errorHandler.ThrowError(1300, null, null, badVals, null, expectedFormat);
+                                    }
+                                } else
+                                {
+                                    errorHandler.ThrowError(1700, null, "properly formatted tab items where name is not already taken", null, null, expectedFormat);
+                                }
+
+                            }
+                            else
+                            {
+                                errorHandler.ThrowError(1300, null, null, expectedName, null, expectedFormat);
+                            }
+
+                        } else
+                        {
+                            // Throw error invalid format
+                            errorHandler.ThrowError(1100, "new_gui_item tabcontainer", null, null, null, expectedFormat);
+                        }
+                    }
                 }
                 if (split_input[0].Equals("gui_item_setwidth"))
                 {
@@ -3727,7 +4043,7 @@ namespace GyroPrompt
                                     {
                                         if (targetObject_.GUIObjName == guiObjectName)
                                         {
-                                            if (objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
+                                            if (consoleDirector.objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
                                             {
                                                 targetObject_.SetWidth(xx, filval);
                                                 foundAndChangedWidth = true;
@@ -3818,7 +4134,7 @@ namespace GyroPrompt
                                     {
                                         if (targetObject_.GUIObjName == guiObjectName)
                                         {
-                                            if (objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
+                                            if (consoleDirector.objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
                                             {
                                                 targetObject_.SetHeight(xx, filval);
                                                 foundAndChangedHeight = true;
@@ -3872,7 +4188,7 @@ namespace GyroPrompt
                     string expectedFormat = "gui_item_setx objectname number/percent/fill/leftof/rightof 1/object" + Environment.NewLine + "number/percent/fill expects integer value, leftof/rightof expects an object name";
                     if (split_input.Length == 4)
                     {
-                         string guiObjectName = split_input[1];
+                        string guiObjectName = split_input[1];
                         if (GUIObjectsInUse.ContainsKey(guiObjectName))
                         {
                             GUIObjectType guiobjecttype = GUIObjectsInUse[guiObjectName].GUIObjectType;
@@ -3915,11 +4231,11 @@ namespace GyroPrompt
                                     if (validNumber == true)
                                     {
                                         bool foundAndChangedX = false;
-                                        foreach(GUI_BaseItem targetObject_ in consoleDirector.viewobjects)
+                                        foreach (GUI_BaseItem targetObject_ in consoleDirector.viewobjects)
                                         {
                                             if (targetObject_.GUIObjName == guiObjectName)
                                             {
-                                                if (objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
+                                                if (consoleDirector.objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
                                                 {
                                                     targetObject_.SetXCoord(xx, filval);
                                                     foundAndChangedX = true;
@@ -3955,17 +4271,17 @@ namespace GyroPrompt
                                     // Holy shit I could have just used GUIObjectType guiobj = GUIObjectsInUse[guidingObject].GUIObjectType; and skipped this retarded ass nesting I did wtf I need to fix this later
                                     if (guidingObjExists == true)
                                     {
-                                        foreach(GUI_BaseItem guidingobj_ in consoleDirector.viewobjects)
+                                        foreach (GUI_BaseItem guidingobj_ in consoleDirector.viewobjects)
                                         {
                                             if (guidingobj_.GUIObjName == guidingObject)
                                             {
-                                                if (objectCanRepos.ContainsKey(guidingobj_.GUIObjectType))
+                                                if (consoleDirector.objectCanRepos.ContainsKey(guidingobj_.GUIObjectType))
                                                 {
-                                                    foreach(GUI_BaseItem targetObject in consoleDirector.viewobjects)
+                                                    foreach (GUI_BaseItem targetObject in consoleDirector.viewobjects)
                                                     {
                                                         if (targetObject.GUIObjName == guiObjectName)
                                                         {
-                                                            if (objectCanRepos.ContainsKey(targetObject.GUIObjectType))
+                                                            if (consoleDirector.objectCanRepos.ContainsKey(targetObject.GUIObjectType))
                                                             {
                                                                 targetObject.SetToLeftOrRight(guidingobj_.objview, filval);
                                                                 valid_command = true;
@@ -3991,7 +4307,7 @@ namespace GyroPrompt
                                                 }
                                             }
                                         }
-                                    
+
                                     } else
                                     {
                                         errorHandler.ThrowError(1200, null, guidingObject, null, null, expectedFormat);
@@ -4056,7 +4372,7 @@ namespace GyroPrompt
                                     {
                                         if (targetObject_.GUIObjName == guiObjectName)
                                         {
-                                            if (objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
+                                            if (consoleDirector.objectCanRepos.ContainsKey(targetObject_.GUIObjectType))
                                             {
                                                 targetObject_.SetYCoord(xx, filval);
                                                 foundAndChangedY = true;
@@ -4118,16 +4434,16 @@ namespace GyroPrompt
                         validVriable = LocalVariableExists(variableName);
                         guiObjectExists = GUIObjectsInUse.ContainsKey(guiObjectName);
 
-                        if ((validVriable == true) && ( guiObjectExists == true))
+                        if ((validVriable == true) && (guiObjectExists == true))
                         {
-                           
+
                             GUIObjectType objtype = GUIObjectsInUse[guiObjectName].GUIObjectType;
 
-                            foreach(GUI_BaseItem targetObject in consoleDirector.viewobjects)
+                            foreach (GUI_BaseItem targetObject in consoleDirector.viewobjects)
                             {
                                 if (targetObject.GUIObjName == guiObjectName)
                                 {
-                                    if (objectCanRepos.ContainsKey(targetObject.GUIObjectType))
+                                    if (consoleDirector.objectHasTextAccess.ContainsKey(targetObject.GUIObjectType))
                                     {
                                         LocalVariable expectedStringVar = local_variables.Find(u => u.Name == variableName);
                                         if (expectedStringVar != null)
@@ -4159,7 +4475,7 @@ namespace GyroPrompt
                                 }
                             }
 
-                        } else if ((validVriable == true) && (guiObjectExists == false)){
+                        } else if ((validVriable == true) && (guiObjectExists == false)) {
                             errorHandler.ThrowError(1200, null, guiObjectName, null, null, expectedFormat);
                         } else if ((validVriable == false) && (guiObjectExists == true)) {
                             errorHandler.ThrowError(1200, null, variableName, null, null, expectedFormat);
@@ -4185,7 +4501,7 @@ namespace GyroPrompt
                         {
                             int pos = 3;
                             int len = split_input.Length;
-                            foreach(string s in split_input.Skip(2))
+                            foreach (string s in split_input.Skip(2))
                             {
                                 newstring.Append(SetVariableValue(s));
                                 if (pos != len)
@@ -4194,9 +4510,9 @@ namespace GyroPrompt
                                 }
                                 pos++;
                             }
-                            
+
                             textToSetTo = SetVariableValue(newstring.ToString());
-                        } else if (split_input.Length == 3) { 
+                        } else if (split_input.Length == 3) {
                             textToSetTo = SetVariableValue(split_input[2]).TrimEnd();
                         }
                         bool guiObjectExists = (GUIObjectsInUse.ContainsKey(guiObjectName));
@@ -4206,7 +4522,7 @@ namespace GyroPrompt
                             {
                                 if (targetObject.GUIObjName == guiObjectName)
                                 {
-                                    if (objectCanRepos.ContainsKey(targetObject.GUIObjectType))
+                                    if (consoleDirector.objectHasTextAccess.ContainsKey(targetObject.GUIObjectType))
                                     {
                                         targetObject.SetText(textToSetTo);
                                         valid_command = true;
@@ -4233,405 +4549,642 @@ namespace GyroPrompt
                         errorHandler.ThrowError(1100, "gui_item_settext", null, null, null, expectedFormat);
                     }
                 }
-                if (split_input[0].Equals("gui_keypress_event", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("gui_item_port", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
-                    string expectedFormat = "gui_keypress_event taskname key";
+                    string expectedFormat = "gui_item_port guiobject containerobject";
                     if (split_input.Length == 3)
                     {
-                        string expectedTaskName = split_input[1];
-                        string keyInput = split_input[2].ToLower().TrimEnd();
-                        Key keyToPass;
-                        bool validTask = false;
-                        bool validKey = true;
-                        TaskList templist = tasklists_inuse.Find(x => x.taskName  == expectedTaskName);
-                        if (templist != null)
+                        string guiObjectName = split_input[1], containerObjectName = split_input[2];
+                        bool guiObjectExists = (GUIObjectsInUse.ContainsKey(guiObjectName)), containerExists = (GUIObjectsInUse.ContainsKey(guiObjectName));
+                        GUIObjectType guiobjtype = default, containertype = default;
+                        bool validType = false, validContainer = false;
+                        if (guiObjectExists == true)
                         {
-                            validTask = true;
-                            switch (keyInput)
+                            guiobjtype = GUIObjectsInUse[guiObjectName].GUIObjectType;
+                            validType = consoleDirector.objectCanRepos.ContainsKey(guiobjtype);
+                            if (validType != true)
                             {
-                                case "space":
-                                    keyToPass = Key.Space;
-                                    break;
-                                case "enter":
-                                    keyToPass = Key.Enter;
-                                    break;
-                                case "escape":
-                                    keyToPass = Key.Esc;
-                                    break;
-                                case "tab":
-                                    keyToPass = Key.Tab;
-                                    break;
-                                case "backspace":
-                                    keyToPass = Key.Backspace;
-                                    break;
-                                case "delete":
-                                    keyToPass = Key.DeleteChar;
-                                    break;
-                                case "insert":
-                                    keyToPass = Key.InsertChar;
-                                    break;
-                                case "home":
-                                    keyToPass = Key.Home;
-                                    break;
-                                case "end":
-                                    keyToPass = Key.End;
-                                    break;
-                                case "pageup":
-                                    keyToPass = Key.PageUp;
-                                    break;
-                                case "pagedown":
-                                    keyToPass = Key.PageDown;
-                                    break;
-                                case "up":
-                                    keyToPass = Key.CursorUp;
-                                    break;
-                                case "down":
-                                    keyToPass = Key.CursorDown;
-                                    break;
-                                case "left":
-                                    keyToPass = Key.CursorLeft;
-                                    break;
-                                case "right":
-                                    keyToPass = Key.CursorRight;
-                                    break;
-                                case "f1":
-                                    keyToPass = Key.F1;
-                                    break;
-                                case "f2":
-                                    keyToPass = Key.F2;
-                                    break;
-                                case "f3":
-                                    keyToPass = Key.F3;
-                                    break;
-                                case "f4":
-                                    keyToPass = Key.F4;
-                                    break;
-                                case "f5":
-                                    keyToPass = Key.F5;
-                                    break;
-                                case "f6":
-                                    keyToPass = Key.F6;
-                                    break;
-                                case "f7":
-                                    keyToPass = Key.F7;
-                                    break;
-                                case "f8":
-                                    keyToPass = Key.F8;
-                                    break;
-                                case "f9":
-                                    keyToPass = Key.F9;
-                                    break;
-                                case "f10":
-                                    keyToPass = Key.F10;
-                                    break;
-                                case "f11":
-                                    keyToPass = Key.F11;
-                                    break;
-                                case "f12":
-                                    keyToPass = Key.F12;
-                                    break;
-                                case "f13":
-                                    keyToPass = Key.F13;
-                                    break;
-                                case "f14":
-                                    keyToPass = Key.F14;
-                                    break;
-                                case "f15":
-                                    keyToPass = Key.F15;
-                                    break;
-                                case "a":
-                                    keyToPass = Key.A;
-                                    break;
-                                case "b":
-                                    keyToPass = Key.B;
-                                    break;
-                                case "c":
-                                    keyToPass = Key.C;
-                                    break;
-                                case "d":
-                                    keyToPass = Key.D;
-                                    break;
-                                case "e":
-                                    keyToPass = Key.E;
-                                    break;
-                                case "f":
-                                    keyToPass = Key.F;
-                                    break;
-                                case "g":
-                                    keyToPass = Key.G;
-                                    break;
-                                case "h":
-                                    keyToPass = Key.H;
-                                    break;
-                                case "i":
-                                    keyToPass = Key.I;
-                                    break;
-                                case "j":
-                                    keyToPass = Key.J;
-                                    break;
-                                case "k":
-                                    keyToPass = Key.K;
-                                    break;
-                                case "l":
-                                    keyToPass = Key.L;
-                                    break;
-                                case "m":
-                                    keyToPass = Key.M;
-                                    break;
-                                case "n":
-                                    keyToPass = Key.N;
-                                    break;
-                                case "o":
-                                    keyToPass = Key.O;
-                                    break;
-                                case "p":
-                                    keyToPass = Key.P;
-                                    break;
-                                case "q":
-                                    keyToPass = Key.Q;
-                                    break;
-                                case "r":
-                                    keyToPass = Key.R;
-                                    break;
-                                case "s":
-                                    keyToPass = Key.S;
-                                    break;
-                                case "t":
-                                    keyToPass = Key.T;
-                                    break;
-                                case "u":
-                                    keyToPass = Key.U;
-                                    break;
-                                case "v":
-                                    keyToPass = Key.V;
-                                    break;
-                                case "w":
-                                    keyToPass = Key.W;
-                                    break;
-                                case "x":
-                                    keyToPass = Key.X;
-                                    break;
-                                case "y":
-                                    keyToPass = Key.Y;
-                                    break;
-                                case "z":
-                                    keyToPass = Key.Z;
-                                    break;
-                                case "0":
-                                    keyToPass = Key.D0;
-                                    break;
-                                case "1":
-                                    keyToPass = Key.D1;
-                                    break;
-                                case "2":
-                                    keyToPass = Key.D2;
-                                    break;
-                                case "3":
-                                    keyToPass = Key.D3;
-                                    break;
-                                case "4":
-                                    keyToPass = Key.D4;
-                                    break;
-                                case "5":
-                                    keyToPass = Key.D5;
-                                    break;
-                                case "6":
-                                    keyToPass = Key.D6;
-                                    break;
-                                case "7":
-                                    keyToPass = Key.D7;
-                                    break;
-                                case "8":
-                                    keyToPass = Key.D8;
-                                    break;
-                                case "9":
-                                    keyToPass = Key.D9;
-                                    break;
-                                default:
-                                    // Handle unknown key
-                                    keyToPass = Key.Null;
-                                    validKey = false;
-                                    break;
+                                // Throw error wrong type
+                                string badtype = GetDescription(guiobjtype);
+                                errorHandler.ThrowError(2100, null, null, badtype, "portable GUI object", expectedFormat);
                             }
-                            if (validKey == false)
-                            {
-                                errorHandler.ThrowError(1200, null, "key " + keyInput, null, null, expectedFormat);
-                            }
-
-                            if (validTask == true && validKey == true)
-                            {
-                                consoleDirector.addKeyPressFunction(templist, keyToPass);
-                                valid_command = true;
-                            }
-
                         } else
                         {
-                            errorHandler.ThrowError(1200, null, "task " + expectedTaskName, null, null, expectedFormat);
+                            // Throw error object does not exist
+                            errorHandler.ThrowError(1200, null, guiObjectName, null, null, expectedFormat);
+                            return;
+                        }
+                        if (containerExists == true)
+                        {
+                            containertype = GUIObjectsInUse[containerObjectName].GUIObjectType;
+                            validContainer = consoleDirector.objectIsContainer.ContainsKey(containertype);
+                            if (validType != true)
+                            {
+                                // Throw error wrong type
+                                string badtype_ = GetDescription(containertype);
+                                errorHandler.ThrowError(2100, null, null, badtype_, "container object", expectedFormat);
+                            }
+                        } else
+                        {
+                            // Throw error object does not exist
+                            errorHandler.ThrowError(1200, null, containerObjectName, null, null, expectedFormat);
+                            return;
+                        }
+
+                        if ((validType == true) && (validContainer == true))
+                        {
+                            
+                            foreach(GUI_BaseItem targetObject in consoleDirector.viewobjects)
+                            {
+                                if(targetObject.GUIObjName == guiObjectName)
+                                {
+                                    foreach(GUI_BaseItem newcontainer in consoleDirector.viewobjects)
+                                    {
+                                        if (newcontainer.GUIObjName == containerObjectName)
+                                        {
+                                            newcontainer.PortItem(targetObject);
+                                            valid_command = true;
+                                            return;
+                                        }
+                                    }
+
+                                }
+                            }
+
+
+                        }
+                    } else
+                    {
+                        errorHandler.ThrowError(1100, "gui_item_port", null, null, null, expectedFormat);
+                    }
+
+                }
+                if (split_input[0].Equals("gui_keypress_event", StringComparison.OrdinalIgnoreCase))
+                {
+                entry_made = true;
+                string expectedFormat = "gui_keypress_event taskname key";
+                if (split_input.Length == 3)
+                {
+                    string expectedTaskName = split_input[1];
+                    string keyInput = split_input[2].ToLower().TrimEnd();
+                    Key keyToPass;
+                    bool validTask = false;
+                    bool validKey = true;
+                    TaskList templist = tasklists_inuse.Find(x => x.taskName == expectedTaskName);
+                    if (templist != null)
+                    {
+                        validTask = true;
+                        switch (keyInput)
+                        {
+                            case "space":
+                                keyToPass = Key.Space;
+                                break;
+                            case "enter":
+                                keyToPass = Key.Enter;
+                                break;
+                            case "escape":
+                                keyToPass = Key.Esc;
+                                break;
+                            case "tab":
+                                keyToPass = Key.Tab;
+                                break;
+                            case "backspace":
+                                keyToPass = Key.Backspace;
+                                break;
+                            case "delete":
+                                keyToPass = Key.DeleteChar;
+                                break;
+                            case "insert":
+                                keyToPass = Key.InsertChar;
+                                break;
+                            case "home":
+                                keyToPass = Key.Home;
+                                break;
+                            case "end":
+                                keyToPass = Key.End;
+                                break;
+                            case "pageup":
+                                keyToPass = Key.PageUp;
+                                break;
+                            case "pagedown":
+                                keyToPass = Key.PageDown;
+                                break;
+                            case "up":
+                                keyToPass = Key.CursorUp;
+                                break;
+                            case "down":
+                                keyToPass = Key.CursorDown;
+                                break;
+                            case "left":
+                                keyToPass = Key.CursorLeft;
+                                break;
+                            case "right":
+                                keyToPass = Key.CursorRight;
+                                break;
+                            case "f1":
+                                keyToPass = Key.F1;
+                                break;
+                            case "f2":
+                                keyToPass = Key.F2;
+                                break;
+                            case "f3":
+                                keyToPass = Key.F3;
+                                break;
+                            case "f4":
+                                keyToPass = Key.F4;
+                                break;
+                            case "f5":
+                                keyToPass = Key.F5;
+                                break;
+                            case "f6":
+                                keyToPass = Key.F6;
+                                break;
+                            case "f7":
+                                keyToPass = Key.F7;
+                                break;
+                            case "f8":
+                                keyToPass = Key.F8;
+                                break;
+                            case "f9":
+                                keyToPass = Key.F9;
+                                break;
+                            case "f10":
+                                keyToPass = Key.F10;
+                                break;
+                            case "f11":
+                                keyToPass = Key.F11;
+                                break;
+                            case "f12":
+                                keyToPass = Key.F12;
+                                break;
+                            case "f13":
+                                keyToPass = Key.F13;
+                                break;
+                            case "f14":
+                                keyToPass = Key.F14;
+                                break;
+                            case "f15":
+                                keyToPass = Key.F15;
+                                break;
+                            case "a":
+                                keyToPass = Key.A;
+                                break;
+                            case "b":
+                                keyToPass = Key.B;
+                                break;
+                            case "c":
+                                keyToPass = Key.C;
+                                break;
+                            case "d":
+                                keyToPass = Key.D;
+                                break;
+                            case "e":
+                                keyToPass = Key.E;
+                                break;
+                            case "f":
+                                keyToPass = Key.F;
+                                break;
+                            case "g":
+                                keyToPass = Key.G;
+                                break;
+                            case "h":
+                                keyToPass = Key.H;
+                                break;
+                            case "i":
+                                keyToPass = Key.I;
+                                break;
+                            case "j":
+                                keyToPass = Key.J;
+                                break;
+                            case "k":
+                                keyToPass = Key.K;
+                                break;
+                            case "l":
+                                keyToPass = Key.L;
+                                break;
+                            case "m":
+                                keyToPass = Key.M;
+                                break;
+                            case "n":
+                                keyToPass = Key.N;
+                                break;
+                            case "o":
+                                keyToPass = Key.O;
+                                break;
+                            case "p":
+                                keyToPass = Key.P;
+                                break;
+                            case "q":
+                                keyToPass = Key.Q;
+                                break;
+                            case "r":
+                                keyToPass = Key.R;
+                                break;
+                            case "s":
+                                keyToPass = Key.S;
+                                break;
+                            case "t":
+                                keyToPass = Key.T;
+                                break;
+                            case "u":
+                                keyToPass = Key.U;
+                                break;
+                            case "v":
+                                keyToPass = Key.V;
+                                break;
+                            case "w":
+                                keyToPass = Key.W;
+                                break;
+                            case "x":
+                                keyToPass = Key.X;
+                                break;
+                            case "y":
+                                keyToPass = Key.Y;
+                                break;
+                            case "z":
+                                keyToPass = Key.Z;
+                                break;
+                            case "0":
+                                keyToPass = Key.D0;
+                                break;
+                            case "1":
+                                keyToPass = Key.D1;
+                                break;
+                            case "2":
+                                keyToPass = Key.D2;
+                                break;
+                            case "3":
+                                keyToPass = Key.D3;
+                                break;
+                            case "4":
+                                keyToPass = Key.D4;
+                                break;
+                            case "5":
+                                keyToPass = Key.D5;
+                                break;
+                            case "6":
+                                keyToPass = Key.D6;
+                                break;
+                            case "7":
+                                keyToPass = Key.D7;
+                                break;
+                            case "8":
+                                keyToPass = Key.D8;
+                                break;
+                            case "9":
+                                keyToPass = Key.D9;
+                                break;
+                            default:
+                                // Handle unknown key
+                                keyToPass = Key.Null;
+                                validKey = false;
+                                break;
+                        }
+                        if (validKey == false)
+                        {
+                            errorHandler.ThrowError(1200, null, "key " + keyInput, null, null, expectedFormat);
+                        }
+
+                        if (validTask == true && validKey == true)
+                        {
+                            consoleDirector.addKeyPressFunction(templist, keyToPass);
+                            valid_command = true;
                         }
 
                     } else
                     {
-                        errorHandler.ThrowError(1100, "gui_keypress_event", null, null, null, expectedFormat);
+                        errorHandler.ThrowError(1200, null, "task " + expectedTaskName, null, null, expectedFormat);
                     }
-                }
-                if (split_input[0].Equals("msgbox", StringComparison.OrdinalIgnoreCase))
+
+                } else
                 {
-                    entry_made = true;
-                    if (GUIModeEnabled == true)
+                    errorHandler.ThrowError(1100, "gui_keypress_event", null, null, null, expectedFormat);
+                }
+            }
+            if (split_input[0].Equals("msgbox", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                if (GUIModeEnabled == true)
+                {
+                    string expectedFormat = "msgbox Text:Default message| Title:Default title| Buttons:OK/YESNO,boolvariable" + Environment.NewLine + "If button set it yesno, a bool variable is expected after comma. If button set is ok, nothing else is expected.";
+                    bool extracting = false;
+                    bool extractingTitle = false;
+                    bool hasText = false;
+                    bool hasTitle = false;
+                    int[] hasButtons = { 0, 1, 2 }; // 0 is no, 1 is button "OK", 2 is button "YES,NO" which returns a value
+                    int selectedButton = 0;
+
+                    string expected_variable = "";
+                    LocalVariable bool_forYesNo = null;
+                    string variableName_ = "";
+
+                    string text = "";
+                    string title = "";
+                    foreach (string s in split_input)
                     {
-                        string expectedFormat = "msgbox Text:Default message| Title:Default title| Buttons:OK/YESNO,boolvariable" + Environment.NewLine + "If button set it yesno, a bool variable is expected after comma. If button set is ok, nothing else is expected.";
-                        bool extracting = false;
-                            bool extractingTitle = false;
-                            bool hasText = false;
-                            bool hasTitle = false;
-                            int[] hasButtons = { 0, 1, 2 }; // 0 is no, 1 is button "OK", 2 is button "YES,NO" which returns a value
-                            int selectedButton = 0;
-
-                            string expected_variable = "";
-                            LocalVariable bool_forYesNo = null;
-                            string variableName_ = "";
-
-                            string text = "";
-                            string title = "";
-                            foreach (string s in split_input)
+                        if (extracting == true)
+                        {
+                            string q = SetVariableValue(s);
+                            foreach (char c in q)
                             {
-                                if (extracting == true)
+                                if (c != '|')
                                 {
-                                    string q = SetVariableValue(s);
-                                    foreach (char c in q)
+                                    if (extractingTitle == true)
                                     {
-                                        if (c != '|')
-                                        {
-                                            if (extractingTitle == true)
-                                            {
-                                                title += c;
-                                            } else if (extractingTitle == false)
-                                            {
-                                                text += c;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            extracting = false;
-                                            extractingTitle = false;
-                                        }
-                                    }
-                                    if (extracting == true)
+                                        title += c;
+                                    } else if (extractingTitle == false)
                                     {
-                                        if (extractingTitle == true)
-                                        {
-                                            title += " ";
-                                        }
-                                        else if (extractingTitle == false)
-                                        {
-                                            text += " ";
-                                        }
+                                        text += c;
                                     }
                                 }
                                 else
                                 {
-                                    if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                                    extracting = false;
+                                    extractingTitle = false;
+                                }
+                            }
+                            if (extracting == true)
+                            {
+                                if (extractingTitle == true)
+                                {
+                                    title += " ";
+                                }
+                                else if (extractingTitle == false)
+                                {
+                                    text += " ";
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                string _placeholder = s.Remove(0, 5);
+                                string b = SetVariableValue(_placeholder);
+                                extracting = true;
+                                extractingTitle = false;
+                                hasText = true;
+                                bool pipefound = false;
+                                foreach (char c in b)
+                                {
+                                    if (c != '|')
                                     {
-                                        string _placeholder = s.Remove(0, 5);
-                                    string b = SetVariableValue(_placeholder);
-                                        extracting = true;
-                                        extractingTitle = false;
-                                        hasText = true;
-                                    bool pipefound = false;
-                                    foreach (char c in b)
+                                        text += c;
+                                    }
+                                    else
                                     {
-                                        if (c != '|')
+                                        pipefound = true;
+                                        break;
+                                    }
+                                }
+                                if (pipefound == true)
+                                {
+                                    extracting = false;
+                                }
+                                else
+                                {
+                                    text += " ";
+                                }
+                            }
+                            if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                string _placeholder = s.Remove(0, 6);
+                                string b = SetVariableValue(_placeholder);
+                                extractingTitle = true;
+                                extracting = true;
+                                hasTitle = true;
+                                bool pipefound = false;
+                                foreach (char c in b)
+                                {
+                                    if (c != '|')
+                                    {
+                                        title += c;
+                                    }
+                                    else
+                                    {
+                                        pipefound = true;
+                                        break;
+                                    }
+                                }
+                                if (pipefound == true)
+                                {
+                                    extracting = false;
+                                    extractingTitle = false;
+                                }
+                                else
+                                {
+                                    title += " ";
+                                }
+                            }
+                            if (s.StartsWith("Buttons:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                string _placeholder = s.Remove(0, 8);
+                                string a = ConvertNumericalVariable(_placeholder);
+                                if (a.StartsWith("YESNO,", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    selectedButton = 2;
+                                    expected_variable = a.Remove(0, 6).TrimEnd();
+                                    bool validValue = LocalVariableExists(expected_variable);
+                                    if (validValue == true)
+                                    {
+                                        LocalVariable var_totakevalue = local_variables.Find(locvar => locvar.Name == expected_variable);
+                                        if (var_totakevalue != null)
+                                        {
+                                            if (var_totakevalue.Type != VariableType.Boolean)
+                                            {
+                                                errorHandler.ThrowError(2100, null, null, expected_variable, "bool variable", expectedFormat);
+                                                break;
+                                            } else
+                                            {
+                                                bool_forYesNo = var_totakevalue;
+                                            }
+                                        }
+                                    } else
+                                    {
+                                        errorHandler.ThrowError(1200, null, expected_variable, null, null, expectedFormat);
+                                        break;
+                                    }
+                                }
+                                if (a.StartsWith("OK", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    selectedButton = 1;
+                                }
+
+                                if (selectedButton <= 0)
+                                {
+                                    errorHandler.ThrowError(1400, $"Buttons:", null, _placeholder, "OK YESNO,bool", expectedFormat);
+                                }
+
+                            }
+                        }
+                    }
+                    if (extracting == true)
+                    {
+                        errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
+                        return;
+                    }
+                    if (extractingTitle == true)
+                    {
+                        errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
+                        return;
+                    }
+
+                    if (hasText == true)
+                    {
+                        if (hasTitle == true)
+                        {
+                            if (selectedButton != 0)
+                            {
+                                switch (selectedButton)
+                                {
+                                    case 1:
+                                        valid_command = true;
+                                        Terminal.Gui.Application.MainLoop.Invoke(() =>
+                                            {
+                                                consoleDirector.ok_msgbox(title, text);
+                                            });
+                                        break;
+                                    case 2:
+                                        valid_command = true;
+                                        string varname = bool_forYesNo.Name;
+                                        Terminal.Gui.Application.MainLoop.Invoke(() =>
+                                        {
+                                            consoleDirector.yesno_msgbox(title, text, varname);
+                                        });
+                                        break;
+                                }
+
+                            } else
+                            {
+                                // This shouldn't hit but there's never a thing as too much redundancy
+                                errorHandler.ThrowError(1400, $"Buttons:", null, "provided value", "OK YESNO,bool", expectedFormat);
+                            }
+                        } else
+                        {
+                            errorHandler.ThrowError(1700, null, "Title:", null, null, expectedFormat);
+                        }
+                    } else
+                    {
+                        errorHandler.ThrowError(1700, null, "Text:", null, null, expectedFormat);
+                    }
+
+                } else
+                {
+                    errorHandler.ThrowError(1800, null, null, null, null, null);
+                }
+
+
+            }
+            if (split_input[0].Equals("gui_savedialog", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                if (GUIModeEnabled == true)
+                {
+                    string expectedFormat = "gui_savedialog strvariable Text:Default text| Title:Default title| Filetypes:listname";
+                    bool extracting = false;
+                    bool extractingTitle = false;
+                    bool hasText = false;
+                    bool hasTitle = false;
+                    bool validVariable = false;
+
+                    LocalList expectedFileTypes = null;
+
+                    string expectedVariableName_ = SetVariableValue(split_input[1]);
+                    string text = "";
+                    string title = "";
+
+                    validVariable = LocalVariableExists(expectedVariableName_);
+
+                    if (validVariable == true)
+                    {
+                        LocalVariable temp_ = local_variables.Find(e => e.Name == expectedVariableName_);
+                        if (temp_.Type != VariableType.String)
+                        {
+                            errorHandler.ThrowError(2100, null, null, expectedVariableName_, "string variable", expectedFormat);
+                            return;
+                        }
+
+                        foreach (string s in split_input)
+                        {
+                            if (extracting == true)
+                            {
+                                string q = SetVariableValue(s);
+                                foreach (char c in q)
+                                {
+                                    if (c != '|')
+                                    {
+                                        if (extractingTitle == true)
+                                        {
+                                            title += c;
+                                        }
+                                        else if (extractingTitle == false)
                                         {
                                             text += c;
                                         }
-                                        else
-                                        {
-                                            pipefound = true;
-                                            break;
-                                        }
-                                    }
-                                    if (pipefound == true)
-                                    {
-                                        extracting = false;
                                     }
                                     else
+                                    {
+                                        extracting = false;
+                                        extractingTitle = false;
+                                    }
+                                }
+                                if (extracting == true)
+                                {
+                                    if (extractingTitle == true)
+                                    {
+                                        title += " ";
+                                    }
+                                    else if (extractingTitle == false)
                                     {
                                         text += " ";
                                     }
                                 }
-                                    if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
+                            }
+                            else
+                            {
+                                if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string _placeholder = s.Remove(0, 5);
+                                    extracting = true;
+                                    extractingTitle = false;
+                                    text = _placeholder + " ";
+                                    hasText = true;
+                                }
+                                if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string _placeholder = s.Remove(0, 6);
+                                    extractingTitle = true;
+                                    extracting = true;
+                                    title = _placeholder + " ";
+                                    hasTitle = true;
+                                }
+                                if (s.StartsWith("Filetypes:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string _placeholder = s.Remove(0, 10);
+                                    bool listExists, listIsStringList = false;
+                                    LocalList templist = local_lists.Find(x => x.Name == _placeholder);
+                                    if (templist != null)
                                     {
-                                        string _placeholder = s.Remove(0, 6);
-                                        string b = SetVariableValue(_placeholder);
-                                        extractingTitle = true;
-                                        extracting = true;
-                                        hasTitle = true;
-                                    bool pipefound = false;
-                                    foreach (char c in b)
-                                    {
-                                        if (c != '|')
+                                        listExists = true;
+                                        if (templist.arrayType == ArrayType.String) { listIsStringList = true; }
+
+                                        if ((listExists == true) && (listIsStringList == true))
                                         {
-                                            title += c;
+                                            expectedFileTypes = templist;
                                         }
-                                        else
-                                        {
-                                            pipefound = true;
-                                            break;
-                                        }
-                                    }
-                                    if (pipefound == true)
-                                    {
-                                        extracting = false;
-                                        extractingTitle = false;
+
                                     }
                                     else
                                     {
-                                        title += " ";
+                                        errorHandler.ThrowError(1200, null, _placeholder, null, null, expectedFormat);
                                     }
-                                }
-                                    if (s.StartsWith("Buttons:", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        string _placeholder = s.Remove(0, 8);
-                                        string a = ConvertNumericalVariable(_placeholder);
-                                        if (a.StartsWith("YESNO,", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            selectedButton = 2;
-                                        expected_variable = a.Remove(0, 6).TrimEnd();
-                                            bool validValue = LocalVariableExists(expected_variable);
-                                            if (validValue == true)
-                                            {
-                                                LocalVariable var_totakevalue = local_variables.Find(locvar => locvar.Name == expected_variable);
-                                                if (var_totakevalue != null)
-                                                {
-                                                    if (var_totakevalue.Type != VariableType.Boolean)
-                                                    {
-                                                    errorHandler.ThrowError(2100, null, null, expected_variable, "bool variable", expectedFormat);
-                                                    break;
-                                                    } else
-                                                    {
-                                                        bool_forYesNo = var_totakevalue;
-                                                }
-                                                }
-                                            } else
-                                            {
-                                            errorHandler.ThrowError(1200, null, expected_variable, null, null, expectedFormat);
-                                            break;
-                                            }
-                                        }
-                                        if (a.StartsWith("OK", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            selectedButton = 1;
-                                        }
 
-                                        if(selectedButton <= 0)
-                                        {
-                                            errorHandler.ThrowError(1400, $"Buttons:", null, _placeholder, "OK YESNO,bool", expectedFormat);
-                                        }
-
-                                    }
                                 }
+
                             }
+                        }
+
                         if (extracting == true)
                         {
                             errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
@@ -4644,525 +5197,325 @@ namespace GyroPrompt
                         }
 
                         if (hasText == true)
+                        {
+                            if (hasTitle == true)
                             {
-                                if (hasTitle == true)
-                                {
-                                    if (selectedButton != 0)
-                                    {
-                                        switch (selectedButton)
-                                        {
-                                            case 1:
-                                            valid_command = true;
-                                            Terminal.Gui.Application.MainLoop.Invoke(() =>
-                                                {
-                                                    consoleDirector.ok_msgbox(title, text);
-                                                });
-                                            break;
-                                            case 2:
-                                            valid_command = true;
-                                            string varname = bool_forYesNo.Name;
-                                                Terminal.Gui.Application.MainLoop.Invoke(() =>
-                                                {
-                                                    consoleDirector.yesno_msgbox(title, text, varname);
-                                                });
-                                            break;
-                                        }
-                                        
-                                    } else
-                                    {
-                                    // This shouldn't hit but there's never a thing as too much redundancy
-                                    errorHandler.ThrowError(1400, $"Buttons:", null, "provided value", "OK YESNO,bool", expectedFormat);
-                                }
-                                } else
-                                {
-                                errorHandler.ThrowError(1700, null, "Title:", null, null, expectedFormat);
+                                valid_command = true;
+                                consoleDirector.showsaveDialog(title, text, expectedVariableName_, expectedFileTypes);
                             }
-                            } else
+                            else
                             {
-                                errorHandler.ThrowError(1700, null, "Text:", null, null, expectedFormat);
+                                errorHandler.ThrowError(1700, null, "Title:", null, null, null);
+                            }
                         }
-
+                        else
+                        {
+                            errorHandler.ThrowError(1700, null, "Text:", null, null, null);
+                        }
                     } else
                     {
-                        errorHandler.ThrowError(1800, null, null, null, null, null);
+                        errorHandler.ThrowError(1200, null, expectedVariableName_, null, null, expectedFormat);
                     }
-                    
-                    
                 }
-                if (split_input[0].Equals("gui_savedialog", StringComparison.OrdinalIgnoreCase))
+                else
                 {
-                    entry_made = true;
-                    if (GUIModeEnabled == true)
+                    errorHandler.ThrowError(1800, null, null, null, null, null);
+                }
+            }
+            if (split_input[0].Equals("gui_opendialog", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                if (GUIModeEnabled == true)
+                {
+                    string expectedFormat = "gui_savedialog strvariable Text:Default text| Title:Default title| Filetypes:listname";
+                    bool extracting = false;
+                    bool extractingTitle = false;
+                    bool hasText = false;
+                    bool hasTitle = false;
+                    bool validVariable = false;
+
+                    LocalList expectedFileTypes = null;
+
+                    string expectedVariableName_ = SetVariableValue(split_input[1]);
+                    string text = "";
+                    string title = "";
+
+                    validVariable = LocalVariableExists(expectedVariableName_);
+                    if (validVariable == true)
                     {
-                        string expectedFormat = "gui_savedialog strvariable Text:Default text| Title:Default title| Filetypes:listname";
-                        bool extracting = false;
-                        bool extractingTitle = false;
-                        bool hasText = false;
-                        bool hasTitle = false;
-                        bool validVariable = false;
-
-                        LocalList expectedFileTypes = null;
-
-                        string expectedVariableName_ = SetVariableValue(split_input[1]);
-                        string text = "";
-                        string title = "";
-
-                        validVariable = LocalVariableExists(expectedVariableName_);
-                        
-                        if (validVariable == true)
+                        LocalVariable temp_ = local_variables.Find(e => e.Name == expectedVariableName_);
+                        if (temp_.Type != VariableType.String)
                         {
-                            LocalVariable temp_ = local_variables.Find(e => e.Name == expectedVariableName_);
-                            if (temp_.Type != VariableType.String)
-                            {
-                                errorHandler.ThrowError(2100, null, null, expectedVariableName_, "string variable", expectedFormat);
-                                return;
-                            }
+                            errorHandler.ThrowError(2100, null, null, expectedVariableName_, "string variable", expectedFormat);
+                            return;
+                        }
 
-                            foreach (string s in split_input)
+
+                        foreach (string s in split_input)
+                        {
+                            if (extracting == true)
                             {
-                                if (extracting == true)
+                                string q = SetVariableValue(s);
+                                foreach (char c in q)
                                 {
-                                    string q = SetVariableValue(s);
-                                    foreach (char c in q)
-                                    {
-                                        if (c != '|')
-                                        {
-                                            if (extractingTitle == true)
-                                            {
-                                                title += c;
-                                            }
-                                            else if (extractingTitle == false)
-                                            {
-                                                text += c;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            extracting = false;
-                                            extractingTitle = false;
-                                        }
-                                    }
-                                    if (extracting == true)
+                                    if (c != '|')
                                     {
                                         if (extractingTitle == true)
                                         {
-                                            title += " ";
+                                            title += c;
                                         }
                                         else if (extractingTitle == false)
                                         {
-                                            text += " ";
+                                            text += c;
                                         }
                                     }
-                                }
-                                else
-                                {
-                                    if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                                    else
                                     {
-                                        string _placeholder = s.Remove(0, 5);
-                                        extracting = true;
+                                        extracting = false;
                                         extractingTitle = false;
-                                        text = _placeholder + " ";
-                                        hasText = true;
                                     }
-                                    if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        string _placeholder = s.Remove(0, 6);
-                                        extractingTitle = true;
-                                        extracting = true;
-                                        title = _placeholder + " ";
-                                        hasTitle = true;
-                                    }
-                                    if (s.StartsWith("Filetypes:", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        string _placeholder = s.Remove(0, 10);
-                                        bool listExists, listIsStringList = false;
-                                        LocalList templist = local_lists.Find(x => x.Name == _placeholder);
-                                        if (templist != null)
-                                        {
-                                            listExists = true;
-                                            if (templist.arrayType == ArrayType.String) { listIsStringList = true; }
-
-                                            if ((listExists == true) && (listIsStringList == true))
-                                            {
-                                                expectedFileTypes = templist;
-                                            }
-
-                                        }
-                                        else
-                                        {
-                                            errorHandler.ThrowError(1200, null, _placeholder, null, null, expectedFormat);
-                                        }
-
-                                    }
-
                                 }
-                            }
-
-                            if (extracting == true)
-                            {
-                                errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
-                                return;
-                            }
-                            if (extractingTitle == true)
-                            {
-                                errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
-                                return;
-                            }
-
-                            if (hasText == true)
-                            {
-                                if (hasTitle == true)
+                                if (extracting == true)
                                 {
-                                    valid_command = true;
-                                    consoleDirector.showsaveDialog(title, text, expectedVariableName_, expectedFileTypes);
-                                }
-                                else
-                                {
-                                    errorHandler.ThrowError(1700, null, "Title:", null, null, null);
+                                    if (extractingTitle == true)
+                                    {
+                                        title += " ";
+                                    }
+                                    else if (extractingTitle == false)
+                                    {
+                                        text += " ";
+                                    }
                                 }
                             }
                             else
                             {
-                                errorHandler.ThrowError(1700, null, "Text:", null, null, null);
-                            }
-                        } else
-                        {
-                            errorHandler.ThrowError(1200, null, expectedVariableName_, null, null, expectedFormat);
-                        }
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1800, null, null, null, null, null);
-                    }
-                }
-                if (split_input[0].Equals("gui_opendialog", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    if (GUIModeEnabled == true)
-                    {
-                        string expectedFormat = "gui_savedialog strvariable Text:Default text| Title:Default title| Filetypes:listname";
-                        bool extracting = false;
-                        bool extractingTitle = false;
-                        bool hasText = false;
-                        bool hasTitle = false;
-                        bool validVariable = false;
-
-                        LocalList expectedFileTypes = null;
-
-                        string expectedVariableName_ = SetVariableValue(split_input[1]);
-                        string text = "";
-                        string title = "";
-
-                        validVariable = LocalVariableExists(expectedVariableName_);
-                        if (validVariable == true)
-                        {
-                            LocalVariable temp_ = local_variables.Find(e => e.Name == expectedVariableName_);
-                            if (temp_.Type != VariableType.String)
-                            {
-                                errorHandler.ThrowError(2100, null, null, expectedVariableName_, "string variable", expectedFormat);
-                                return;
-                            }
-
-
-                            foreach (string s in split_input)
-                            {
-                                if (extracting == true)
+                                if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    string q = SetVariableValue(s);
-                                    foreach (char c in q)
-                                    {
-                                        if (c != '|')
-                                        {
-                                            if (extractingTitle == true)
-                                            {
-                                                title += c;
-                                            }
-                                            else if (extractingTitle == false)
-                                            {
-                                                text += c;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            extracting = false;
-                                            extractingTitle = false;
-                                        }
-                                    }
-                                    if (extracting == true)
-                                    {
-                                        if (extractingTitle == true)
-                                        {
-                                            title += " ";
-                                        }
-                                        else if (extractingTitle == false)
-                                        {
-                                            text += " ";
-                                        }
-                                    }
+                                    string _placeholder = s.Remove(0, 5);
+                                    extracting = true;
+                                    extractingTitle = false;
+                                    text = _placeholder + " ";
+                                    hasText = true;
                                 }
-                                else
+                                if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    if (s.StartsWith("Text:", StringComparison.OrdinalIgnoreCase))
+                                    string _placeholder = s.Remove(0, 6);
+                                    extractingTitle = true;
+                                    extracting = true;
+                                    title = _placeholder + " ";
+                                    hasTitle = true;
+                                }
+                                if (s.StartsWith("Filetypes:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string _placeholder = s.Remove(0, 10);
+                                    bool listExists, listIsStringList = false;
+                                    LocalList templist = local_lists.Find(x => x.Name == _placeholder);
+                                    if (templist != null)
                                     {
-                                        string _placeholder = s.Remove(0, 5);
-                                        extracting = true;
-                                        extractingTitle = false;
-                                        text = _placeholder + " ";
-                                        hasText = true;
-                                    }
-                                    if (s.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        string _placeholder = s.Remove(0, 6);
-                                        extractingTitle = true;
-                                        extracting = true;
-                                        title = _placeholder + " ";
-                                        hasTitle = true;
-                                    }
-                                    if (s.StartsWith("Filetypes:", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        string _placeholder = s.Remove(0, 10);
-                                        bool listExists, listIsStringList = false;
-                                        LocalList templist = local_lists.Find(x => x.Name == _placeholder);
-                                        if (templist != null)
-                                        {
-                                            listExists = true;
-                                            if (templist.arrayType == ArrayType.String) { listIsStringList = true; }
+                                        listExists = true;
+                                        if (templist.arrayType == ArrayType.String) { listIsStringList = true; }
 
-                                            if ((listExists == true) && (listIsStringList == true))
-                                            {
-                                                expectedFileTypes = templist;
-                                            }
-
-                                        }
-                                        else
+                                        if ((listExists == true) && (listIsStringList == true))
                                         {
-                                            errorHandler.ThrowError(1200, null, _placeholder, null, null, expectedFormat);
+                                            expectedFileTypes = templist;
                                         }
 
+                                    }
+                                    else
+                                    {
+                                        errorHandler.ThrowError(1200, null, _placeholder, null, null, expectedFormat);
                                     }
 
                                 }
-                            }
 
-                            if (extracting == true)
-                            {
-                                errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
-                                return;
-                            }
-                            if (extractingTitle == true)
-                            {
-                                errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
-                                return;
-                            }
-
-                            if (hasText == true)
-                            {
-                                if (hasTitle == true)
-                                {
-                                    valid_command = true;
-                                    consoleDirector.showopenDialog(title, text, expectedVariableName_, expectedFileTypes);
-                                }
-                                else
-                                {
-                                    errorHandler.ThrowError(1700, null, "Title:", null, null, null);
-                                }
-                            }
-                            else
-                            {
-                                errorHandler.ThrowError(1700, null, "Text:", null, null, null);
                             }
                         }
-                        else
-                        {
-                            errorHandler.ThrowError(1200, null, expectedVariableName_, null, null, expectedFormat);
-                        }
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1800, null, null, null, null, null);
-                    }
-                }
 
-
-                /// <summary>
-                /// List items can hold multiple variable items. 
-                /// 
-                /// SYNTAX EXAMPLES:
-                /// new_list variabletype listname             <- creates new list
-                /// list_add listname variablename [...]      <- can add more than 1 variable if separated by a space
-                /// list_remove listname variablename        <- removes specified variablename from list
-                /// list_setall listname value              <- every member of list receives new value
-                /// </summary>
-                if (split_input[0].Equals("new_list", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "new_list variabletype newname";
-                    if (split_input.Length == 3)
-                    {
-                        string arrayType = split_input[1].ToLower();
-                        ArrayType new_arrayType = new ArrayType();
-                        bool valid_arrayType = true;
-                        // Ensure a valid input was provided
-                        switch (arrayType)
+                        if (extracting == true)
                         {
-                            case "string":
-                                new_arrayType = ArrayType.String;
-                                break;
-                            case "int":
-                                new_arrayType = ArrayType.Int;
-                                break;
-                            case "integer":
-                                new_arrayType = ArrayType.Int;
-                                break;
-                            case "float":
-                                new_arrayType = ArrayType.Float;
-                                break;
-                            case "bool":
-                                new_arrayType = ArrayType.Boolean;
-                                break;
-                            case "boolean":
-                                new_arrayType = ArrayType.Boolean;
-                                break;
-                            default:
-                                valid_arrayType = false;
-                                break;
+                            errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
+                            return;
                         }
-                        if (valid_arrayType == true)
+                        if (extractingTitle == true)
                         {
-                            string listName = split_input[2];
-                            bool properName = ContainsOnlyLettersAndNumbers(listName);
-                            bool alreadyExists = NameInUse(listName);
-                            if (properName == false)
+                            errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
+                            return;
+                        }
+
+                        if (hasText == true)
+                        {
+                            if (hasTitle == true)
                             {
-                                errorHandler.ThrowError(1600, listName);
-                                return;
-                            }
-                            if (alreadyExists == true)
-                            {
-                                errorHandler.ThrowError(1300, null, null, listName, null, expectedFormat);
-                                return;
-                            }
-                            if ((properName == true) && (alreadyExists == false))
-                            {
-                                LocalList newArray = new LocalList();
-                                newArray.Name = listName;
-                                newArray.arrayType = new_arrayType;
-                                local_lists.Add(newArray);
-                                namesInUse.Add(listName, objectClass.List);
                                 valid_command = true;
+                                consoleDirector.showopenDialog(title, text, expectedVariableName_, expectedFileTypes);
+                            }
+                            else
+                            {
+                                errorHandler.ThrowError(1700, null, "Title:", null, null, null);
                             }
                         }
                         else
                         {
-                            errorHandler.ThrowError(1400, $"variablr type", null, arrayType, "string, int, float, bool", expectedFormat);
+                            errorHandler.ThrowError(1700, null, "Text:", null, null, null);
                         }
-
                     }
                     else
                     {
-                        errorHandler.ThrowError(1100, "new_list", null, null, null, expectedFormat);
+                        errorHandler.ThrowError(1200, null, expectedVariableName_, null, null, expectedFormat);
                     }
                 }
-                if (split_input[0].Equals("list_add", StringComparison.OrdinalIgnoreCase))
+                else
                 {
-                    entry_made = true;
-                    string expectedFormat = "list_add listname variablename(s)";
-                    if (split_input.Length >= 3)
+                    errorHandler.ThrowError(1800, null, null, null, null, null);
+                }
+            }
+
+
+            /// <summary>
+            /// List items can hold multiple variable items. 
+            /// 
+            /// SYNTAX EXAMPLES:
+            /// new_list variabletype listname             <- creates new list
+            /// list_add listname variablename [...]      <- can add more than 1 variable if separated by a space
+            /// list_remove listname variablename        <- removes specified variablename from list
+            /// list_setall listname value              <- every member of list receives new value
+            /// </summary>
+            if (split_input[0].Equals("new_list", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "new_list variabletype newname";
+                if (split_input.Length == 3)
+                {
+                    string arrayType = split_input[1].ToLower();
+                    ArrayType new_arrayType = new ArrayType();
+                    bool valid_arrayType = true;
+                    // Ensure a valid input was provided
+                    switch (arrayType)
                     {
-                        string listName = split_input[1];
-                        string varName = split_input[2];
-                        bool varExists = LocalVariableExists(varName.TrimEnd());
-                        bool arrayExists = false;
-                        if (split_input.Length > 3)
+                        case "string":
+                            new_arrayType = ArrayType.String;
+                            break;
+                        case "int":
+                            new_arrayType = ArrayType.Int;
+                            break;
+                        case "integer":
+                            new_arrayType = ArrayType.Int;
+                            break;
+                        case "float":
+                            new_arrayType = ArrayType.Float;
+                            break;
+                        case "bool":
+                            new_arrayType = ArrayType.Boolean;
+                            break;
+                        case "boolean":
+                            new_arrayType = ArrayType.Boolean;
+                            break;
+                        default:
+                            valid_arrayType = false;
+                            break;
+                    }
+                    if (valid_arrayType == true)
+                    {
+                        string listName = split_input[2];
+                        bool properName = ContainsOnlyLettersAndNumbers(listName);
+                        bool alreadyExists = NameInUse(listName);
+                        if (properName == false)
                         {
-                            bool foundList = false;
-                            string badVariable = "";
-                            foreach (LocalList list in local_lists)
-                            {
-                                if (list.Name == listName)
-                                {
-                                    foundList = true;
-                                    foreach (string str in split_input.Skip(2))
-                                    {
-                                        bool validVar = LocalVariableExists(str);
-                                        string currentVar = str;
-                                        if (validVar)
-                                        {
-                                            foreach (LocalVariable locvar in local_variables)
-                                            {
-                                                if (locvar.Name == currentVar)
-                                                {
-                                                    list.itemAdd(locvar);
-                                                    valid_command = true;
-                                                }
-                                            }
-                                        }
-                                        else
-                                        {
-                                            badVariable += str + " "; // add every non-added value to list
-                                        }
-                                    }
-                                    if (badVariable != "")
-                                    {
-                                        errorHandler.ThrowError(1200, null, badVariable, null, null, expectedFormat);
-                                    }
-                                    break;
-                                }
-                            }
-                            if (foundList == false) { errorHandler.ThrowError(1200, null, listName, null, null, expectedFormat); }
+                            errorHandler.ThrowError(1600, listName);
+                            return;
                         }
-                        else if (split_input.Length == 3)
+                        if (alreadyExists == true)
                         {
-                            if (varExists == true)
+                            errorHandler.ThrowError(1300, null, null, listName, null, expectedFormat);
+                            return;
+                        }
+                        if ((properName == true) && (alreadyExists == false))
+                        {
+                            LocalList newArray = new LocalList();
+                            newArray.Name = listName;
+                            newArray.arrayType = new_arrayType;
+                            local_lists.Add(newArray);
+                            namesInUse.Add(listName, objectClass.List);
+                            valid_command = true;
+                        }
+                    }
+                    else
+                    {
+                        errorHandler.ThrowError(1400, $"variablr type", null, arrayType, "string, int, float, bool", expectedFormat);
+                    }
+
+                }
+                else
+                {
+                    errorHandler.ThrowError(1100, "new_list", null, null, null, expectedFormat);
+                }
+            }
+            if (split_input[0].Equals("list_add", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "list_add listname variablename(s)";
+                if (split_input.Length >= 3)
+                {
+                    string listName = split_input[1];
+                    string varName = split_input[2];
+                    bool varExists = LocalVariableExists(varName.TrimEnd());
+                    bool arrayExists = false;
+                    if (split_input.Length > 3)
+                    {
+                        bool foundList = false;
+                        string badVariable = "";
+                        foreach (LocalList list in local_lists)
+                        {
+                            if (list.Name == listName)
                             {
-                                foreach (LocalList array in local_lists)
+                                foundList = true;
+                                foreach (string str in split_input.Skip(2))
                                 {
-                                    if (array.Name == listName)
+                                    bool validVar = LocalVariableExists(str);
+                                    string currentVar = str;
+                                    if (validVar)
                                     {
-                                        foreach (LocalVariable localVar in local_variables)
+                                        foreach (LocalVariable locvar in local_variables)
                                         {
-                                            if (localVar.Name == varName)
+                                            if (locvar.Name == currentVar)
                                             {
+                                                list.itemAdd(locvar);
                                                 valid_command = true;
-                                                array.itemAdd(localVar);
-                                                break;
                                             }
                                         }
-                                        arrayExists = true;
+                                    }
+                                    else
+                                    {
+                                        badVariable += str + " "; // add every non-added value to list
                                     }
                                 }
-                                if (arrayExists == false)
+                                if (badVariable != "")
                                 {
-                                    errorHandler.ThrowError(1200, null, listName, null, null, expectedFormat);
+                                    errorHandler.ThrowError(1200, null, badVariable, null, null, expectedFormat);
                                 }
-                            }
-                            else
-                            {
-                                errorHandler.ThrowError(1200, null, varName, null, null, expectedFormat);
+                                break;
                             }
                         }
-                        else { errorHandler.ThrowError(1100, "list_add", null, null, null, expectedFormat); }
+                        if (foundList == false) { errorHandler.ThrowError(1200, null, listName, null, null, expectedFormat); }
                     }
-                }
-                if (split_input[0].Equals("list_remove", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "list_remove listname variablename";
-                    if (split_input.Length >= 3)
+                    else if (split_input.Length == 3)
                     {
-                        string listName = split_input[1];
-                        string varName = split_input[2];
-                        bool varExists = LocalVariableExists(varName);
-                        bool arrayExists = false;
                         if (varExists == true)
                         {
                             foreach (LocalList array in local_lists)
                             {
                                 if (array.Name == listName)
                                 {
-                                    array.itemRemove(varName);
-                                    valid_command = true;
-                                    break;
+                                    foreach (LocalVariable localVar in local_variables)
+                                    {
+                                        if (localVar.Name == varName)
+                                        {
+                                            valid_command = true;
+                                            array.itemAdd(localVar);
+                                            break;
+                                        }
+                                    }
+                                    arrayExists = true;
                                 }
                             }
                             if (arrayExists == false)
@@ -5174,262 +5527,289 @@ namespace GyroPrompt
                         {
                             errorHandler.ThrowError(1200, null, varName, null, null, expectedFormat);
                         }
-                    } else
-                    {
-                        errorHandler.ThrowError(1100, "list_remove", null, null, null, expectedFormat);
                     }
+                    else { errorHandler.ThrowError(1100, "list_add", null, null, null, expectedFormat); }
                 }
-                if (split_input[0].Equals("list_setall", StringComparison.OrdinalIgnoreCase))
+            }
+            if (split_input[0].Equals("list_remove", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "list_remove listname variablename";
+                if (split_input.Length >= 3)
                 {
-                    entry_made = true;
-                    string expectedFormat = "list_setall listname value";
-                    if (split_input.Length >= 2)
-                    {
-                        bool arrayExist = false;
-                        string arrayName = split_input[1];
-
-                        foreach (LocalList localLists in local_lists)
-                        {
-                            if (localLists.Name == arrayName)
-                            {
-                                switch (localLists.arrayType)
-                                {
-                                    // The array type will determine how we handle the input
-                                    case ArrayType.Float:
-                                        if (split_input.Length > 3)
-                                        {
-                                            errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
-                                        }
-                                        else
-                                        {
-                                            string a_ = SetVariableValue(split_input[2]);
-                                            string b_ = ConvertNumericalVariable(a_);
-                                            bool isfloat = float.TryParse(b_, NumberStyles.Float, CultureInfo.InvariantCulture.NumberFormat, out float result);
-                                            if (isfloat == true)
-                                            {
-                                                localLists.SetAllWithValue(b_);
-                                                valid_command = true;
-                                            }
-                                            else
-                                            {
-                                                errorHandler.ThrowError(1400, $"float", null, b_, "float value", expectedFormat);
-                                            }
-                                        }
-                                        break;
-                                    case ArrayType.Int:
-                                        if (split_input.Length > 3)
-                                        {
-                                            errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
-                                        }
-                                        else
-                                        {
-                                            string a_ = SetVariableValue(split_input[2]);
-                                            string b_ = ConvertNumericalVariable(a_);
-                                            bool isInt = IsNumeric(b_);
-                                            if (isInt == true)
-                                            {
-                                                localLists.SetAllWithValue(b_);
-                                                valid_command = true;
-                                            }
-                                            else
-                                            {
-                                                errorHandler.ThrowError(1400, $"integer", null, b_, "integer value", expectedFormat);
-                                            }
-                                        }
-                                        break;
-                                    case ArrayType.String:
-                                        // We'll recompile string and pass it
-                                        string newValue = "";
-                                        if (split_input.Length > 3)
-                                        {
-                                            foreach (string s in split_input.Skip(2))
-                                            {
-                                                newValue += s;
-                                            }
-                                        }
-                                        string aa = SetVariableValue(newValue);
-                                        string bb = ConvertNumericalVariable(aa);
-                                        localLists.SetAllWithValue(bb.Trim());
-                                        valid_command = true;
-                                        break;
-                                    case ArrayType.Boolean:
-                                        if (split_input.Length > 3)
-                                        {
-                                            errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
-                                        }
-                                        else
-                                        {
-                                            bool isBool = false;
-                                            string[] acceptableValue = { "true", "false", "1", "0" };
-                                            string operation = "";
-                                            foreach (string s in acceptableValue)
-                                            {
-                                                if (split_input[2].Equals(s, StringComparison.OrdinalIgnoreCase))
-                                                {
-                                                    if ((s == "true") || (s == "1")) { operation = "True"; }
-                                                    if ((s == "false") || s == "0") { operation = "False"; }
-                                                    isBool = true;
-                                                    break;
-                                                }
-                                            }
-                                            if (isBool == true)
-                                            {
-                                                localLists.SetAllWithValue(operation);
-                                                valid_command = true;
-                                            }
-                                            else
-                                            {
-                                                errorHandler.ThrowError(1400, $"bool", null, split_input[2], "True/False", expectedFormat);
-                                            }
-                                        }
-                                        break;
-                                }
-                                arrayExist = true;
-                                break;
-                            }
-                        }
-                        if (arrayExist == false)
-                        {
-                            errorHandler.ThrowError(1200, null, arrayName, null, null, expectedFormat);
-                        }
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("list_printall", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "list_printall listname";
                     string listName = split_input[1];
-                    if (split_input.Length == 2)
+                    string varName = split_input[2];
+                    bool varExists = LocalVariableExists(varName);
+                    bool arrayExists = false;
+                    if (varExists == true)
                     {
-                        bool listExists = false;
-                        foreach (LocalList list_ in local_lists)
+                        foreach (LocalList array in local_lists)
                         {
-                            if (list_.Name == listName)
+                            if (array.Name == listName)
                             {
-                                listExists = true;
-                                list_.PrintAll();
+                                array.itemRemove(varName);
                                 valid_command = true;
                                 break;
                             }
                         }
-                        if (listExists == false)
+                        if (arrayExists == false)
                         {
                             errorHandler.ThrowError(1200, null, listName, null, null, expectedFormat);
                         }
-                    } else {
-                        errorHandler.ThrowError(1100, "list_printall", null, null, null, expectedFormat);
                     }
-                }
-                
-                /// <summary>
-                /// The filesystem interface allows the user to read, write, move, copy, and edit attributes of
-                /// files and directories.
-                ///
-                /// SYNTAX EXAMPLES:
-                /// filesystem_write path contents[...]                 <- writes contents to path, will overwrite original contents
-                /// filesystem_append path contents[...]               <- appens contents to path, will not overwrit
-                /// filesystem_readall path variable                  <- sets variable value to contents of file
-                /// filesystem_readtolist path list                  <- assigns each line of file to a string variable to list [list must be either A) an empty string list, or B) not exist at all]
-                /// filesystem_delete path                          <- deletes file at path
-                /// filesystem_copy currentpath targetpath         <- copys file in currentpath to targetpath
-                /// filesystem_move currentpath targetpath        <- moves file from currentpath to targetpath
-                /// filesystem_sethidden path                                  <- sets file at path to hidden
-                /// filesystem_setvisible path                                <- sets file at path to not hidden
-                /// filesystem_mkdir path                                                   <- creates directory at path
-                /// filesystem_rmdir path                                                  <- removes directory at path
-                /// filesystem_copydir currentpath targetpath                             <- copy directory in current path to targetpath
-                /// filesystem_movedir current path targetpath                           <- move directory from current path to targetpath
-                /// <summary>
-                
-                if (split_input[0].StartsWith("filesystem_", StringComparison.OrdinalIgnoreCase))
+                    else
+                    {
+                        errorHandler.ThrowError(1200, null, varName, null, null, expectedFormat);
+                    }
+                } else
                 {
-                    bool validCommand = false, hasOut = false, hasPlaceholder = false, expectsReturn = false, variableExists = false, validVariable = false;
-                    int inputLen = split_input.Length;
-                    string _placeholder = split_input[0].Remove(0, 11).ToLower(), writtenOut = "";
-                    string expectedFormat = "will work this soon";
+                    errorHandler.ThrowError(1100, "list_remove", null, null, null, expectedFormat);
+                }
+            }
+            if (split_input[0].Equals("list_setall", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "list_setall listname value";
+                if (split_input.Length >= 2)
+                {
+                    bool arrayExist = false;
+                    string arrayName = split_input[1];
 
-                    if (filesystem.commandDirectoryVoid.ContainsKey(_placeholder))
+                    foreach (LocalList localLists in local_lists)
                     {
-                        entry_made = true;
-                        if (inputLen < 2)
+                        if (localLists.Name == arrayName)
                         {
-                            // Throw format error
-                            errorHandler.ThrowError(1100, split_input[0], null, null, null, expectedFormat);
-                            return;
-                        }
-                        if (filesystem.actionsWithPlaceholder.ContainsKey(_placeholder)) { hasPlaceholder = true; }
-                        if (filesystem.outputsToFile.ContainsKey(_placeholder))
-                        {
-                            hasOut = true;
-                            // Rebuild string
-                            string temp_ = split_input[0] + " " + split_input[1] + " ";
-                            string temp_2 = input.Replace(temp_, "");
-                            writtenOut += SetVariableValue(temp_2);
-                        }
-                        if ((hasPlaceholder == false)&&(inputLen < 3)) { errorHandler.ThrowError(1100, split_input[0], null, null, null, expectedFormat); return; } // <----- Throw format error
-
-                        if (hasPlaceholder == true)
-                        {
-                            filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], "");
-                            valid_command = true;
-                        } else if (hasOut == true)
-                        {
-                            filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], writtenOut);
-                            valid_command = true;
-                        } else
-                        {
-                            filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], split_input[2]);
-                            valid_command = true;
-                        }
-                    }
-
-                    if (filesystem.commandDirectoryReturnString.ContainsKey(_placeholder))
-                    {
-                        entry_made = true;
-                        objectClass expectedReturnType = default;
-                        string expectedObjectName = split_input[2];
-                        string expectedPath = split_input[1];
-                        switch (_placeholder)
-                        {
-                            case "readtolist":
-                                expectedReturnType = objectClass.List;
-                                string[] filecontents = filesystem.commandDirectoryReturnString[_placeholder].Invoke(expectedPath, "");
-                                if (filecontents == null)
-                                {
-                                    // Throw error then return
-                                    return;
-                                }
-                                string filename = filesystem.fileName(expectedPath);
-                                LocalList expectList = local_lists.Find(str => str.Name == expectedObjectName);
-                                if (expectList != null)
-                                {
-                                    if (expectList.arrayType == ArrayType.String)
+                            switch (localLists.arrayType)
+                            {
+                                // The array type will determine how we handle the input
+                                case ArrayType.Float:
+                                    if (split_input.Length > 3)
                                     {
-                                        if (expectList.items.Count == 0)
-                                        {
-                                            int x = 0;
-                                            foreach (string w in filecontents)
-                                            {
-                                                LocalVariable temp_ = new LocalVariable();
-                                                temp_.Name = $"{filename},line{x}";
-                                                temp_.Value = w;
-                                                expectList.items.Add(temp_);
-                                                expectList.numberOfElements++;
-                                                x++;
-                                            }
-                                            valid_command = true;
-                                        } else
-                                        {
-                                            // Throw error bad type
-                                            errorHandler.ThrowError(2100, null, null, expectedObjectName, "empty string list", expectedFormat);
-                                            break;
-                                        }
+                                        errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
                                     }
                                     else
+                                    {
+                                        string a_ = SetVariableValue(split_input[2]);
+                                        string b_ = ConvertNumericalVariable(a_);
+                                        bool isfloat = float.TryParse(b_, NumberStyles.Float, CultureInfo.InvariantCulture.NumberFormat, out float result);
+                                        if (isfloat == true)
+                                        {
+                                            localLists.SetAllWithValue(b_);
+                                            valid_command = true;
+                                        }
+                                        else
+                                        {
+                                            errorHandler.ThrowError(1400, $"float", null, b_, "float value", expectedFormat);
+                                        }
+                                    }
+                                    break;
+                                case ArrayType.Int:
+                                    if (split_input.Length > 3)
+                                    {
+                                        errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
+                                    }
+                                    else
+                                    {
+                                        string a_ = SetVariableValue(split_input[2]);
+                                        string b_ = ConvertNumericalVariable(a_);
+                                        bool isInt = IsNumeric(b_);
+                                        if (isInt == true)
+                                        {
+                                            localLists.SetAllWithValue(b_);
+                                            valid_command = true;
+                                        }
+                                        else
+                                        {
+                                            errorHandler.ThrowError(1400, $"integer", null, b_, "integer value", expectedFormat);
+                                        }
+                                    }
+                                    break;
+                                case ArrayType.String:
+                                    // We'll recompile string and pass it
+                                    string newValue = "";
+                                    if (split_input.Length > 3)
+                                    {
+                                        foreach (string s in split_input.Skip(2))
+                                        {
+                                            newValue += s;
+                                        }
+                                    }
+                                    string aa = SetVariableValue(newValue);
+                                    string bb = ConvertNumericalVariable(aa);
+                                    localLists.SetAllWithValue(bb.Trim());
+                                    valid_command = true;
+                                    break;
+                                case ArrayType.Boolean:
+                                    if (split_input.Length > 3)
+                                    {
+                                        errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
+                                    }
+                                    else
+                                    {
+                                        bool isBool = false;
+                                        string[] acceptableValue = { "true", "false", "1", "0" };
+                                        string operation = "";
+                                        foreach (string s in acceptableValue)
+                                        {
+                                            if (split_input[2].Equals(s, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                if ((s == "true") || (s == "1")) { operation = "True"; }
+                                                if ((s == "false") || s == "0") { operation = "False"; }
+                                                isBool = true;
+                                                break;
+                                            }
+                                        }
+                                        if (isBool == true)
+                                        {
+                                            localLists.SetAllWithValue(operation);
+                                            valid_command = true;
+                                        }
+                                        else
+                                        {
+                                            errorHandler.ThrowError(1400, $"bool", null, split_input[2], "True/False", expectedFormat);
+                                        }
+                                    }
+                                    break;
+                            }
+                            arrayExist = true;
+                            break;
+                        }
+                    }
+                    if (arrayExist == false)
+                    {
+                        errorHandler.ThrowError(1200, null, arrayName, null, null, expectedFormat);
+                    }
+                }
+                else
+                {
+                    errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
+                }
+            }
+            if (split_input[0].Equals("list_printall", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "list_printall listname";
+                string listName = split_input[1];
+                if (split_input.Length == 2)
+                {
+                    bool listExists = false;
+                    foreach (LocalList list_ in local_lists)
+                    {
+                        if (list_.Name == listName)
+                        {
+                            listExists = true;
+                            list_.PrintAll();
+                            valid_command = true;
+                            break;
+                        }
+                    }
+                    if (listExists == false)
+                    {
+                        errorHandler.ThrowError(1200, null, listName, null, null, expectedFormat);
+                    }
+                } else {
+                    errorHandler.ThrowError(1100, "list_printall", null, null, null, expectedFormat);
+                }
+            }
+
+            /// <summary>
+            /// The filesystem interface allows the user to read, write, move, copy, and edit attributes of
+            /// files and directories.
+            ///
+            /// SYNTAX EXAMPLES:
+            /// filesystem_write path contents[...]                 <- writes contents to path, will overwrite original contents
+            /// filesystem_append path contents[...]               <- appens contents to path, will not overwrit
+            /// filesystem_readall path variable                  <- sets variable value to contents of file
+            /// filesystem_readtolist path list                  <- assigns each line of file to a string variable to list [list must be either A) an empty string list, or B) not exist at all]
+            /// filesystem_delete path                          <- deletes file at path
+            /// filesystem_copy currentpath targetpath         <- copys file in currentpath to targetpath
+            /// filesystem_move currentpath targetpath        <- moves file from currentpath to targetpath
+            /// filesystem_sethidden path                                  <- sets file at path to hidden
+            /// filesystem_setvisible path                                <- sets file at path to not hidden
+            /// filesystem_mkdir path                                                   <- creates directory at path
+            /// filesystem_rmdir path                                                  <- removes directory at path
+            /// filesystem_copydir currentpath targetpath                             <- copy directory in current path to targetpath
+            /// filesystem_movedir current path targetpath                           <- move directory from current path to targetpath
+            /// <summary>
+
+            if (split_input[0].StartsWith("filesystem_", StringComparison.OrdinalIgnoreCase))
+            {
+                bool validCommand = false, hasOut = false, hasPlaceholder = false, expectsReturn = false, variableExists = false, validVariable = false;
+                int inputLen = split_input.Length;
+                string _placeholder = split_input[0].Remove(0, 11).ToLower(), writtenOut = "";
+                string expectedFormat = "will work this soon";
+
+                if (filesystem.commandDirectoryVoid.ContainsKey(_placeholder))
+                {
+                    entry_made = true;
+                    if (inputLen < 2)
+                    {
+                        // Throw format error
+                        errorHandler.ThrowError(1100, split_input[0], null, null, null, expectedFormat);
+                        return;
+                    }
+                    if (filesystem.actionsWithPlaceholder.ContainsKey(_placeholder)) { hasPlaceholder = true; }
+                    if (filesystem.outputsToFile.ContainsKey(_placeholder))
+                    {
+                        hasOut = true;
+                        // Rebuild string
+                        string temp_ = split_input[0] + " " + split_input[1] + " ";
+                        string temp_2 = input.Replace(temp_, "");
+                        writtenOut += SetVariableValue(temp_2);
+                    }
+                    if ((hasPlaceholder == false) && (inputLen < 3)) { errorHandler.ThrowError(1100, split_input[0], null, null, null, expectedFormat); return; } // <----- Throw format error
+
+                    if (hasPlaceholder == true)
+                    {
+                        filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], "");
+                        valid_command = true;
+                    } else if (hasOut == true)
+                    {
+                        filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], writtenOut);
+                        valid_command = true;
+                    } else
+                    {
+                        filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], split_input[2]);
+                        valid_command = true;
+                    }
+                }
+
+                if (filesystem.commandDirectoryReturnString.ContainsKey(_placeholder))
+                {
+                    entry_made = true;
+                    objectClass expectedReturnType = default;
+                    string expectedObjectName = split_input[2];
+                    string expectedPath = split_input[1];
+                    switch (_placeholder)
+                    {
+                        case "readtolist":
+                            expectedReturnType = objectClass.List;
+                            string[] filecontents = filesystem.commandDirectoryReturnString[_placeholder].Invoke(expectedPath, "");
+                            if (filecontents == null)
+                            {
+                                // Throw error then return
+                                return;
+                            }
+                            string filename = filesystem.fileName(expectedPath);
+                            LocalList expectList = local_lists.Find(str => str.Name == expectedObjectName);
+                            if (expectList != null)
+                            {
+                                if (expectList.arrayType == ArrayType.String)
+                                {
+                                    if (expectList.items.Count == 0)
+                                    {
+                                        int x = 0;
+                                        foreach (string w in filecontents)
+                                        {
+                                            LocalVariable temp_ = new LocalVariable();
+                                            temp_.Name = $"{filename},line{x}";
+                                            temp_.Value = w;
+                                            expectList.items.Add(temp_);
+                                            expectList.numberOfElements++;
+                                            x++;
+                                        }
+                                        valid_command = true;
+                                    } else
                                     {
                                         // Throw error bad type
                                         errorHandler.ThrowError(2100, null, null, expectedObjectName, "empty string list", expectedFormat);
@@ -5438,1049 +5818,1055 @@ namespace GyroPrompt
                                 }
                                 else
                                 {
-                                    LocalList newlist = new LocalList();
-                                    newlist.arrayType = ArrayType.String;
-                                    newlist.Name = expectedObjectName;
-                                    int x = 0;
-                                    foreach(string w in filecontents)
-                                    {
-                                        LocalVariable temp_ = new LocalVariable();
-                                        temp_.Name = $"{filename},line{x}";
-                                        temp_.Value = w;
-                                        newlist.items.Add(temp_);
-                                        newlist.numberOfElements++;
-                                        x++;
-                                    }
-                                    namesInUse.Add(expectedObjectName, objectClass.List);
-                                    local_lists.Add(newlist);
-                                    valid_command = true;
-                                }
-                                break;
-                            case "readall":
-                                expectedReturnType = objectClass.Variable;
-                                string[] filecontents_ = filesystem.commandDirectoryReturnString[_placeholder].Invoke(expectedPath, "");
-                                LocalVariable expectString = local_variables.Find(str => str.Name == expectedObjectName);
-                                if (expectString != null)
-                                {
-                                    if (expectString.Type == VariableType.String)
-                                    {
-                                        expectString.Value = "";
-                                        foreach(string q in filecontents_)
-                                        {
-                                            expectString.Value += q + Environment.NewLine;
-                                        }
-                                        valid_command = true;
-                                    } else
-                                    {
-                                        // Throw error bad type
-                                        errorHandler.ThrowError(2100, null, null, expectedObjectName, "string variable", expectedFormat);
-                                        break;
-                                    }
-                                } else
-                                {
-                                    // Throw error not found
-                                    errorHandler.ThrowError(1200, null, expectedObjectName, null, null, expectedFormat);
+                                    // Throw error bad type
+                                    errorHandler.ThrowError(2100, null, null, expectedObjectName, "empty string list", expectedFormat);
                                     break;
                                 }
+                            }
+                            else
+                            {
+                                LocalList newlist = new LocalList();
+                                newlist.arrayType = ArrayType.String;
+                                newlist.Name = expectedObjectName;
+                                int x = 0;
+                                foreach (string w in filecontents)
+                                {
+                                    LocalVariable temp_ = new LocalVariable();
+                                    temp_.Name = $"{filename},line{x}";
+                                    temp_.Value = w;
+                                    newlist.items.Add(temp_);
+                                    newlist.numberOfElements++;
+                                    x++;
+                                }
+                                namesInUse.Add(expectedObjectName, objectClass.List);
+                                local_lists.Add(newlist);
+                                valid_command = true;
+                            }
+                            break;
+                        case "readall":
+                            expectedReturnType = objectClass.Variable;
+                            string[] filecontents_ = filesystem.commandDirectoryReturnString[_placeholder].Invoke(expectedPath, "");
+                            LocalVariable expectString = local_variables.Find(str => str.Name == expectedObjectName);
+                            if (expectString != null)
+                            {
+                                if (expectString.Type == VariableType.String)
+                                {
+                                    expectString.Value = "";
+                                    foreach (string q in filecontents_)
+                                    {
+                                        expectString.Value += q + Environment.NewLine;
+                                    }
+                                    valid_command = true;
+                                } else
+                                {
+                                    // Throw error bad type
+                                    errorHandler.ThrowError(2100, null, null, expectedObjectName, "string variable", expectedFormat);
+                                    break;
+                                }
+                            } else
+                            {
+                                // Throw error not found
+                                errorHandler.ThrowError(1200, null, expectedObjectName, null, null, expectedFormat);
                                 break;
-                            default:
-                                // Throw error for bad parameter
-                                break;
-                        }
+                            }
+                            break;
+                        default:
+                            // Throw error for bad parameter
+                            break;
                     }
                 }
+            }
 
-
-                /// <summary>
-                /// Tasks are a list of commands than can be executed as a background task (on a separate thread) or in-line with the main code.
-                /// Tasks will run once in chronological order (unless a loop in the task keeps it alive)
-                /// 
-                /// SYNTAX EXAMPLES:
-                /// new_task taskname 'inline'/'background' *integer      <- creates new task list, sets to inline/background, *integer is optional parameter to define the task's local script delay
-                /// task_add taskname command(s) [...]                   <- appends new line of commands to task list
-                /// task_remove taskname index                          <- removes task line at specified index
-                /// task_insert taskname index command(s)[...]         <- interts new line of commands into index
-                /// task_clearall taskname                            <- clears all tasks within task list
-                /// task_printall                                     <- prints list of all task items
-                /// task_setdelay name int:miliseconds               <- sets the local script delay of task
-                /// task_execute taskname                           <- executes specified task
-                /// </summary>
-                if (split_input[0].Equals("new_task", StringComparison.OrdinalIgnoreCase))
+            /// <summary>
+            /// Tasks are a list of commands than can be executed as a background task (on a separate thread) or in-line with the main code.
+            /// Tasks will run once in chronological order (unless a loop in the task keeps it alive)
+            /// 
+            /// SYNTAX EXAMPLES:
+            /// new_task taskname 'inline'/'background' *integer      <- creates new task list, sets to inline/background, *integer is optional parameter to define the task's local script delay
+            /// task_add taskname command(s) [...]                   <- appends new line of commands to task list
+            /// task_remove taskname index                          <- removes task line at specified index
+            /// task_insert taskname index command(s)[...]         <- interts new line of commands into index
+            /// task_clearall taskname                            <- clears all tasks within task list
+            /// task_printall                                     <- prints list of all task items
+            /// task_setdelay name int:miliseconds               <- sets the local script delay of task
+            /// task_execute taskname                           <- executes specified task
+            /// </summary>
+            if (split_input[0].Equals("new_task", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "new_task newname inline/background 100" + Environment.NewLine + "Final parameter should be integer and is optional.";
+                string taskName_;
+                TaskType taskType_;
+                int scriptDelay_;
+                bool error_raised = false;
+                if (split_input.Length == 4)
                 {
-                    entry_made = true;
-                    string expectedFormat = "new_task newname inline/background 100" + Environment.NewLine + "Final parameter should be integer and is optional.";
-                    string taskName_;
-                    TaskType taskType_;
-                    int scriptDelay_;
-                    bool error_raised = false;
-                    if (split_input.Length == 4)
+                    if (namesInUse.ContainsKey(split_input[1]))
                     {
-                        if (namesInUse.ContainsKey(split_input[1]))
+                        error_raised = true;
+                        errorHandler.ThrowError(1300, null, null, split_input[1], null, expectedFormat);
+                    }
+                    else
+                    {
+                        bool nameCheck = ContainsOnlyLettersAndNumbers(split_input[1]);
+                        if (nameCheck == true)
                         {
-                            error_raised = true;
-                            errorHandler.ThrowError(1300, null, null, split_input[1], null, expectedFormat);
+                            // We have a valid name, now we proceed
+                            taskName_ = split_input[1];
+
+                            string a_ = split_input[2].Trim().ToLower(); // should be either 'inline' or 'background'
+                            if ((a_ == "inline") || (a_ == "background"))
+                            {
+                                if (a_ == "inline")
+                                {
+                                    taskType_ = TaskType.InlineTask;
+                                    bool validInteger = IsNumeric(split_input[3].Trim());
+                                    if (validInteger == true)
+                                    {
+                                        scriptDelay_ = Int32.Parse(split_input[3]);
+                                        TaskList newTask = new TaskList(taskName_, taskType_, scriptDelay_);
+                                        tasklists_inuse.Add(newTask);
+                                        namesInUse.Add(taskName_, objectClass.TaskList);
+                                        valid_command = true;
+                                    }
+                                    else
+                                    {
+                                        errorHandler.ThrowError(1400, $"script delay", null, split_input[3], "integer value", expectedFormat);
+                                    }
+                                }
+                                else if (a_ == "background")
+                                {
+                                    taskType_ = TaskType.BackgroundTask;
+                                    bool validInteger = IsNumeric(split_input[3].Trim());
+                                    if (validInteger == true)
+                                    {
+                                        scriptDelay_ = Int32.Parse(split_input[3]);
+                                        TaskList newTask = new TaskList(taskName_, taskType_, scriptDelay_);
+                                        tasklists_inuse.Add(newTask);
+                                        namesInUse.Add(taskName_, objectClass.TaskList);
+                                        valid_command = true;
+                                    }
+                                    else
+                                    {
+                                        errorHandler.ThrowError(1400, $"script delay", null, split_input[3], "integer value", expectedFormat);
+                                    }
+                                }
+
+                            }
+                            else
+                            {
+                                error_raised = true;
+                                errorHandler.ThrowError(1400, $"task type", null, a_, "Inline/Background", expectedFormat);
+                            }
                         }
                         else
                         {
-                            bool nameCheck = ContainsOnlyLettersAndNumbers(split_input[1]);
-                            if (nameCheck == true)
+                            error_raised = true;
+                            errorHandler.ThrowError(1600, split_input[1]);
+                        }
+                    }
+                }
+                else if (split_input.Length == 3) // We are taking an optional final parameter (integer) for task's script delay
+                {
+                    if (namesInUse.ContainsKey(split_input[1]))
+                    {
+                        error_raised = true;
+                        errorHandler.ThrowError(1300, null, null, split_input[1], null, expectedFormat);
+                    }
+                    else
+                    {
+                        bool nameCheck = ContainsOnlyLettersAndNumbers(split_input[1]);
+                        if (nameCheck == true)
+                        {
+                            // We have a valid name, now we proceed
+                            taskName_ = split_input[1];
+                            string a_ = split_input[2].Trim().ToLower(); // should be either 'inline' or 'background'
+                            if ((a_ == "inline") || (a_ == "background"))
                             {
-                                // We have a valid name, now we proceed
-                                taskName_ = split_input[1];
-
-                                string a_ = split_input[2].Trim().ToLower(); // should be either 'inline' or 'background'
-                                if ((a_ == "inline") || (a_ == "background"))
+                                if (a_ == "inline")
                                 {
-                                    if (a_ == "inline")
-                                    {
-                                        taskType_ = TaskType.InlineTask;
-                                        bool validInteger = IsNumeric(split_input[3].Trim());
-                                        if (validInteger == true)
-                                        {
-                                            scriptDelay_ = Int32.Parse(split_input[3]);
-                                            TaskList newTask = new TaskList(taskName_, taskType_, scriptDelay_);
-                                            tasklists_inuse.Add(newTask);
-                                            namesInUse.Add(taskName_, objectClass.TaskList);
-                                            valid_command = true;
-                                        }
-                                        else
-                                        {
-                                            errorHandler.ThrowError(1400, $"script delay", null, split_input[3], "integer value", expectedFormat);
-                                        }
-                                    }
-                                    else if (a_ == "background")
-                                    {
-                                        taskType_ = TaskType.BackgroundTask;
-                                        bool validInteger = IsNumeric(split_input[3].Trim());
-                                        if (validInteger == true)
-                                        {
-                                            scriptDelay_ = Int32.Parse(split_input[3]);
-                                            TaskList newTask = new TaskList(taskName_, taskType_, scriptDelay_);
-                                            tasklists_inuse.Add(newTask);
-                                            namesInUse.Add(taskName_, objectClass.TaskList);
-                                            valid_command = true;
-                                        }
-                                        else
-                                        {
-                                            errorHandler.ThrowError(1400, $"script delay", null, split_input[3], "integer value", expectedFormat);
-                                        }
-                                    }
-
+                                    taskType_ = TaskType.InlineTask;
+                                    TaskList newTask = new TaskList(taskName_, taskType_);
+                                    tasklists_inuse.Add(newTask);
+                                    valid_command = true;
                                 }
-                                else
+                                else if (a_ == "background")
                                 {
-                                    error_raised = true;
-                                    errorHandler.ThrowError(1400, $"task type", null, a_, "Inline/Background", expectedFormat);
+                                    taskType_ = TaskType.BackgroundTask;
+                                    TaskList newTask = new TaskList(taskName_, taskType_);
+                                    tasklists_inuse.Add(newTask);
+                                    valid_command = true;
                                 }
                             }
                             else
                             {
                                 error_raised = true;
-                                errorHandler.ThrowError(1600, split_input[1]);
+                                errorHandler.ThrowError(1400, $"task type", null, a_, "Inline/Background", expectedFormat);
                             }
-                        }
-                    }
-                    else if (split_input.Length == 3) // We are taking an optional final parameter (integer) for task's script delay
-                    {
-                        if (namesInUse.ContainsKey(split_input[1]))
-                        {
-                            error_raised = true;
-                            errorHandler.ThrowError(1300, null, null, split_input[1], null, expectedFormat);
                         }
                         else
                         {
-                            bool nameCheck = ContainsOnlyLettersAndNumbers(split_input[1]);
-                            if (nameCheck == true)
-                            {
-                                // We have a valid name, now we proceed
-                                taskName_ = split_input[1];
-                                string a_ = split_input[2].Trim().ToLower(); // should be either 'inline' or 'background'
-                                if ((a_ == "inline") || (a_ == "background"))
-                                {
-                                    if (a_ == "inline")
-                                    {
-                                        taskType_ = TaskType.InlineTask;
-                                        TaskList newTask = new TaskList(taskName_, taskType_);
-                                        tasklists_inuse.Add(newTask);
-                                        valid_command = true;
-                                    }
-                                    else if (a_ == "background")
-                                    {
-                                        taskType_ = TaskType.BackgroundTask;
-                                        TaskList newTask = new TaskList(taskName_, taskType_);
-                                        tasklists_inuse.Add(newTask);
-                                        valid_command = true;
-                                    }
-                                }
-                                else
-                                {
-                                    error_raised = true;
-                                    errorHandler.ThrowError(1400, $"task type", null, a_, "Inline/Background", expectedFormat);
-                                }
-                            }
-                            else
-                            {
-                                error_raised = true;
-                                errorHandler.ThrowError(1600, split_input[1]);
-                            }
+                            error_raised = true;
+                            errorHandler.ThrowError(1600, split_input[1]);
                         }
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "new_task", null, null, null, expectedFormat);
                     }
                 }
-                if (split_input[0].Equals("task_add", StringComparison.OrdinalIgnoreCase))
+                else
                 {
-                    entry_made = true;
-                    string expectedFormat = "task_add taskname command";
-                    if (split_input.Length >= 3)
-                    {
-                        string taskname = split_input[1];
-                        bool foundtasklist = false;
-                        string command = "";
-                        if (split_input.Length > 3)
-                        {
-                            foreach (string s in split_input.Skip(2))
-                            {
-                                command += s + " ";
-                            }
-                        }
-                        else if (split_input.Length == 3)
-                        {
-                            command = split_input[2];
-                        }
-                        foreach (TaskList ts in tasklists_inuse)
-                        {
-                            if (ts.taskName == taskname)
-                            {
-                                ts.AppendCommand(command);
-                                foundtasklist = true;
-                                break;
-                            }
-                        }
-                        if (foundtasklist == false)
-                        {
-                            errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
-                        } else
-                        {
-                            valid_command = true;
-                        }
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "task_add", null, null, null, expectedFormat);
-                    }
+                    errorHandler.ThrowError(1100, "new_task", null, null, null, expectedFormat);
                 }
-                if (split_input[0].Equals("task_remove", StringComparison.OrdinalIgnoreCase))
+            }
+            if (split_input[0].Equals("task_add", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "task_add taskname command";
+                if (split_input.Length >= 3)
                 {
-
-                }
-                if (split_input[0].Equals("task_insert", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "task_insert taskname index command";
                     string taskname = split_input[1];
                     bool foundtasklist = false;
                     string command = "";
-                    string expectedIndex = SetVariableValue(split_input[2]);
                     if (split_input.Length > 3)
                     {
-                        foreach (string s in split_input.Skip(3))
+                        foreach (string s in split_input.Skip(2))
                         {
                             command += s + " ";
                         }
-                        command.Trim();
-                    } else if (split_input.Length < 4)
-                    {
-                        errorHandler.ThrowError(1100, "task_insert", null, null, null, expectedFormat);
-                        return;
                     }
-                    else if (split_input.Length == 4)
+                    else if (split_input.Length == 3)
                     {
-                        command = split_input[3];
+                        command = split_input[2];
                     }
-                    bool validInteger = IsNumeric(expectedIndex); // must be valid number
+                    foreach (TaskList ts in tasklists_inuse)
+                    {
+                        if (ts.taskName == taskname)
+                        {
+                            ts.AppendCommand(command);
+                            foundtasklist = true;
+                            break;
+                        }
+                    }
+                    if (foundtasklist == false)
+                    {
+                        errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                    } else
+                    {
+                        valid_command = true;
+                    }
+                }
+                else
+                {
+                    errorHandler.ThrowError(1100, "task_add", null, null, null, expectedFormat);
+                }
+            }
+            if (split_input[0].Equals("task_remove", StringComparison.OrdinalIgnoreCase))
+            {
+
+            }
+            if (split_input[0].Equals("task_insert", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "task_insert taskname index command";
+                string taskname = split_input[1];
+                bool foundtasklist = false;
+                string command = "";
+                string expectedIndex = SetVariableValue(split_input[2]);
+                if (split_input.Length > 3)
+                {
+                    foreach (string s in split_input.Skip(3))
+                    {
+                        command += s + " ";
+                    }
+                    command.Trim();
+                } else if (split_input.Length < 4)
+                {
+                    errorHandler.ThrowError(1100, "task_insert", null, null, null, expectedFormat);
+                    return;
+                }
+                else if (split_input.Length == 4)
+                {
+                    command = split_input[3];
+                }
+                bool validInteger = IsNumeric(expectedIndex); // must be valid number
+                if (validInteger == true)
+                {
+
+                    foreach (TaskList ts in tasklists_inuse)
+                    {
+                        if (ts.taskName == taskname)
+                        {
+                            ts.AppendCommand(command);
+                            foundtasklist = true;
+                            break;
+                        }
+                    }
+                    if (foundtasklist == false)
+                    {
+                        errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                    } else
+                    {
+                        valid_command = true;
+                    }
+                }
+                else
+                {
+                    errorHandler.ThrowError(1400, "task_insert", null, expectedIndex, "a valid integer", expectedFormat);
+                }
+            }
+            if (split_input[0].Equals("task_clearall", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "task_clearall taskname";
+                if (split_input.Length == 2)
+                {
+                    string taskname = split_input[1];
+                    bool foundtasklist = false;
+                    foreach (TaskList ts in tasklists_inuse)
+                    {
+                        if (ts.taskName == taskname)
+                        {
+                            ts.Clear();
+                            foundtasklist = true;
+                            break;
+                        }
+                    }
+                    if (foundtasklist == false)
+                    {
+                        errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                    } else
+                    {
+                        valid_command = true;
+                    }
+                }
+                else
+                {
+                    errorHandler.ThrowError(1100, "task_clearall", null, null, null, expectedFormat);
+                }
+            }
+            if (split_input[0].Equals("task_printall", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "task_printall taskname";
+                if (split_input.Length == 2)
+                {
+                    string taskname = split_input[1];
+                    bool foundtasklist = false;
+                    foreach (TaskList ts in tasklists_inuse)
+                    {
+                        if (ts.taskName == taskname)
+                        {
+                            ts.PrintContents();
+                            foundtasklist = true;
+                            break;
+                        }
+                    }
+                    if (foundtasklist == false)
+                    {
+                        errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                    } else
+                    {
+                        valid_command = true;
+                    }
+                }
+                else
+                {
+                    errorHandler.ThrowError(1100, "task_printall", null, null, null, expectedFormat);
+                }
+            }
+            if (split_input[0].Equals("task_setdelay", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "task_setdelay taskname 100";
+                if (split_input.Length == 3)
+                {
+                    string taskname = split_input[1];
+                    bool foundtasklist = false;
+                    string expectedNumber = SetVariableValue(split_input[2]).TrimEnd();
+                    bool validInteger = IsNumeric(expectedNumber);
                     if (validInteger == true)
                     {
+                        int a_ = Int32.Parse(expectedNumber);
+                        foreach (TaskList ts in tasklists_inuse)
+                        {
+                            if (ts.taskName == taskname)
+                            {
+                                ts.scriptDelay = a_;
+                                foundtasklist = true;
+                                break;
+                            }
+                        }
+                        if (foundtasklist == false)
+                        {
+                            errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                        } else
+                        {
+                            valid_command = true;
+                        }
+                    }
+                    else
+                    {
+                        errorHandler.ThrowError(1400, $"script delay", null, split_input[2], "integer value", expectedFormat);
+                    }
+                }
+                else
+                {
+                    errorHandler.ThrowError(1100, "task_setdelay", null, null, null, expectedFormat);
+                }
+            }
+            if (split_input[0].Equals("task_execute", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "task_execute taskname";
+                if (split_input.Length == 2)
+                {
+                    string taskname = split_input[1];
+                    bool foundtasklist = false;
+                    List<string> commandsToPass = new List<string>();
+                    int scriptDelay_ = 0;
+                    TaskType taskType_ = TaskType.InlineTask; // We just assume inline unless otherwise specified
+                    foreach (TaskList ts in tasklists_inuse)
+                    {
+                        if (ts.taskName == taskname)
+                        {
+                            commandsToPass = ts.taskList;
+                            scriptDelay_ = ts.scriptDelay;
+                            taskType_ = ts.taskType;
+                            foundtasklist = true;
+                            break;
+                        }
+                    }
+                    if (foundtasklist == false)
+                    {
+                        errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
+                    }
+                    else
+                    {
+                        // We proceed to execute the task
+                        valid_command = true;
+                        executeTask(commandsToPass, taskType_, scriptDelay_);
+                    }
+                }
+                else
+                {
+                    errorHandler.ThrowError(1100, "task_execute", null, null, null, expectedFormat);
+                }
+            }
 
-                        foreach (TaskList ts in tasklists_inuse)
-                        {
-                            if (ts.taskName == taskname)
-                            {
-                                ts.AppendCommand(command);
-                                foundtasklist = true;
-                                break;
-                            }
-                        }
-                        if (foundtasklist == false)
-                        {
-                            errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
-                        } else
-                        {
-                            valid_command = true;
-                        }
+            ///<summary>
+            /// TCP server and TCP client objects will enable network applications to communicate over the internet or locally.
+            /// TCPClientProtocols and TCPServerProtocols execute specific to the event and will execute an associated task.
+            /// There are no default task lists associated with protocols. When a client or server runs a protocol, the info
+            /// is passed to string eventMessage_ which details the event and allows code to be executed with the passed info.
+            /// 
+            /// TCP SERVER SYNTAX:
+            /// new_tcp_server servername                                       <- creates new server 
+            /// tcp_server_start servername                                    <- starts server
+            /// 
+            /// TCP CLIENT SYNTAX:
+            /// new_tcp_client clientname                                       <- creates new client
+            /// tcp_client_connect clientname ipaddress                        <- attempts to connect client to ipaddress
+            /// 
+            /// DATA PACKET STUFF:
+            /// new_datapacket ID:value| TCPObject:tcpclient/tcpserver Data:variable/list           <- creates new datapacket in specified TCP client/server with specified ID and data
+            /// datapacket_send tcpclient/tcpserver packetID *all                                  <- send datapacket in outgoing list from TCP client/server with packet ID. Optionally specify 'All' if multiple IDs exists
+            /// 
+            /// </summary>
+            // TCP Server
+            if (split_input[0].Equals("new_tcp_server", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "new_tcp_server newname";
+                if (split_input.Length >= 2)
+                {
+                    string expectedName = split_input[1].TrimEnd();
+                    bool nameInUse = NameInUse(expectedName);
+                    bool validCharacters = ContainsOnlyLettersAndNumbers(expectedName);
+                    if (validCharacters == false)
+                    {
+                        errorHandler.ThrowError(1600, expectedName);
+                        return;
+                    }
+                    if (nameInUse == false)
+                    {
+                        ServerSide newTCPServer = new ServerSide(this, expectedName);
+                        activeTCPObjects.Add(newTCPServer);
+                        activeServers.Add(newTCPServer);
+                        namesInUse.Add(expectedName, objectClass.TCPNetObj);
+                        valid_command = true;
                     }
                     else
                     {
-                        errorHandler.ThrowError(1400, "task_insert", null, expectedIndex, "a valid integer", expectedFormat);
+                        errorHandler.ThrowError(1300, null, null, expectedName, null, expectedFormat);
                     }
-                }
-                if (split_input[0].Equals("task_clearall", StringComparison.OrdinalIgnoreCase))
+                } else
                 {
-                    entry_made = true;
-                    string expectedFormat = "task_clearall taskname";
-                    if (split_input.Length == 2)
-                    {
-                        string taskname = split_input[1];
-                        bool foundtasklist = false;
-                        foreach (TaskList ts in tasklists_inuse)
-                        {
-                            if (ts.taskName == taskname)
-                            {
-                                ts.Clear();
-                                foundtasklist = true;
-                                break;
-                            }
-                        }
-                        if (foundtasklist == false)
-                        {
-                            errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
-                        } else
-                        {
-                            valid_command = true;
-                        }
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "task_clearall", null, null, null, expectedFormat);
-                    }
+                    errorHandler.ThrowError(1100, "new_tcp_server", null, null, null, expectedFormat);
                 }
-                if (split_input[0].Equals("task_printall", StringComparison.OrdinalIgnoreCase))
+            }
+            if (split_input[0].Equals("tcp_server_start", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "tcp_server_start servername";
+                if (split_input.Length >= 2)
                 {
-                    entry_made = true;
-                    string expectedFormat = "task_printall taskname";
-                    if (split_input.Length == 2)
+                    IPAddress ipAddress;
+                    string serverName = split_input[1].TrimEnd();
+                    bool nameIsInUse = NameInUse(serverName);
+                    bool isProperType = namesInUse[serverName] == objectClass.TCPNetObj;
+                    bool clearToProceed = ((nameIsInUse == true) && (isProperType == true));
+                    bool found_ = false;
+
+                    try
                     {
-                        string taskname = split_input[1];
-                        bool foundtasklist = false;
-                        foreach (TaskList ts in tasklists_inuse)
+                        if (clearToProceed == true)
                         {
-                            if (ts.taskName == taskname)
+                            foreach (ServerSide server_ in activeTCPObjects)
                             {
-                                ts.PrintContents();
-                                foundtasklist = true;
-                                break;
-                            }
-                        }
-                        if (foundtasklist == false)
-                        {
-                            errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
-                        } else
-                        {
-                            valid_command = true;
-                        }
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "task_printall", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("task_setdelay", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "task_setdelay taskname 100";
-                    if (split_input.Length == 3)
-                    {
-                        string taskname = split_input[1];
-                        bool foundtasklist = false;
-                        string expectedNumber = SetVariableValue(split_input[2]).TrimEnd();
-                        bool validInteger = IsNumeric(expectedNumber);
-                        if (validInteger == true)
-                        {
-                            int a_ = Int32.Parse(expectedNumber);
-                            foreach (TaskList ts in tasklists_inuse)
-                            {
-                                if (ts.taskName == taskname)
+                                if (server_.serverName == serverName)
                                 {
-                                    ts.scriptDelay = a_;
-                                    foundtasklist = true;
+                                    found_ = true;
+                                    server_.Start(); //.GetAwaiter().GetResult();
+                                    valid_command = true;
                                     break;
                                 }
                             }
-                            if (foundtasklist == false)
-                            {
-                                errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
-                            } else
-                            {
-                                valid_command = true;
-                            }
+                            if (found_ == false) { errorHandler.ThrowError(1200, null, serverName, null, null, expectedFormat); }
                         }
-                        else
+                        else if (nameIsInUse == false)
                         {
-                            errorHandler.ThrowError(1400, $"script delay", null, split_input[2], "integer value", expectedFormat);
+                            errorHandler.ThrowError(1200, null, serverName, null, null, expectedFormat);
                         }
+                        else if (isProperType == false)
+                        {
+                            errorHandler.ThrowError(2100, null, null, serverName, "TCP server", expectedFormat);
+                        }
+                    }
+                    catch
+                    {
+
+                    }
+                }
+                else
+                {
+                    errorHandler.ThrowError(1100, "tcp_server_start", null, null, null, expectedFormat);
+                }
+            }
+            // TCP Client
+            if (split_input[0].Equals("new_tcp_client", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "new_tcp_client newname";
+                if (split_input.Length >= 2)
+                {
+                    string expectedName = split_input[1].TrimEnd();
+                    bool nameInUse = NameInUse(expectedName);
+                    bool validCharacters = ContainsOnlyLettersAndNumbers(expectedName);
+                    if (validCharacters == false)
+                    {
+                        errorHandler.ThrowError(1600, expectedName);
+                        return;
+                    }
+                    if (nameInUse == false)
+                    {
+                        ClientSide newTCPClient = new ClientSide(this, expectedName);
+                        activeTCPObjects.Add(newTCPClient);
+                        activeClients.Add(newTCPClient);
+                        namesInUse.Add(expectedName, objectClass.TCPNetObj);
+                        valid_command = true;
                     }
                     else
                     {
-                        errorHandler.ThrowError(1100, "task_setdelay", null, null, null, expectedFormat);
+                        errorHandler.ThrowError(1300, null, null, expectedName, null, expectedFormat);
                     }
                 }
-                if (split_input[0].Equals("task_execute", StringComparison.OrdinalIgnoreCase))
+                else
                 {
-                    entry_made = true;
-                    string expectedFormat = "task_execute taskname";
-                    if (split_input.Length == 2)
-                    {
-                        string taskname = split_input[1];
-                        bool foundtasklist = false;
-                        List<string> commandsToPass = new List<string>();
-                        int scriptDelay_ = 0;
-                        TaskType taskType_ = TaskType.InlineTask; // We just assume inline unless otherwise specified
-                        foreach (TaskList ts in tasklists_inuse)
-                        {
-                            if (ts.taskName == taskname)
-                            {
-                                commandsToPass = ts.taskList;
-                                scriptDelay_ = ts.scriptDelay;
-                                taskType_ = ts.taskType;
-                                foundtasklist = true;
-                                break;
-                            }
-                        }
-                        if (foundtasklist == false)
-                        {
-                            errorHandler.ThrowError(1200, null, taskname, null, null, expectedFormat);
-                        }
-                        else
-                        {
-                            // We proceed to execute the task
-                            valid_command = true;
-                            executeTask(commandsToPass, taskType_, scriptDelay_);
-                        }
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "task_execute", null, null, null, expectedFormat);
-                    }
+                    errorHandler.ThrowError(1100, "new_tcp_client", null, null, null, expectedFormat);
                 }
-
-                ///<summary>
-                /// TCP server and TCP client objects will enable network applications to communicate over the internet or locally.
-                /// TCPClientProtocols and TCPServerProtocols execute specific to the event and will execute an associated task.
-                /// There are no default task lists associated with protocols. When a client or server runs a protocol, the info
-                /// is passed to string eventMessage_ which details the event and allows code to be executed with the passed info.
-                /// 
-                /// TCP SERVER SYNTAX:
-                /// new_tcp_server servername                                       <- creates new server 
-                /// tcp_server_start servername                                    <- starts server
-                /// 
-                /// TCP CLIENT SYNTAX:
-                /// new_tcp_client clientname                                       <- creates new client
-                /// tcp_client_connect clientname ipaddress                        <- attempts to connect client to ipaddress
-                /// 
-                /// DATA PACKET STUFF:
-                /// new_datapacket ID:value| TCPObject:tcpclient/tcpserver Data:variable/list           <- creates new datapacket in specified TCP client/server with specified ID and data
-                /// datapacket_send tcpclient/tcpserver packetID *all                                  <- send datapacket in outgoing list from TCP client/server with packet ID. Optionally specify 'All' if multiple IDs exists
-                /// 
-                /// </summary>
-                // TCP Server
-                if (split_input[0].Equals("new_tcp_server", StringComparison.OrdinalIgnoreCase))
+            }
+            if (split_input[0].Equals("tcp_client_connect", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "tcp_client_connect tcpclient address";
+                if (split_input.Length >= 3)
                 {
-                    entry_made = true;
-                    string expectedFormat = "new_tcp_server newname";
-                    if (split_input.Length >= 2)
-                    {
-                        string expectedName = split_input[1].TrimEnd();
-                        bool nameInUse= NameInUse(expectedName);
-                        bool validCharacters = ContainsOnlyLettersAndNumbers(expectedName);
-                        if (validCharacters == false)
-                        {
-                            errorHandler.ThrowError(1600, expectedName);
-                            return;
-                        }
-                        if (nameInUse == false)
-                        {
-                            ServerSide newTCPServer = new ServerSide(this, expectedName);
-                            activeTCPObjects.Add(newTCPServer);
-                            activeServers.Add(newTCPServer);
-                            namesInUse.Add(expectedName, objectClass.TCPNetObj);
-                            valid_command = true;
-                        }
-                        else
-                        {
-                            errorHandler.ThrowError(1300, null, null, expectedName, null, expectedFormat);
-                        }
-                    } else
-                    {
-                        errorHandler.ThrowError(1100, "new_tcp_server", null, null, null, expectedFormat);
-                    }
-                }
-                if (split_input[0].Equals("tcp_server_start", StringComparison.OrdinalIgnoreCase))
-                { 
-                    entry_made = true;
-                    string expectedFormat = "tcp_server_start servername";
-                    if (split_input.Length >= 2)
-                    {
-                        IPAddress ipAddress;
-                        string serverName = split_input[1].TrimEnd();
-                        bool nameIsInUse= NameInUse(serverName);
-                        bool isProperType = namesInUse[serverName] == objectClass.TCPNetObj;
-                        bool clearToProceed = ((nameIsInUse == true) && (isProperType == true));
-                        bool found_ = false;
+                    IPAddress ipAddress;
+                    string clientName = split_input[1].TrimEnd();
+                    bool nameIsInUse = NameInUse(clientName);
+                    bool isProperType = namesInUse[clientName] == objectClass.TCPNetObj;
+                    bool clearToProceed = ((nameIsInUse == true) && (isProperType == true));
+                    string expectedIP = split_input[2];
+                    bool found_ = false;
 
-                            try
+                    if (IPAddress.TryParse(expectedIP, out ipAddress))
+                    {
+                        try
+                        {
+                            if (clearToProceed == true)
                             {
-                                if (clearToProceed == true)
+                                foreach (ClientSide client_ in activeTCPObjects)
                                 {
-                                    foreach (ServerSide server_ in activeTCPObjects)
+                                    if (client_.name == clientName)
                                     {
-                                        if (server_.serverName == serverName)
-                                        {
-                                            found_ = true;
-                                            server_.Start(); //.GetAwaiter().GetResult();
-                                            valid_command = true;
+                                        if (client_.hasStarted == false) { client_.Start(expectedIP); found_ = true; valid_command = true; } else { Console.WriteLine($"{clientName} already has connection."); }
                                         break;
-                                        }
                                     }
-                                    if (found_ == false){ errorHandler.ThrowError(1200, null, serverName, null, null, expectedFormat); }
                                 }
-                                else if (nameIsInUse == false)
-                                {
-                                errorHandler.ThrowError(1200, null, serverName, null, null, expectedFormat);
-                            }
-                                else if (isProperType == false)
-                                {
-                                errorHandler.ThrowError(2100, null, null, serverName, "TCP server", expectedFormat);
-                                }
-                            }
-                            catch
+                                if (found_ == false) { errorHandler.ThrowError(1200, null, clientName, null, null, expectedFormat); }
+                            } else if (nameIsInUse == false)
                             {
-
+                                errorHandler.ThrowError(1200, null, clientName, null, null, expectedFormat);
+                            } else if (isProperType == false)
+                            {
+                                errorHandler.ThrowError(2100, null, null, clientName, "TCP client", expectedFormat);
                             }
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "tcp_server_start", null, null, null, expectedFormat);
-                    }
-                }
-                // TCP Client
-                if (split_input[0].Equals("new_tcp_client", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "new_tcp_client newname";
-                    if (split_input.Length >= 2)
-                    {
-                        string expectedName = split_input[1].TrimEnd();
-                        bool nameInUse= NameInUse(expectedName);
-                        bool validCharacters = ContainsOnlyLettersAndNumbers(expectedName);
-                        if (validCharacters == false)
+                        } catch
                         {
-                            errorHandler.ThrowError(1600, expectedName);
-                            return;
-                        }
-                        if (nameInUse == false)
-                        {
-                            ClientSide newTCPClient = new ClientSide(this, expectedName);
-                            activeTCPObjects.Add(newTCPClient);
-                            activeClients.Add(newTCPClient);
-                            namesInUse.Add(expectedName, objectClass.TCPNetObj);
-                            valid_command = true;
-                        }
-                        else
-                        {
-                            errorHandler.ThrowError(1300, null, null, expectedName, null, expectedFormat);
+
                         }
                     }
                     else
                     {
-                        errorHandler.ThrowError(1100, "new_tcp_client", null, null, null, expectedFormat);
+                        errorHandler.ThrowError(1400, "IP address", null, expectedIP, "IP address", expectedFormat);
                     }
                 }
-                if (split_input[0].Equals("tcp_client_connect", StringComparison.OrdinalIgnoreCase))
+                else
                 {
-                    entry_made = true;
-                    string expectedFormat = "tcp_client_connect tcpclient address";
-                    if (split_input.Length >= 3)
-                    {
-                        IPAddress ipAddress;
-                        string clientName = split_input[1].TrimEnd();
-                        bool nameIsInUse= NameInUse(clientName);
-                        bool isProperType = namesInUse[clientName] == objectClass.TCPNetObj;
-                        bool clearToProceed = ((nameIsInUse == true) && (isProperType == true));
-                        string expectedIP = split_input[2];
-                        bool found_ = false;
-
-                        if (IPAddress.TryParse(expectedIP, out ipAddress))
-                        {
-                            try
-                            {
-                                if (clearToProceed == true)
-                                {
-                                    foreach(ClientSide client_ in  activeTCPObjects)
-                                    {
-                                        if (client_.name == clientName)
-                                        {
-                                            if (client_.hasStarted == false) { client_.Start(expectedIP); found_ = true; valid_command = true; } else { Console.WriteLine($"{clientName} already has connection."); }
-                                            break;
-                                        }
-                                    }
-                                    if (found_ == false) { errorHandler.ThrowError(1200, null, clientName, null, null, expectedFormat); }
-                                } else if (nameIsInUse == false)
-                                {
-                                    errorHandler.ThrowError(1200, null, clientName, null, null, expectedFormat);
-                                } else if (isProperType == false)
-                                {
-                                    errorHandler.ThrowError(2100, null, null, clientName, "TCP client", expectedFormat);
-                                }
-                            } catch
-                            {
-
-                            }
-                        }
-                        else
-                        {
-                            errorHandler.ThrowError(1400, "IP address", null, expectedIP, "IP address", expectedFormat);
-                        }
-                    }
-                    else
-                    {
-                        errorHandler.ThrowError(1100, "tcp_client_connect", null, null, null, expectedFormat);
-                    }
+                    errorHandler.ThrowError(1100, "tcp_client_connect", null, null, null, expectedFormat);
                 }
-                // TCP Client || TCP Server
-                if ((split_input[0].Equals("tcp_client_assignprotocol", StringComparison.OrdinalIgnoreCase) || (split_input[0].Equals("tcp_server_assignprotocol", StringComparison.OrdinalIgnoreCase))))
+            }
+            // TCP Client || TCP Server
+            if ((split_input[0].Equals("tcp_client_assignprotocol", StringComparison.OrdinalIgnoreCase) || (split_input[0].Equals("tcp_server_assignprotocol", StringComparison.OrdinalIgnoreCase))))
+            {
+                entry_made = true;
+                // tcp_client_assignprotocol tcpobj protocol task
+                // tcp_server_assignprotocol tcpobj protocol task
+                string expectedFormat = "tcp_client_assignprotocol clientname protocol taskname";
+                string entryCommand = split_input[0];
+                int serverORclient = -1; // 0 for client 1 for server
+                if (split_input[0].Equals("tcp_client_assignprotocol", StringComparison.OrdinalIgnoreCase))
                 {
-                    entry_made = true;
-                    // tcp_client_assignprotocol tcpobj protocol task
-                    // tcp_server_assignprotocol tcpobj protocol task
-                    string expectedFormat = "tcp_client_assignprotocol clientname protocol taskname";
-                    string entryCommand = split_input[0];
-                    int serverORclient = -1; // 0 for client 1 for server
-                    if (split_input[0].Equals("tcp_client_assignprotocol", StringComparison.OrdinalIgnoreCase))
+                    serverORclient = 0;
+                }
+                else if (split_input[0].Equals("tcp_server_assignprotocol", StringComparison.OrdinalIgnoreCase))
+                {
+                    expectedFormat = "tcp_server_assignprotocol servername protocol taskname";
+                    serverORclient = 1;
+                }
+
+                if (split_input.Length == 4)
+                {
+                    string[] serverProtocols = { "ServerStarted", "ReceivedDataPacket", "ClientConnected", "ClientDisconnected", "ClientRejected", "DataPacketAdded", "BroadcastDataPacket", "BroadcastAllOutDataPackets", "AttemptedConnection" };
+                    string[] clientProtocols = { "ClientStarted", "ClientDisconnect", "ReceivedDataPacket", "BroadcastDataPacket", "BroadcastAllOutDataPackets", "" };
+                    TCPClientProtocols clientProtocol = new TCPClientProtocols();
+                    TCPServerProtocols serverProtocol = new TCPServerProtocols();
+
+                    string expectedTCPobject = SetVariableValue(split_input[1].TrimEnd());
+                    string expectedTCPprotocol = SetVariableValue(split_input[2].TrimEnd());
+                    string expectedTask = SetVariableValue(split_input[3].TrimEnd());
+
+                    bool validTask = false;
+                    TaskList taskToAssign = tasklists_inuse.Find(taskx => taskx.taskName == expectedTask);
+                    if (taskToAssign != null)
                     {
-                        serverORclient = 0;
-                    }
-                    else if (split_input[0].Equals("tcp_server_assignprotocol", StringComparison.OrdinalIgnoreCase))
-                    {
-                        expectedFormat = "tcp_server_assignprotocol servername protocol taskname";
-                        serverORclient = 1;
-                    }
-                    
-                    if (split_input.Length == 4)
-                    {
-                        string[] serverProtocols = { "ServerStarted", "ReceivedDataPacket","ClientConnected","ClientDisconnected","ClientRejected","DataPacketAdded","BroadcastDataPacket","BroadcastAllOutDataPackets", "AttemptedConnection" };
-                        string[] clientProtocols = { "ClientStarted","ClientDisconnect","ReceivedDataPacket","BroadcastDataPacket","BroadcastAllOutDataPackets","" };
-                        TCPClientProtocols clientProtocol = new TCPClientProtocols();
-                        TCPServerProtocols serverProtocol = new TCPServerProtocols();
-
-                        string expectedTCPobject = SetVariableValue(split_input[1].TrimEnd());
-                        string expectedTCPprotocol = SetVariableValue(split_input[2].TrimEnd());
-                        string expectedTask = SetVariableValue(split_input[3].TrimEnd());
-
-                        bool validTask = false;
-                        TaskList taskToAssign = tasklists_inuse.Find(taskx => taskx.taskName == expectedTask);
-                        if (taskToAssign != null)
-                        {
-                            validTask = true;
-                        } else
-                        {
-                            errorHandler.ThrowError(1200, null, expectedTask, null, null, expectedFormat);
-                            return;
-                        }
-
-                        bool objectExists= NameInUse(expectedTCPobject);
-                        if (objectExists == true)
-                        {
-                            bool validTCPobject = namesInUse[expectedTCPobject] == objectClass.TCPNetObj;
-                            if (validTCPobject == true)
-                            {
-                                int x = 0;
-                                bool matchFound = false;
-                                if (serverORclient == 0)
-                                {
-                                    for(x = 0; x < clientProtocols.Length; x++)
-                                    {
-                                        if (expectedTCPprotocol.Equals(clientProtocols[x], StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            matchFound = true;
-                                            switch (x)
-                                            {
-                                                case 0:
-                                                    clientProtocol = TCPClientProtocols.protocols_clientStarted;
-                                                    break;
-                                                case 1:
-                                                    clientProtocol = TCPClientProtocols.protocols_clientDisconnect;
-                                                    break;
-                                                case 2:
-                                                    clientProtocol = TCPClientProtocols.protocols_receiveDataPacket;
-                                                    break;
-                                                case 3:
-                                                    clientProtocol = TCPClientProtocols.protocols_addDataPacket;
-                                                    break;
-                                                case 4:
-                                                    clientProtocol = TCPClientProtocols.protocols_broadcastDatapacket;
-                                                    break;
-                                                case 5:
-                                                    clientProtocol = TCPClientProtocols.protocols_broadcastAllOutgoing;
-                                                    break;
-                                            }
-                                            break;
-                                        }
-
-                                    }
-                                } else if (serverORclient == 1)
-                                {
-                                    for (x = 0; x < serverProtocols.Length; x++)
-                                    {
-                                        if (expectedTCPprotocol.Equals(serverProtocols[x], StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            matchFound = true;
-                                            switch (x)
-                                            {
-                                                case 0:
-                                                    serverProtocol = TCPServerProtocols.protocols_serverStarted;
-                                                    break;
-                                                case 1:
-                                                    serverProtocol = TCPServerProtocols.protocols_receiveDataPacket;
-                                                    break;
-                                                case 2:
-                                                    serverProtocol = TCPServerProtocols.protocols_clientConnected;
-                                                    break;
-                                                case 3:
-                                                    serverProtocol = TCPServerProtocols.protocols_clientDisconnected;
-                                                    break;
-                                                case 4:
-                                                    serverProtocol = TCPServerProtocols.protocols_clientRejected;
-                                                    break;
-                                                case 5:
-                                                    serverProtocol = TCPServerProtocols.protocols_addDataPacket;
-                                                    break;
-                                                case 6:
-                                                    serverProtocol = TCPServerProtocols.protocols_broadcastDatapacket;
-                                                    break;
-                                                case 7:
-                                                    serverProtocol = TCPServerProtocols.protocols_broadcastAllOutgoing;
-                                                    break;
-                                                case 8:
-                                                    serverProtocol = TCPServerProtocols.protocols_attemptedConnection;
-                                                    break;
-                                            }
-                                            break;
-                                        }
-
-                                    }
-                                }
-                                if (matchFound == true)
-                                {
-                                    if (validTask == true)
-                                    {
-                                        if (serverORclient == 0)
-                                        {
-                                            foreach(ClientSide client_ in activeClients)
-                                            {
-                                                if (client_.name == expectedTCPobject)
-                                                {
-                                                    client_.AssignProtocol(clientProtocol, taskToAssign);
-                                                    valid_command = true;
-                                                    break;
-                                                }
-                                            }
-                                        } else if (serverORclient == 1)
-                                        {
-                                            foreach (ServerSide server_ in activeServers)
-                                            {
-                                                if (server_.serverName == expectedTCPobject)
-                                                {
-                                                    server_.AssignProtocol(serverProtocol, taskToAssign);
-                                                    valid_command = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-
-
-                                    } else
-                                    {
-                                        errorHandler.ThrowError(1200, null, expectedTask, null, null, expectedFormat);
-                                        return; // logical redundancy
-                                    }
-                                } else
-                                {
-                                    string validValues = "";
-                                    if (serverORclient == 0)
-                                    {
-                                        foreach(string s in clientProtocols)
-                                        {
-                                            validValues += s + " ";
-                                        }
-                                        errorHandler.ThrowError(1400, "client protocol", null, expectedTCPprotocol, validValues, expectedFormat);
-                                    }
-                                }
-
-                            } else
-                            {
-                                errorHandler.ThrowError(2100, null, null, expectedTCPobject, "TCP server/TCP client", expectedFormat);
-                            }
-                        } else
-                        {
-                            errorHandler.ThrowError(1200, null, expectedTCPobject, null, null, expectedFormat);
-                        }
-
-
+                        validTask = true;
                     } else
                     {
-                        errorHandler.ThrowError(1100, entryCommand, null, null, null, expectedFormat);
-                    }
-                }
-                if (
-                    ((split_input[0].StartsWith("tcp_client_", StringComparison.OrdinalIgnoreCase)) || (split_input[0].StartsWith("tcp_server_"))) && 
-                    ((split_input[0].EndsWith("_whitelist", StringComparison.OrdinalIgnoreCase)) || (split_input[0].EndsWith("blacklist")))
-                    )
-                {
-                    entry_made = true;
-                    string designation = "tcp_client_whitelist", eaction = "";
-                    string expectedFormat = "tcp_client_whitelist clientname add/remove 127.0.0.1|127.0.0.2|etc", badVals = "";
-                    bool validTCPObject = false, foundObject = false, foundBadVal = false, minimum1goodval = false, hadAddOrRemove = false;
-                    int serverOrClient = -1, whiteOrblack = -1, addOrRemove = -1, validCount = 0, goodValsAdded = 0; // 0 for client, 1 for server ||| 0 for white, 1 for black ||| 0 for add, 1 for remove
-
-                    // Did user specify a server or client
-                    string srv_clnt = split_input[0].ToLower();
-                    switch (srv_clnt)
-                    {
-                        case { } when srv_clnt.StartsWith("tcp_client_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_whitelist", StringComparison.OrdinalIgnoreCase):
-                            serverOrClient = 0;
-                            whiteOrblack = 0;
-                            expectedFormat = "tcp_client_whitelist clientname add/remove 127.0.0.1|127.0.0.2|etc";
-                            designation = "tcp_client_whitelist";
-                            break;
-                        case { } when srv_clnt.StartsWith("tcp_client_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_blacklist", StringComparison.OrdinalIgnoreCase):
-                            serverOrClient = 0;
-                            whiteOrblack = 1;
-                            expectedFormat = "tcp_client_blacklist clientname add/remove 127.0.0.1|127.0.0.2|etc";
-                            designation = "tcp_client_blacklist";
-                            break;
-                        case { } when srv_clnt.StartsWith("tcp_server_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_whitelist", StringComparison.OrdinalIgnoreCase):
-                            serverOrClient = 1;
-                            whiteOrblack = 0;
-                            expectedFormat = "tcp_server_whitelist servername add/remove 127.0.0.1|127.0.0.2|etc";
-                            designation = "tcp_server_whitelist";
-                            break;
-                        case { } when srv_clnt.StartsWith("tcp_server_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_blacklist", StringComparison.OrdinalIgnoreCase):
-                            serverOrClient = 1;
-                            whiteOrblack = 1;
-                            expectedFormat = "tcp_server_blacklist servername add/remove 127.0.0.1|127.0.0.2|etc";
-                            designation = "tcp_server_blacklist";
-                            break;
-                        default:
-                            // Throw 1100 format error kinda redundant
-                            errorHandler.ThrowError(1100, "tcp_client_whitelist/blacklist or tcp_server_whitelist/blacklist", null, null, null, expectedFormat);
-                            break;
-                    }
-
-                    // Minimum format check
-                    if (split_input.Length < 4)
-                    {
-                        // Throw 1100 format error
-                        errorHandler.ThrowError(1100, "tcp_client_whitelist/blacklist or tcp_server_whitelist/blacklist", null, null, null, expectedFormat);
+                        errorHandler.ThrowError(1200, null, expectedTask, null, null, expectedFormat);
                         return;
                     }
 
-                    // Does the client/server exist
-                    string expectedTCPName = split_input[1];
-                    foundObject = NameInUse(expectedTCPName);
-                    if (foundObject == true) { validTCPObject = (namesInUse[expectedTCPName] == objectClass.TCPNetObj); }
-
-                    // Did user define add/remove
-                    string expectedAction = split_input[2].ToLower();
-                    switch (expectedAction)
+                    bool objectExists = NameInUse(expectedTCPobject);
+                    if (objectExists == true)
                     {
-                        case "add":
-                            hadAddOrRemove = true;
-                            addOrRemove = 0;
-                            eaction += "added";
-                            break;
-                        case "remove":
-                            hadAddOrRemove = true;
-                            addOrRemove = 1;
-                            eaction += "removed";
-                            break;
-                        default:
-                            // Throw 1400 bad value error
-                            errorHandler.ThrowError(1400, designation, null, expectedAction, "add/remove", expectedFormat);
-                            return;
-                            break;
+                        bool validTCPobject = namesInUse[expectedTCPobject] == objectClass.TCPNetObj;
+                        if (validTCPobject == true)
+                        {
+                            int x = 0;
+                            bool matchFound = false;
+                            if (serverORclient == 0)
+                            {
+                                for (x = 0; x < clientProtocols.Length; x++)
+                                {
+                                    if (expectedTCPprotocol.Equals(clientProtocols[x], StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        matchFound = true;
+                                        switch (x)
+                                        {
+                                            case 0:
+                                                clientProtocol = TCPClientProtocols.protocols_clientStarted;
+                                                break;
+                                            case 1:
+                                                clientProtocol = TCPClientProtocols.protocols_clientDisconnect;
+                                                break;
+                                            case 2:
+                                                clientProtocol = TCPClientProtocols.protocols_receiveDataPacket;
+                                                break;
+                                            case 3:
+                                                clientProtocol = TCPClientProtocols.protocols_addDataPacket;
+                                                break;
+                                            case 4:
+                                                clientProtocol = TCPClientProtocols.protocols_broadcastDatapacket;
+                                                break;
+                                            case 5:
+                                                clientProtocol = TCPClientProtocols.protocols_broadcastAllOutgoing;
+                                                break;
+                                        }
+                                        break;
+                                    }
+
+                                }
+                            } else if (serverORclient == 1)
+                            {
+                                for (x = 0; x < serverProtocols.Length; x++)
+                                {
+                                    if (expectedTCPprotocol.Equals(serverProtocols[x], StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        matchFound = true;
+                                        switch (x)
+                                        {
+                                            case 0:
+                                                serverProtocol = TCPServerProtocols.protocols_serverStarted;
+                                                break;
+                                            case 1:
+                                                serverProtocol = TCPServerProtocols.protocols_receiveDataPacket;
+                                                break;
+                                            case 2:
+                                                serverProtocol = TCPServerProtocols.protocols_clientConnected;
+                                                break;
+                                            case 3:
+                                                serverProtocol = TCPServerProtocols.protocols_clientDisconnected;
+                                                break;
+                                            case 4:
+                                                serverProtocol = TCPServerProtocols.protocols_clientRejected;
+                                                break;
+                                            case 5:
+                                                serverProtocol = TCPServerProtocols.protocols_addDataPacket;
+                                                break;
+                                            case 6:
+                                                serverProtocol = TCPServerProtocols.protocols_broadcastDatapacket;
+                                                break;
+                                            case 7:
+                                                serverProtocol = TCPServerProtocols.protocols_broadcastAllOutgoing;
+                                                break;
+                                            case 8:
+                                                serverProtocol = TCPServerProtocols.protocols_attemptedConnection;
+                                                break;
+                                        }
+                                        break;
+                                    }
+
+                                }
+                            }
+                            if (matchFound == true)
+                            {
+                                if (validTask == true)
+                                {
+                                    if (serverORclient == 0)
+                                    {
+                                        foreach (ClientSide client_ in activeClients)
+                                        {
+                                            if (client_.name == expectedTCPobject)
+                                            {
+                                                client_.AssignProtocol(clientProtocol, taskToAssign);
+                                                valid_command = true;
+                                                break;
+                                            }
+                                        }
+                                    } else if (serverORclient == 1)
+                                    {
+                                        foreach (ServerSide server_ in activeServers)
+                                        {
+                                            if (server_.serverName == expectedTCPobject)
+                                            {
+                                                server_.AssignProtocol(serverProtocol, taskToAssign);
+                                                valid_command = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+
+                                } else
+                                {
+                                    errorHandler.ThrowError(1200, null, expectedTask, null, null, expectedFormat);
+                                    return; // logical redundancy
+                                }
+                            } else
+                            {
+                                string validValues = "";
+                                if (serverORclient == 0)
+                                {
+                                    foreach (string s in clientProtocols)
+                                    {
+                                        validValues += s + " ";
+                                    }
+                                    errorHandler.ThrowError(1400, "client protocol", null, expectedTCPprotocol, validValues, expectedFormat);
+                                }
+                            }
+
+                        } else
+                        {
+                            errorHandler.ThrowError(2100, null, null, expectedTCPobject, "TCP server/TCP client", expectedFormat);
+                        }
+                    } else
+                    {
+                        errorHandler.ThrowError(1200, null, expectedTCPobject, null, null, expectedFormat);
                     }
 
-                    if (foundObject == true) { validCount++; } else { errorHandler.ThrowError(1200, null, expectedTCPName, null, null, expectedFormat); return; }
-                    if (validTCPObject == true) { validCount++; } else { errorHandler.ThrowError(2100, null, null, GetDescription(namesInUse[expectedTCPName]), "TCP object", expectedFormat); return; }
-                    if (hadAddOrRemove == true) { validCount++; } else { errorHandler.ThrowError(1400, designation, null, expectedAction, "add/remove", expectedFormat); return; } // Redundant error check
 
-                    if (validCount == 3)
+                } else
+                {
+                    errorHandler.ThrowError(1100, entryCommand, null, null, null, expectedFormat);
+                }
+            }
+            if (
+                ((split_input[0].StartsWith("tcp_client_", StringComparison.OrdinalIgnoreCase)) || (split_input[0].StartsWith("tcp_server_"))) &&
+                ((split_input[0].EndsWith("_whitelist", StringComparison.OrdinalIgnoreCase)) || (split_input[0].EndsWith("blacklist")))
+                )
+            {
+                entry_made = true;
+                string designation = "tcp_client_whitelist", eaction = "";
+                string expectedFormat = "tcp_client_whitelist clientname add/remove 127.0.0.1|127.0.0.2|etc", badVals = "";
+                bool validTCPObject = false, foundObject = false, foundBadVal = false, minimum1goodval = false, hadAddOrRemove = false;
+                int serverOrClient = -1, whiteOrblack = -1, addOrRemove = -1, validCount = 0, goodValsAdded = 0; // 0 for client, 1 for server ||| 0 for white, 1 for black ||| 0 for add, 1 for remove
+
+                // Did user specify a server or client
+                string srv_clnt = split_input[0].ToLower();
+                switch (srv_clnt)
+                {
+                    case { } when srv_clnt.StartsWith("tcp_client_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_whitelist", StringComparison.OrdinalIgnoreCase):
+                        serverOrClient = 0;
+                        whiteOrblack = 0;
+                        expectedFormat = "tcp_client_whitelist clientname add/remove 127.0.0.1|127.0.0.2|etc";
+                        designation = "tcp_client_whitelist";
+                        break;
+                    case { } when srv_clnt.StartsWith("tcp_client_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_blacklist", StringComparison.OrdinalIgnoreCase):
+                        serverOrClient = 0;
+                        whiteOrblack = 1;
+                        expectedFormat = "tcp_client_blacklist clientname add/remove 127.0.0.1|127.0.0.2|etc";
+                        designation = "tcp_client_blacklist";
+                        break;
+                    case { } when srv_clnt.StartsWith("tcp_server_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_whitelist", StringComparison.OrdinalIgnoreCase):
+                        serverOrClient = 1;
+                        whiteOrblack = 0;
+                        expectedFormat = "tcp_server_whitelist servername add/remove 127.0.0.1|127.0.0.2|etc";
+                        designation = "tcp_server_whitelist";
+                        break;
+                    case { } when srv_clnt.StartsWith("tcp_server_", StringComparison.OrdinalIgnoreCase) && srv_clnt.EndsWith("_blacklist", StringComparison.OrdinalIgnoreCase):
+                        serverOrClient = 1;
+                        whiteOrblack = 1;
+                        expectedFormat = "tcp_server_blacklist servername add/remove 127.0.0.1|127.0.0.2|etc";
+                        designation = "tcp_server_blacklist";
+                        break;
+                    default:
+                        // Throw 1100 format error kinda redundant
+                        errorHandler.ThrowError(1100, "tcp_client_whitelist/blacklist or tcp_server_whitelist/blacklist", null, null, null, expectedFormat);
+                        break;
+                }
+
+                // Minimum format check
+                if (split_input.Length < 4)
+                {
+                    // Throw 1100 format error
+                    errorHandler.ThrowError(1100, "tcp_client_whitelist/blacklist or tcp_server_whitelist/blacklist", null, null, null, expectedFormat);
+                    return;
+                }
+
+                // Does the client/server exist
+                string expectedTCPName = split_input[1];
+                foundObject = NameInUse(expectedTCPName);
+                if (foundObject == true) { validTCPObject = (namesInUse[expectedTCPName] == objectClass.TCPNetObj); }
+
+                // Did user define add/remove
+                string expectedAction = split_input[2].ToLower();
+                switch (expectedAction)
+                {
+                    case "add":
+                        hadAddOrRemove = true;
+                        addOrRemove = 0;
+                        eaction += "added";
+                        break;
+                    case "remove":
+                        hadAddOrRemove = true;
+                        addOrRemove = 1;
+                        eaction += "removed";
+                        break;
+                    default:
+                        // Throw 1400 bad value error
+                        errorHandler.ThrowError(1400, designation, null, expectedAction, "add/remove", expectedFormat);
+                        return;
+                        break;
+                }
+
+                if (foundObject == true) { validCount++; } else { errorHandler.ThrowError(1200, null, expectedTCPName, null, null, expectedFormat); return; }
+                if (validTCPObject == true) { validCount++; } else { errorHandler.ThrowError(2100, null, null, GetDescription(namesInUse[expectedTCPName]), "TCP object", expectedFormat); return; }
+                if (hadAddOrRemove == true) { validCount++; } else { errorHandler.ThrowError(1400, designation, null, expectedAction, "add/remove", expectedFormat); return; } // Redundant error check
+
+                if (validCount == 3)
+                {
+                    IPAddress ipAddress;
+                    string[] expectedIPAddresses = split_input[3].Split('|');
+                    IPStatus ipDesignation = default;
+                    if (whiteOrblack == 0) { ipDesignation = IPStatus.Whitelist; } else if (whiteOrblack == 1) { ipDesignation = IPStatus.Blacklist; }
+                    foreach (TCPNetSettings tcpobj in activeTCPObjects)
                     {
-                        IPAddress ipAddress;
-                        string[] expectedIPAddresses = split_input[3].Split('|');
-                        IPStatus ipDesignation = default;
-                        if (whiteOrblack == 0) { ipDesignation = IPStatus.Whitelist; } else if (whiteOrblack == 1) { ipDesignation = IPStatus.Blacklist; }
-                        foreach(TCPNetSettings tcpobj in activeTCPObjects)
+                        if (tcpobj.ParentName == expectedTCPName)
                         {
-                            if (tcpobj.ParentName == expectedTCPName)
+                            foreach (string ipAddressString in expectedIPAddresses)
                             {
-                                foreach(string ipAddressString in expectedIPAddresses)
+                                if (IPAddress.TryParse(ipAddressString, out ipAddress))
                                 {
-                                    if (IPAddress.TryParse(ipAddressString, out ipAddress))
+                                    if (addOrRemove == 1)
                                     {
-                                        if (addOrRemove == 1)
+                                        if (tcpobj.IPAddressBook.ContainsKey(ipAddress))
                                         {
-                                            if (tcpobj.IPAddressBook.ContainsKey(ipAddress))
-                                            {
-                                                tcpobj.IPAddressBook.Remove(ipAddress);
-                                                minimum1goodval = true;
-                                                valid_command = true;
-                                                goodValsAdded++;
-                                            }
-                                            
-                                        } else if (addOrRemove == 0)
-                                        {
-                                            tcpobj.IPAddressBook.Add(ipAddress, ipDesignation);
+                                            tcpobj.IPAddressBook.Remove(ipAddress);
                                             minimum1goodval = true;
                                             valid_command = true;
                                             goodValsAdded++;
                                         }
-                                    }
-                                    else
+
+                                    } else if (addOrRemove == 0)
                                     {
-                                        foundBadVal = true;
-                                        badVals += ipAddressString + " ";
+                                        tcpobj.IPAddressBook.Add(ipAddress, ipDesignation);
+                                        minimum1goodval = true;
+                                        valid_command = true;
+                                        goodValsAdded++;
                                     }
+                                }
+                                else
+                                {
+                                    foundBadVal = true;
+                                    badVals += ipAddressString + " ";
                                 }
                             }
                         }
+                    }
 
-                        if (minimum1goodval == true)
-                        {
-                            badVals += $"- {goodValsAdded} items were successfully {eaction}.";
-                            if (foundBadVal == true) {
-                                errorHandler.ThrowError(1400, designation, null, badVals, "valid IP address", expectedFormat);
-                            }
+                    if (minimum1goodval == true)
+                    {
+                        badVals += $"- {goodValsAdded} items were successfully {eaction}.";
+                        if (foundBadVal == true) {
+                            errorHandler.ThrowError(1400, designation, null, badVals, "valid IP address", expectedFormat);
+                        }
+                    } else
+                    {
+                        if (foundBadVal == true) {
+                            errorHandler.ThrowError(1400, designation, null, badVals, "valid IP address", expectedFormat);
                         } else
                         {
-                            if (foundBadVal == true) {
-                                errorHandler.ThrowError(1400, designation, null, badVals, "valid IP address", expectedFormat);
-                            } else
-                            {
-                                errorHandler.ThrowError(1700, null, "valid IP address", null, null, expectedFormat);
+                            errorHandler.ThrowError(1700, null, "valid IP address", null, null, expectedFormat);
 
-                            }
                         }
-
                     }
-
-
 
                 }
-                // Data packet stuff
-                if (split_input[0].Equals("new_datapacket", StringComparison.OrdinalIgnoreCase)) 
+
+
+
+            }
+            // Data packet stuff
+            if (split_input[0].Equals("new_datapacket", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "new_datapacket TCPObject:clientname/servername ID:value| Data:object" + Environment.NewLine + "ID must end with vertical pipe | and Data must refer to object by name.";
+                bool hasDestination = false;
+                bool hasData = false;
+                bool hasID = false;
+
+                List<string> receivingTCPobjects = new List<string>();
+                objectClass outgoingObjType = default;
+                string objName = "";
+                string dpID = "";
+
+                bool extracting = false;
+
+                if (split_input.Length < 4)
                 {
-                    entry_made = true;
-                    string expectedFormat = "new_datapacket TCPObject:clientname/servername ID:value| Data:object" + Environment.NewLine + "ID must end with vertical pipe | and Data must refer to object by name.";
-                    bool hasDestination = false;
-                    bool hasData = false;
-                    bool hasID = false;
+                    errorHandler.ThrowError(1100, "new_datapacket", null, null, null, expectedFormat);
+                    return;
+                }
 
-                    List<string> receivingTCPobjects = new List<string>();
-                    objectClass outgoingObjType = default;
-                    string objName = "";
-                    string dpID = "";
-
-                    bool extracting = false;
-
-                    if (split_input.Length < 4)
+                foreach (string s in split_input)
+                {
+                    if (extracting == true)
                     {
-                        errorHandler.ThrowError(1100, "new_datapacket", null, null, null, expectedFormat);
-                        return;
-                    }
-
-                    foreach (string s in split_input)
-                    {
-                        if (extracting == true)
+                        string q = SetVariableValue(s);
+                        foreach (char c in q)
                         {
-                            string q = SetVariableValue(s);
-                            foreach (char c in q)
+                            if (c != '|')
                             {
-                                if (c != '|')
-                                {
-                                    dpID += c;
-                                }
-                                else
-                                {
-                                    hasID = true;
-                                    extracting = false;
-                                }
+                                dpID += c;
                             }
-                            if (extracting == true)
+                            else
                             {
-                                dpID += " ";
+                                hasID = true;
+                                extracting = false;
                             }
                         }
-                        else
+                        if (extracting == true)
                         {
-                            if (s.StartsWith("TCPObject:", StringComparison.OrdinalIgnoreCase))
+                            dpID += " ";
+                        }
+                    }
+                    else
+                    {
+                        if (s.StartsWith("TCPObject:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string _placeholder = s.Remove(0, 10);
+                            string a = ConvertNumericalVariable(_placeholder);
+                            string[] b = a.Split(',');
+                            if (b.Length > 0)
                             {
-                                string _placeholder = s.Remove(0, 10);
-                                string a = ConvertNumericalVariable(_placeholder);
-                                string[] b = a.Split(',');
-                                if (b.Length > 0)
+                                string invalidNames = "";
+                                int validFinds = 0;
+                                foreach (string c in b)
                                 {
-                                    string invalidNames = "";
-                                    int validFinds = 0;
-                                    foreach (string c in b)
+                                    bool goodfind = false;
+                                    foreach (TCPNetSettings tcpobj_ in activeTCPObjects)
                                     {
-                                        bool goodfind = false;
-                                        foreach (TCPNetSettings tcpobj_ in activeTCPObjects)
+                                        if (tcpobj_.ParentName == c)
                                         {
-                                            if (tcpobj_.ParentName == c)
-                                            {
-                                                validFinds++;
-                                                goodfind = true;
-                                                receivingTCPobjects.Add(c);
-                                            }
-                                        }
-                                        if (goodfind == false)
-                                        {
-                                            invalidNames += c + " ";
+                                            validFinds++;
+                                            goodfind = true;
+                                            receivingTCPobjects.Add(c);
                                         }
                                     }
-                                    if (validFinds > 0)
+                                    if (goodfind == false)
                                     {
-                                        // proceed
-                                        hasDestination = true;
-
+                                        invalidNames += c + " ";
                                     }
-                                    else
-                                    {
-                                        Console.WriteLine($"Invalid TCP object(s): {invalidNames}");
-                                        break;
-                                    }
-
+                                }
+                                if (validFinds > 0)
+                                {
+                                    // proceed
+                                    hasDestination = true;
 
                                 }
                                 else
                                 {
-                                    Console.WriteLine("Expecting minimum 1 TCP client or server.");
+                                    Console.WriteLine($"Invalid TCP object(s): {invalidNames}");
                                     break;
                                 }
+
+
                             }
-                            if (s.StartsWith("Data:", StringComparison.OrdinalIgnoreCase))
+                            else
                             {
-                                string _placeholder = s.Remove(0, 5);
-                                string a = ConvertNumericalVariable(_placeholder);
-                                bool validObject= NameInUse(a);
-                                bool validObjType = false;
-                                if (validObject == true)
+                                Console.WriteLine("Expecting minimum 1 TCP client or server.");
+                                break;
+                            }
+                        }
+                        if (s.StartsWith("Data:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string _placeholder = s.Remove(0, 5);
+                            string a = ConvertNumericalVariable(_placeholder);
+                            bool validObject = NameInUse(a);
+                            bool validObjType = false;
+                            if (validObject == true)
+                            {
+                                switch (namesInUse[a])
                                 {
-                                    switch (namesInUse[a])
-                                    {
                                     case objectClass.Variable:
                                         validObjType = true;
                                         outgoingObjType = namesInUse[a];
@@ -6500,308 +6886,308 @@ namespace GyroPrompt
                                     case objectClass.DataPacket:
                                         validObjType = false; // redundant
                                         break;
-                                    }
-
-                                
-                                    if (validObjType == true)
-                                    {
-                                        // proceed
-                                        hasData = true;
-                                    }
-                                    else if (validObjType == false)
-                                    {
-                                        Console.WriteLine($"Object {a} is invalid type. Expecting object type of variable or list.");
-                                    }
                                 }
-                                else
+
+
+                                if (validObjType == true)
                                 {
-                                    Console.WriteLine($"Object does not exist: {a}. Expecting object type of variable or list.");
-                                    break;
+                                    // proceed
+                                    hasData = true;
                                 }
-
+                                else if (validObjType == false)
+                                {
+                                    Console.WriteLine($"Object {a} is invalid type. Expecting object type of variable or list.");
+                                }
                             }
-                            if (s.StartsWith("ID:", StringComparison.OrdinalIgnoreCase))
+                            else
                             {
-                                string _placeholder = s.Remove(0, 3);
-                                string b = SetVariableValue(_placeholder);
-                                
-                                extracting = true;
-                                bool pipefound = false;
-                                foreach (char c in b)
-                                {
-                                    if (c != '|')
-                                    {
-                                        dpID += c;
-                                        
-                                    }
-                                    else
-                                    {
-                                        hasID = true;
-                                        pipefound = true;
-                                        break;
-                                    }
-                                }
-                                if (pipefound == true)
-                                {
-                                    extracting = false;
-                                }
-                                else
-                                {
-                                    dpID += " ";
-                                }
+                                Console.WriteLine($"Object does not exist: {a}. Expecting object type of variable or list.");
+                                break;
                             }
+
                         }
-                    }
-                    
-                    if (extracting == true)
-                    {
-                        errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
-                    }
-
-                    int canProceed = 0;
-                    if (hasDestination == true) { canProceed++; }
-                    if (hasData == true) { canProceed++; }
-                    if (hasID == true) { canProceed++; }
-
-                    if (canProceed == 3)
-                    {
-                        dataPacket outgoingDP = new dataPacket();
-                        switch (outgoingObjType)
+                        if (s.StartsWith("ID:", StringComparison.OrdinalIgnoreCase))
                         {
-                            case objectClass.Variable:
-                                LocalVariable temp_ = local_variables.Find(x => x.Name == objName);
-                                if (temp_ != null)
-                                {
-                                    switch (temp_.Type)
-                                    {
-                                        case VariableType.String:
-                                            outgoingDP.objType = NetObjType.ObjString;
-                                            break;
-                                        case VariableType.Int:
-                                            outgoingDP.objType = NetObjType.ObjInt;
-                                            break;
-                                        case VariableType.Float:
-                                            outgoingDP.objType = NetObjType.ObjFloat;
-                                            break;
-                                        case VariableType.Boolean:
-                                            outgoingDP.objType = NetObjType.ObjBool;
-                                            break;
-                                    }
-                                    outgoingDP.objData = temp_.Value;
-                                } else
-                                {
-                                    errorHandler.ThrowError(1200, null, objName, null, null, expectedFormat);
-                                    break;
-                                }
-                                break;
-                            case objectClass.List:
-                                LocalList temp2_ = local_lists.Find(y => y.Name == objName);
-                                if (temp2_ != null)
-                                {
-                                    outgoingDP.objType = NetObjType.ObjList;
-                                    int xx = temp2_.items.Count;
-                                    foreach(LocalVariable var in temp2_.items)
-                                    {
-                                        outgoingDP.objData += var.Name + ":" + var.Value;
-                                        xx--;
-                                        if (xx > temp2_.items.Count)
-                                        {
-                                            outgoingDP.objData += ",";
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    errorHandler.ThrowError(1200, null, "list " + objName, null, null, expectedFormat);
-                                    break;
-                                }
-                                break;
-                        }
+                            string _placeholder = s.Remove(0, 3);
+                            string b = SetVariableValue(_placeholder);
 
-                        outgoingDP.ID = dpID.TrimEnd();
-                        outgoingDP.senderAddress = "127.0.0.1";
-
-                        foreach(string receiverName in receivingTCPobjects)
-                        {
-                            foreach(TCPNetSettings targetObject in activeTCPObjects)
+                            extracting = true;
+                            bool pipefound = false;
+                            foreach (char c in b)
                             {
-                                if (targetObject.ParentName == receiverName)
+                                if (c != '|')
                                 {
-                                    targetObject.outgoingDataPackets.Add(outgoingDP);
+                                    dpID += c;
+
+                                }
+                                else
+                                {
+                                    hasID = true;
+                                    pipefound = true;
+                                    break;
                                 }
                             }
-                            valid_command = true;
+                            if (pipefound == true)
+                            {
+                                extracting = false;
+                            }
+                            else
+                            {
+                                dpID += " ";
+                            }
                         }
                     }
                 }
-                if (split_input[0].Equals("datapacket_send", StringComparison.OrdinalIgnoreCase))
-                {
-                    entry_made = true;
-                    string expectedFormat = "datapacket_send clientname/servername packetid *all" + Environment.NewLine + "Final parameter all is optional and will send all datapackets with specified ID. If not included, first datapacket found with ID is sent.";
-                    if ((split_input.Length >= 3) && (split_input.Length < 5))
-                    {
-                        bool sendingAll = false; 
-                        bool goodFind = false;
-                        if (split_input.Length == 4)
-                        {
-                            if (split_input[3].Equals("all", StringComparison.OrdinalIgnoreCase))
-                            {
-                                sendingAll = true;
-                            } else {
-                                errorHandler.ThrowError(1400, $"final parameter", null, split_input[3], "either 'all' as optional parameter or no value expected", expectedFormat);
-                               return;
-                            }
-                        }
-                        string expectedTCPobject = SetVariableValue(split_input[1]).TrimEnd();
-                        string expectedDPID = SetVariableValue(split_input[2]);
-                        int tcpobject_type = -1; // 0 for client, 1 for server
 
-                        foreach (TCPNetSettings tcpobj_ in activeTCPObjects)
-                        {
-                            if (tcpobj_.ParentName == expectedTCPobject)
+                if (extracting == true)
+                {
+                    errorHandler.ThrowError(2300, null, null, null, null, expectedFormat);
+                }
+
+                int canProceed = 0;
+                if (hasDestination == true) { canProceed++; }
+                if (hasData == true) { canProceed++; }
+                if (hasID == true) { canProceed++; }
+
+                if (canProceed == 3)
+                {
+                    dataPacket outgoingDP = new dataPacket();
+                    switch (outgoingObjType)
+                    {
+                        case objectClass.Variable:
+                            LocalVariable temp_ = local_variables.Find(x => x.Name == objName);
+                            if (temp_ != null)
                             {
-                                goodFind = true;
-                                tcpobject_type = tcpobj_.tcpobj_type;
+                                switch (temp_.Type)
+                                {
+                                    case VariableType.String:
+                                        outgoingDP.objType = NetObjType.ObjString;
+                                        break;
+                                    case VariableType.Int:
+                                        outgoingDP.objType = NetObjType.ObjInt;
+                                        break;
+                                    case VariableType.Float:
+                                        outgoingDP.objType = NetObjType.ObjFloat;
+                                        break;
+                                    case VariableType.Boolean:
+                                        outgoingDP.objType = NetObjType.ObjBool;
+                                        break;
+                                }
+                                outgoingDP.objData = temp_.Value;
+                            } else
+                            {
+                                errorHandler.ThrowError(1200, null, objName, null, null, expectedFormat);
                                 break;
                             }
-                        }
-                        if (goodFind == true)
-                        {
-                            switch (tcpobject_type)
+                            break;
+                        case objectClass.List:
+                            LocalList temp2_ = local_lists.Find(y => y.Name == objName);
+                            if (temp2_ != null)
                             {
-                                case 0:
-                                    foreach (ClientSide TCPClient in activeClients)
+                                outgoingDP.objType = NetObjType.ObjList;
+                                int xx = temp2_.items.Count;
+                                foreach (LocalVariable var in temp2_.items)
+                                {
+                                    outgoingDP.objData += var.Name + ":" + var.Value;
+                                    xx--;
+                                    if (xx > temp2_.items.Count)
                                     {
-                                        if (TCPClient.ParentName == expectedTCPobject)
-                                        {
-                                            if (sendingAll == true)
-                                            {
-                                                List<dataPacket> dpsToSend = TCPClient.outgoingDataPackets.FindAll(y => y.ID == expectedDPID);
-                                                if (dpsToSend.Count > 0)
-                                                {
-                                                    foreach (dataPacket dp in dpsToSend)
-                                                    {
-                                                        dp.senderAddress = TCPClient.thisClientIP;
-                                                        TCPClient.SendDatapacket(dp);
-                                                        dpsToSend.Remove(dp);
-                                                    }
-                                                    valid_command = true;
-                                                }
-                                                else
-                                                {
-                                                    errorHandler.ThrowError(1200, null, $"datapacket with ID " + expectedDPID, null, null, expectedFormat);
-                                                    return;
-                                                }
-                                            } else
-                                            {
-                                                dataPacket dpToSend = TCPClient.outgoingDataPackets.Find(x => x.ID == expectedDPID);
-                                                if (dpToSend != null)
-                                                {
-                                                    TCPClient.SendDatapacket(dpToSend);
-                                                    TCPClient.outgoingDataPackets.Remove(dpToSend);
-                                                    valid_command = true;
-                                                } else
-                                                {
-                                                    errorHandler.ThrowError(1200, null, $"datapacket with ID " + expectedDPID, null, null, expectedFormat);
-                                                    return;
-                                                }
-                                            }
-                                        }
+                                        outgoingDP.objData += ",";
                                     }
-                                    break;
-                                case 1:
-                                    foreach (ServerSide TCPServer in activeServers)
+                                }
+                            }
+                            else
+                            {
+                                errorHandler.ThrowError(1200, null, "list " + objName, null, null, expectedFormat);
+                                break;
+                            }
+                            break;
+                    }
+
+                    outgoingDP.ID = dpID.TrimEnd();
+                    outgoingDP.senderAddress = "127.0.0.1";
+
+                    foreach (string receiverName in receivingTCPobjects)
+                    {
+                        foreach (TCPNetSettings targetObject in activeTCPObjects)
+                        {
+                            if (targetObject.ParentName == receiverName)
+                            {
+                                targetObject.outgoingDataPackets.Add(outgoingDP);
+                            }
+                        }
+                        valid_command = true;
+                    }
+                }
+            }
+            if (split_input[0].Equals("datapacket_send", StringComparison.OrdinalIgnoreCase))
+            {
+                entry_made = true;
+                string expectedFormat = "datapacket_send clientname/servername packetid *all" + Environment.NewLine + "Final parameter all is optional and will send all datapackets with specified ID. If not included, first datapacket found with ID is sent.";
+                if ((split_input.Length >= 3) && (split_input.Length < 5))
+                {
+                    bool sendingAll = false;
+                    bool goodFind = false;
+                    if (split_input.Length == 4)
+                    {
+                        if (split_input[3].Equals("all", StringComparison.OrdinalIgnoreCase))
+                        {
+                            sendingAll = true;
+                        } else {
+                            errorHandler.ThrowError(1400, $"final parameter", null, split_input[3], "either 'all' as optional parameter or no value expected", expectedFormat);
+                            return;
+                        }
+                    }
+                    string expectedTCPobject = SetVariableValue(split_input[1]).TrimEnd();
+                    string expectedDPID = SetVariableValue(split_input[2]);
+                    int tcpobject_type = -1; // 0 for client, 1 for server
+
+                    foreach (TCPNetSettings tcpobj_ in activeTCPObjects)
+                    {
+                        if (tcpobj_.ParentName == expectedTCPobject)
+                        {
+                            goodFind = true;
+                            tcpobject_type = tcpobj_.tcpobj_type;
+                            break;
+                        }
+                    }
+                    if (goodFind == true)
+                    {
+                        switch (tcpobject_type)
+                        {
+                            case 0:
+                                foreach (ClientSide TCPClient in activeClients)
+                                {
+                                    if (TCPClient.ParentName == expectedTCPobject)
                                     {
-                                        if (TCPServer.ParentName == expectedTCPobject)
+                                        if (sendingAll == true)
                                         {
-                                            if (sendingAll == true)
+                                            List<dataPacket> dpsToSend = TCPClient.outgoingDataPackets.FindAll(y => y.ID == expectedDPID);
+                                            if (dpsToSend.Count > 0)
                                             {
-                                                List<dataPacket> dpsToSend = TCPServer.outgoingDataPackets.FindAll(y => y.ID == expectedDPID);
-                                                if (dpsToSend.Count > 0)
+                                                foreach (dataPacket dp in dpsToSend)
                                                 {
-                                                    foreach(dataPacket dp in dpsToSend)
-                                                    {
-                                                        dp.senderAddress = TCPServer.serverName;
-                                                        TCPServer.BroadcastPacket(dp, null);
-                                                        dpsToSend.Remove(dp);
-                                                    }
-                                                    valid_command = true;
-                                                } else
-                                                {
-                                                    errorHandler.ThrowError(1200, null, $"datapacket with ID " + expectedDPID, null, null, expectedFormat);
-                                                    return;
+                                                    dp.senderAddress = TCPClient.thisClientIP;
+                                                    TCPClient.SendDatapacket(dp);
+                                                    dpsToSend.Remove(dp);
                                                 }
+                                                valid_command = true;
                                             }
                                             else
                                             {
-                                                dataPacket dpToSend = TCPServer.outgoingDataPackets.Find(x => x.ID == expectedDPID);
-                                                if (dpToSend != null)
-                                                {
-                                                    TCPServer.BroadcastPacket(dpToSend, null);
-                                                    TCPServer.outgoingDataPackets.Remove(dpToSend);
-                                                    valid_command = true;
-                                                }
-                                                else
-                                                {
-                                                    errorHandler.ThrowError(1200, null, $"datapacket with ID " + expectedDPID, null, null, expectedFormat);
-                                                    return;
-                                                }
+                                                errorHandler.ThrowError(1200, null, $"datapacket with ID " + expectedDPID, null, null, expectedFormat);
+                                                return;
+                                            }
+                                        } else
+                                        {
+                                            dataPacket dpToSend = TCPClient.outgoingDataPackets.Find(x => x.ID == expectedDPID);
+                                            if (dpToSend != null)
+                                            {
+                                                TCPClient.SendDatapacket(dpToSend);
+                                                TCPClient.outgoingDataPackets.Remove(dpToSend);
+                                                valid_command = true;
+                                            } else
+                                            {
+                                                errorHandler.ThrowError(1200, null, $"datapacket with ID " + expectedDPID, null, null, expectedFormat);
+                                                return;
                                             }
                                         }
                                     }
-                                    break;
-                            }
-                        } else
-                        {
-                            errorHandler.ThrowError(1200, null, expectedTCPobject, null, null, expectedFormat);
+                                }
+                                break;
+                            case 1:
+                                foreach (ServerSide TCPServer in activeServers)
+                                {
+                                    if (TCPServer.ParentName == expectedTCPobject)
+                                    {
+                                        if (sendingAll == true)
+                                        {
+                                            List<dataPacket> dpsToSend = TCPServer.outgoingDataPackets.FindAll(y => y.ID == expectedDPID);
+                                            if (dpsToSend.Count > 0)
+                                            {
+                                                foreach (dataPacket dp in dpsToSend)
+                                                {
+                                                    dp.senderAddress = TCPServer.serverName;
+                                                    TCPServer.BroadcastPacket(dp, null);
+                                                    dpsToSend.Remove(dp);
+                                                }
+                                                valid_command = true;
+                                            } else
+                                            {
+                                                errorHandler.ThrowError(1200, null, $"datapacket with ID " + expectedDPID, null, null, expectedFormat);
+                                                return;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            dataPacket dpToSend = TCPServer.outgoingDataPackets.Find(x => x.ID == expectedDPID);
+                                            if (dpToSend != null)
+                                            {
+                                                TCPServer.BroadcastPacket(dpToSend, null);
+                                                TCPServer.outgoingDataPackets.Remove(dpToSend);
+                                                valid_command = true;
+                                            }
+                                            else
+                                            {
+                                                errorHandler.ThrowError(1200, null, $"datapacket with ID " + expectedDPID, null, null, expectedFormat);
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                                break;
                         }
                     } else
                     {
-                        errorHandler.ThrowError(1100, "datapacket_send", null, null, null, expectedFormat);
+                        errorHandler.ThrowError(1200, null, expectedTCPobject, null, null, expectedFormat);
                     }
-
+                } else
+                {
+                    errorHandler.ThrowError(1100, "datapacket_send", null, null, null, expectedFormat);
                 }
 
-                if (split_input[0].Equals("SETUP"))
+            }
+
+            if (split_input[0].Equals("SETUP"))
+            {
+                string expectedSyntax = "SETUP";
+                entry_made = true;
+                if (split_input.Length > 1)
                 {
-                    string expectedSyntax = "SETUP";
-                    entry_made = true;
-                    if (split_input.Length > 1)
+                    errorHandler.ThrowError(1100, "GyroPrompt setup", null, null, null, expectedSyntax);
+                    return;
+                }
+                SetupFiletype setup = new SetupFiletype();
+                bool isadmin = setup.IsAdministrator();
+                if (isadmin == false)
+                {
+                    Console.WriteLine("You will need to restart GyroPrompt as an administrator in order to setup .gs script files.");
+
+                } else
+                {
+                    bool runSetup = setup.SystemsCheck();
+                    if (runSetup == false)
                     {
-                        errorHandler.ThrowError(1100, "GyroPrompt setup", null, null, null, expectedSyntax);
-                        return;
-                    }
-                    SetupFiletype setup = new SetupFiletype();
-                    bool isadmin = setup.IsAdministrator();
-                    if (isadmin == false)
-                    {
-                        Console.WriteLine("You will need to restart GyroPrompt as an administrator in order to setup .gs script files.");
-                    
+                        Console.WriteLine("Could not properly setup .gs script files.");
                     } else
                     {
-                        bool runSetup = setup.SystemsCheck();
-                        if (runSetup == false)
-                        {
-                            Console.WriteLine("Could not properly setup .gs script files.");
-                        } else
-                        {
-                            Console.WriteLine("Setup successful!");
-                            valid_command = true;
-                        }
+                        Console.WriteLine("Setup successful!");
+                        valid_command = true;
                     }
                 }
+            }
 
-                if ((valid_command == false) && (entry_made == false))
+            if ((valid_command == false) && (entry_made == false))
+            {
+                if (input != "")
                 {
-                    if (input != "")
-                    {
-                        errorHandler.ThrowError(1000, null, null, input, null, null);
-                    }
+                    errorHandler.ThrowError(1000, null, null, input, null, null);
                 }
+            }
 
-            } catch (Exception error){ Console.WriteLine($"Fatal error encountered."); }
+        } catch (Exception error){ Console.WriteLine($"Fatal error encountered.{error}"); }
         }
-        
+
         // Executes a script file line-by-line
         public void run(string script)
         {

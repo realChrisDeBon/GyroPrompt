@@ -22,10 +22,16 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         Radiobutton,
         [Description("menubar")]
         Menubar,
+        [Description("menuitem")]
+        Menuitem,
         [Description("statusbar")]
         Statusbar,
         [Description("dialog")]
-        Dialog
+        Dialog,
+        [Description("tab container")]
+        TabContainer,
+        [Description("tab")]
+        Tab
     }
     // fillValue will help user fine tune the size of objects like text fields
     public enum coordVal
@@ -51,6 +57,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
     {
         public View objview { get; set; }
         public string GUIObjName { get; set; }
+        public string container = "main"; // default is main window
         public GUIObjectType GUIObjectType { get; set;}
         public virtual void SetWidth(int xx, coordVal fillval)
         {
@@ -76,6 +83,10 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             return "";
         }
         public virtual void SetText(string text)
+        {
+
+        }
+        public virtual void PortItem(GUI_BaseItem item)
         {
 
         }

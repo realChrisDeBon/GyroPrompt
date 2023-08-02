@@ -15,6 +15,25 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 {
     public class ConsoleOutputDirector
     {
+        public readonly Dictionary<GUIObjectType, bool> objectCanRepos = new Dictionary<GUIObjectType, bool>()
+        {
+                            { GUIObjectType.Button, true},
+                            { GUIObjectType.Textfield, true},
+                            { GUIObjectType.Checkbox, true},
+                            { GUIObjectType.Label, true},
+                            { GUIObjectType.TabContainer, true }
+        };
+        public readonly Dictionary<GUIObjectType, bool> objectHasTextAccess = new Dictionary<GUIObjectType, bool>()
+        {
+                            { GUIObjectType.Button, true},
+                            { GUIObjectType.Textfield, true},
+                            { GUIObjectType.Checkbox, true},
+                            { GUIObjectType.Label, true},
+        };
+        public readonly Dictionary<GUIObjectType, bool> objectIsContainer = new Dictionary<GUIObjectType, bool>()
+        {
+                            {GUIObjectType.Tab , true}
+        };
 
          public List<GUI_Button> GUIButtonsToAdd = new List<GUI_Button>();
          public List<GUI_textfield> GUITextFieldsToAdd = new List<GUI_textfield>();
@@ -25,6 +44,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
         public ArrayList viewobjects = new ArrayList();
         public bool runningPermision = true;
+        public const string main = "main";
         public Window mainWindow;
         public SaveDialog saveDialog;
         public OpenDialog openDialog;
@@ -71,7 +91,10 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             foreach (GUI_BaseItem obj in viewobjects)
             {
-                mainWindow.Add(obj.objview);
+                if (obj.container == main)
+                {
+                    mainWindow.Add(obj.objview);
+                }
             }
             // Take every GUI object within GUIItemsToAdd and add it to mainWindow
             foreach (GUI_Menubar item in GUIMenuBarsToAdd)
