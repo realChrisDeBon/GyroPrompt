@@ -65,7 +65,7 @@ namespace GyroPrompt
         public ArrayList local_arrays = new ArrayList();
         public List<TaskList> tasklists_inuse = new List<TaskList>();
         public Dictionary<string, string[]> local_function = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-
+        
 
         // Mostly network related lists and objects
         public ArrayList activeTCPObjects = new ArrayList();
@@ -3179,7 +3179,6 @@ namespace GyroPrompt
                                             {
                                                 // We assume this is a top level menu bar item that will have child menu items
                                                 topItemsToPadd.Add(temp_[0]);
-                                                Console.WriteLine($"Added to parentitems: {temp_[0]}");
                                                 goodValsFound = true;
                                                 minimumList = true;
                                                 goodValCount++;
@@ -3269,15 +3268,7 @@ namespace GyroPrompt
                                 {
                                     if (goodValsFound == true)
                                     {
-                                        Console.Write($"DEBUG: Topitems{topItemsToPadd.Count} \nSubitems{subItemsToPass.Count}\n");
-                                        for(int t = 0; t < topItemsToPadd.Count; t++)
-                                        {
-                                            Console.WriteLine($"{t}:{topItemsToPadd[t]}");
-                                        }
-                                        for (int l = 0; l < subItemsToPass.Count; l++)
-                                        {
-                                            Console.WriteLine($"{l}:{subItemsToPass[l]}");
-                                        }
+
                                         GUI_Menubar newmenubar = new GUI_Menubar(this, menuBarName, topItemsToPadd, subItemsToPass);
                                         consoleDirector.GUIMenuBarsToAdd.Add(newmenubar);
                                         GUIObjectsInUse.Add(newmenubar.GUIObjName, newmenubar);
@@ -5738,6 +5729,7 @@ namespace GyroPrompt
                 int inputLen = split_input.Length;
                 string _placeholder = split_input[0].Remove(0, 11).ToLower(), writtenOut = "";
                 string expectedFormat = "will work this soon";
+                string input1 = SetVariableValue(split_input[1]);
 
                 if (filesystem.commandDirectoryVoid.ContainsKey(_placeholder))
                 {
@@ -5761,15 +5753,16 @@ namespace GyroPrompt
 
                     if (hasPlaceholder == true)
                     {
-                        filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], "");
+                        filesystem.commandDirectoryVoid[_placeholder].Invoke(input1, "");
                         valid_command = true;
                     } else if (hasOut == true)
                     {
-                        filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], writtenOut);
+                        filesystem.commandDirectoryVoid[_placeholder].Invoke(input1, writtenOut);
                         valid_command = true;
                     } else
                     {
-                        filesystem.commandDirectoryVoid[_placeholder].Invoke(split_input[1], split_input[2]);
+                        string input2 = SetVariableValue(split_input[2]);
+                        filesystem.commandDirectoryVoid[_placeholder].Invoke(input1,input2);
                         valid_command = true;
                     }
                 }
@@ -5987,14 +5980,16 @@ namespace GyroPrompt
                                 {
                                     taskType_ = TaskType.InlineTask;
                                     TaskList newTask = new TaskList(taskName_, taskType_);
-                                    tasklists_inuse.Add(newTask);
+                                        namesInUse.Add(taskName_, objectClass.TaskList);
+                                        tasklists_inuse.Add(newTask);
                                     valid_command = true;
                                 }
                                 else if (a_ == "background")
                                 {
                                     taskType_ = TaskType.BackgroundTask;
                                     TaskList newTask = new TaskList(taskName_, taskType_);
-                                    tasklists_inuse.Add(newTask);
+                                        namesInUse.Add(taskName_, objectClass.TaskList);
+                                        tasklists_inuse.Add(newTask);
                                     valid_command = true;
                                 }
                             }

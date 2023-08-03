@@ -10,6 +10,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
     public class GUI_textfield : GUI_BaseItem
     {
         public TextView textView;
+        public ScrollView scrollView;
         public string textfieldtext { get; set; }
         public int LineNumber { get; set; }
         public GUI_textfield(string objname, int x_ = 0, int y_ = 0, int width_ = 20, int height_ = 20, bool multiline_ = true, string text_ = "Default test", bool isReadOnly = false, Color textcolor = Color.White, Color background = Color.DarkGray) 
@@ -34,6 +35,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                     HotNormal = Terminal.Gui.Attribute.Make(textcolor, background),
                     HotFocus = Terminal.Gui.Attribute.Make(textcolor, background)
                 },
+                
             };
             textView.KeyUp += (e) =>
             {
@@ -48,8 +50,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
                 textfieldtext = textView.Text.ToString();
                 LineNumber = textView.CurrentRow; // Enable linenumber tracking
             };
-
-
+            
             objview = textView;
         }
         public override string GetText()
@@ -159,9 +160,6 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
 
             }
         }
-        public void AddScrollbars()
-        {
-            
-        }
+
     }
 }

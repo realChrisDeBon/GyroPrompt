@@ -112,7 +112,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             {
                 // Expect error to be thrown when Application.Shutdown() and Application.RequestStop() execute from parser
             }
-            
+
         }
         
         public void addKeyPressFunction(TaskList taskList_, Key keyPressed_)
