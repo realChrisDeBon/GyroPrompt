@@ -18,7 +18,7 @@ namespace GyroPrompt.Basic_Objects.Variables
         public string Name { get; set; }
         public string Value { get; set; }
         public VariableType Type { get; set; }
-        public string ToString()
+        public override string ToString()
         {
             return Value.ToString();
         }

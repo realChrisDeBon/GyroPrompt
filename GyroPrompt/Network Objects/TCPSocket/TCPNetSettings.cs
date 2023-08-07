@@ -81,7 +81,7 @@ namespace GyroPrompt.Network_Objects.TCPSocket
         // Compartmentalize the data going over the network
         public List<dataPacket> incomingDataPackets = new List<dataPacket>();
         public List<dataPacket> outgoingDataPackets = new List<dataPacket>();
-
+#pragma warning disable 8625
         public void addtoWhitelist(string input, LocalList list = default)
         {
             IPAddress ipAddress;

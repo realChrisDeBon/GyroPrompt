@@ -10,6 +10,7 @@ namespace GyroPrompt.Network_Functions
     public class SendNetPing
     {
         Ping pingSender = new Ping();
+#pragma warning disable 8625
         public string sendPingAsync(string address_, int timeout_ = 500, byte[] buffer_= null)
         {
             byte[] buffer = buffer_ ?? new byte[1024];

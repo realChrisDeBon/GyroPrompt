@@ -160,7 +160,7 @@ namespace GyroPrompt.Basic_Objects.Collections
             }
         }
 
-        public string ToString()
+        public override string ToString()
         {
             string v = "";
             foreach(LocalVariable var in items)

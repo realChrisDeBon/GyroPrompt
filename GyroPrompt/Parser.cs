@@ -1,33 +1,58 @@
-﻿
-global using GyroPrompt.Basic_Functions;
-global using GyroPrompt.Basic_Functions.Object_Modifiers;
-global using GyroPrompt.Basic_Objects.Collections;
-global using GyroPrompt.Basic_Objects.Collections.Arrays;
-global using GyroPrompt.Basic_Objects.Component;
-global using GyroPrompt.Basic_Objects.GUIComponents;
-global using GyroPrompt.Basic_Objects.Variables;
-global using GyroPrompt.Network_Objects;
-global using GyroPrompt.Network_Objects.TCPSocket;
-using GyroPrompt.Setup;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+﻿#define is_PARSER
+#define HASNETCODE
+#define HASGUICODE
+#define HASJSON
+#define HASHASH
+#define HASIFILESYSTEM
+#define HASTASK
+#define HASFUNCTION
+#define HASLIST
+#define HASARRAY
+
+#define valueModifier_calculate
+
 using System;
 using System.Collections;
 using System.ComponentModel;
-using System.Configuration;
-using System.Data;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Net.Sockets;
 using System.Reflection;
-using System.Runtime.Intrinsics.Arm;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+
+using GyroPrompt.Basic_Functions;
+#if HASHASH || HASJSON
+using GyroPrompt.Basic_Functions.Object_Modifiers;
+#endif
+#if HASTASK || HASLIST
+using GyroPrompt.Basic_Objects.Collections;
+#endif
+#if HASARRAY
+using GyroPrompt.Basic_Objects.Collections.Arrays;
+#endif
+
+using GyroPrompt.Basic_Objects.Component;
+using GyroPrompt.Basic_Objects.Variables;
+
+#if HASNETCODE
+using GyroPrompt.Network_Objects;
+using GyroPrompt.Network_Objects.TCPSocket;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
+#endif
+
+#if is_PARSER
+using GyroPrompt.Setup;
+#endif
+
+#if HASGUICODE
+using GyroPrompt.Basic_Objects.GUIComponents;
 using Terminal.Gui;
 using Color = Terminal.Gui.Color;
+#endif
 
 public enum objectClass
 {
@@ -55,18 +80,27 @@ namespace GyroPrompt
 {
     public class Parser
     {
+
         /// <summary>
         /// Initialize some of the basic function objects and lists. These will likely be used frequently.
         /// Some of these are also variables necessary for the smooth flow of code execution.
         /// </summary>
         public List<LocalVariable> local_variables = new List<LocalVariable>();
         public List<object> environmental_variables = new List<object>();
+#if HASLIST
         public List<LocalList> local_lists = new List<LocalList>();
+#endif
+#if HASARRAY
         public ArrayList local_arrays = new ArrayList();
+#endif
+#if HASTASK
         public List<TaskList> tasklists_inuse = new List<TaskList>();
+#endif
+#if HASFUNCTION
         public Dictionary<string, string[]> local_function = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        
+#endif
 
+#if HASNETCODE
         // Mostly network related lists and objects
         public ArrayList activeTCPObjects = new ArrayList();
         public List<ClientSide> activeClients = new List<ClientSide>();
@@ -132,13 +166,15 @@ namespace GyroPrompt
             datapacketStack.Remove(dpIn);
         }
         // -------------------------------------------
-
+#endif
         public SysErrorParser errorHandler = new SysErrorParser();
         public Calculate calculate = new Calculate();
         public TimeDateHandler timedate_handler = new TimeDateHandler();
         public RandomizeInt randomizer = new RandomizeInt();
         public ConditionChecker condition_checker = new ConditionChecker();
+#if HASIFILESYSTEM
         public FilesystemInterface filesystem = new FilesystemInterface();
+#endif
         public DataHasher datahasher = new DataHasher();
         public DataSerializer dataserializer = new DataSerializer();
 
@@ -155,12 +191,12 @@ namespace GyroPrompt
         /// to GUI components (text fields, labels, etc). When the GUIModeEnabled is set to false, the console output reverts to its original state and output directly to
         /// the console like normally (Eventually).
         /// </summary>
-
+#if HASGUICODE
         public bool GUIModeEnabled = false;
         public string ConsoleOutCatcher = "";
         public ConsoleOutputDirector consoleDirector = new ConsoleOutputDirector();
         public IDictionary<string, GUI_BaseItem> GUIObjectsInUse = new Dictionary<string, GUI_BaseItem>(StringComparer.OrdinalIgnoreCase);
-
+#endif
         /// <summary>
         /// Below are environmental variables. These are meant for the users to be able to interact with the console settings and modify the environment.
         /// The ConsoleInfo struct/method and keyConsoleKey IDictionary enable easier manipulation of console colors and to save current settings to be recalled.
@@ -178,8 +214,9 @@ namespace GyroPrompt
             return info;
         }
         public IDictionary<string, ConsoleColor> keyConsoleColor = new Dictionary<string, ConsoleColor>(StringComparer.OrdinalIgnoreCase);
+#if HASGUICODE
         public IDictionary<string, Terminal.Gui.Color> terminalColor = new Dictionary<string, Terminal.Gui.Color>(StringComparer.OrdinalIgnoreCase);
-
+#endif
         public void setConsoleStatus(ConsoleInfo _consoleinfo)
         {
             Console.ForegroundColor = _consoleinfo.status_forecolor;
@@ -291,6 +328,7 @@ namespace GyroPrompt
             keyConsoleColor.Add("Yellow", ConsoleColor.Yellow);
             keyConsoleColor.Add("White", ConsoleColor.White);
 
+#if HASGUICODE
             terminalColor.Add("Black", Color.Black);
             terminalColor.Add("DarkBlue", Color.Blue);
             terminalColor.Add("DarkGreen", Color.Green);
@@ -305,9 +343,9 @@ namespace GyroPrompt
             terminalColor.Add("Red", Color.BrightRed);
             terminalColor.Add("Magenta", Color.BrightMagenta);
             terminalColor.Add("White", Color.White);
+#endif
 
-
-
+#if HASNETCODE
             StringVariable datapacketvalue = new()
             {
                 Name = datapacketval_str,
@@ -340,7 +378,7 @@ namespace GyroPrompt
             namesInUse.Add(datapacketsndr_str, objectClass.Variable);
             namesInUse.Add(datapacketid_str, objectClass.Variable);
             namesInUse.Add(eventmsg_str, objectClass.Variable);
-
+#endif
             foreach (string envvar_name in environmentalVars.Keys)
             {
                 namesInUse.Add(envvar_name, objectClass.EnvironmentalVariable); // All encompassing name reserve system
@@ -353,7 +391,7 @@ namespace GyroPrompt
             filesystem.LoadComDict();
         }
 
-
+#if is_PARSER
         /// <summary>
         /// Parser will handle input looped as opposed to the program entry point's Main()
         /// This will allow us to get a slightly higher degree of control in the future.
@@ -388,7 +426,7 @@ namespace GyroPrompt
                 }
             }
         }
-
+#endif
         public void parse(string input)
         {
             try
@@ -684,6 +722,7 @@ namespace GyroPrompt
                     }
                 }
                 // Detect a new variable array declatation
+#if HASARRAY
                 if (split_input[0].StartsWith("new_array_", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
@@ -859,6 +898,7 @@ namespace GyroPrompt
 
                     }
                 }
+#endif
                 // Modify variable values
                 if (split_input[0].Equals("set", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1935,6 +1975,7 @@ namespace GyroPrompt
 
                 }
                 // Create function
+#if HASFUNCTION
                 if ((split_input[0].Equals("new_function", StringComparison.OrdinalIgnoreCase)) || (split_input[0].Equals("new_function*", StringComparison.OrdinalIgnoreCase)))
                 {
                     entry_made = true;
@@ -2020,7 +2061,9 @@ namespace GyroPrompt
                         errorHandler.ThrowError(1100, "function", null, null, null, expectedFormat);
                     }
                 }
+#endif
                 // Check for hash or serialize
+#if HASHASH
                 if (split_input[0].Equals("hash256", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
@@ -2135,6 +2178,8 @@ namespace GyroPrompt
                         errorHandler.ThrowError(1100, "hash384", null, null, null, expectedFormat);
                     }
                 }
+#endif
+#if HASJSON
                 if (split_input[0].Equals("json_serialize", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
@@ -2613,7 +2658,8 @@ namespace GyroPrompt
                         errorHandler.ThrowError(1100, "json_deserialize", null, null, null, expectedFormat);
                     }
                 }
-
+#endif
+#if HASGUICODE
                 ///<summary>
                 /// GUI items can transform the application into a more robust Terminal User Interface. GUI items will only
                 /// display when top level bool GUIModeOn is set to true. 
@@ -4853,7 +4899,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "gui_keypress_event", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("msgbox", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("msgbox", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 if (GUIModeEnabled == true)
@@ -5067,7 +5113,7 @@ namespace GyroPrompt
 
 
             }
-            if (split_input[0].Equals("gui_savedialog", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("gui_savedialog", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 if (GUIModeEnabled == true)
@@ -5213,7 +5259,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1800, null, null, null, null, null);
                 }
             }
-            if (split_input[0].Equals("gui_opendialog", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("gui_opendialog", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 if (GUIModeEnabled == true)
@@ -5360,19 +5406,20 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1800, null, null, null, null, null);
                 }
             }
+#endif
 
-
-            /// <summary>
-            /// List items can hold multiple variable items. 
-            /// 
-            /// SYNTAX EXAMPLES:
-            /// new_list variabletype listname             <- creates new list
-            /// list_add listname variablename [...]      <- can add more than 1 variable if separated by a space
-            /// list_remove listname variablename        <- removes specified variablename from list
-            /// list_setall listname value              <- every member of list receives new value
-            /// </summary>
-            if (split_input[0].Equals("new_list", StringComparison.OrdinalIgnoreCase))
-            {
+#if HASLIST
+                /// <summary>
+                /// List items can hold multiple variable items. 
+                /// 
+                /// SYNTAX EXAMPLES:
+                /// new_list variabletype listname             <- creates new list
+                /// list_add listname variablename [...]      <- can add more than 1 variable if separated by a space
+                /// list_remove listname variablename        <- removes specified variablename from list
+                /// list_setall listname value              <- every member of list receives new value
+                /// </summary>
+                if (split_input[0].Equals("new_list", StringComparison.OrdinalIgnoreCase))
+                {
                 entry_made = true;
                 string expectedFormat = "new_list variabletype newname";
                 if (split_input.Length == 3)
@@ -5441,7 +5488,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "new_list", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("list_add", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("list_add", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "list_add listname variablename(s)";
@@ -5522,7 +5569,7 @@ namespace GyroPrompt
                     else { errorHandler.ThrowError(1100, "list_add", null, null, null, expectedFormat); }
                 }
             }
-            if (split_input[0].Equals("list_remove", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("list_remove", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "list_remove listname variablename";
@@ -5557,7 +5604,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "list_remove", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("list_setall", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("list_setall", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "list_setall listname value";
@@ -5676,7 +5723,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "list_setall", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("list_printall", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("list_printall", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "list_printall listname";
@@ -5702,28 +5749,30 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "list_printall", null, null, null, expectedFormat);
                 }
             }
+#endif
 
-            /// <summary>
-            /// The filesystem interface allows the user to read, write, move, copy, and edit attributes of
-            /// files and directories.
-            ///
-            /// SYNTAX EXAMPLES:
-            /// filesystem_write path contents[...]                 <- writes contents to path, will overwrite original contents
-            /// filesystem_append path contents[...]               <- appens contents to path, will not overwrit
-            /// filesystem_readall path variable                  <- sets variable value to contents of file
-            /// filesystem_readtolist path list                  <- assigns each line of file to a string variable to list [list must be either A) an empty string list, or B) not exist at all]
-            /// filesystem_delete path                          <- deletes file at path
-            /// filesystem_copy currentpath targetpath         <- copys file in currentpath to targetpath
-            /// filesystem_move currentpath targetpath        <- moves file from currentpath to targetpath
-            /// filesystem_sethidden path                                  <- sets file at path to hidden
-            /// filesystem_setvisible path                                <- sets file at path to not hidden
-            /// filesystem_mkdir path                                                   <- creates directory at path
-            /// filesystem_rmdir path                                                  <- removes directory at path
-            /// filesystem_copydir currentpath targetpath                             <- copy directory in current path to targetpath
-            /// filesystem_movedir current path targetpath                           <- move directory from current path to targetpath
-            /// <summary>
+#if HASIFILESYSTEM
+                /// <summary>
+                /// The filesystem interface allows the user to read, write, move, copy, and edit attributes of
+                /// files and directories.
+                ///
+                /// SYNTAX EXAMPLES:
+                /// filesystem_write path contents[...]                 <- writes contents to path, will overwrite original contents
+                /// filesystem_append path contents[...]               <- appens contents to path, will not overwrit
+                /// filesystem_readall path variable                  <- sets variable value to contents of file
+                /// filesystem_readtolist path list                  <- assigns each line of file to a string variable to list [list must be either A) an empty string list, or B) not exist at all]
+                /// filesystem_delete path                          <- deletes file at path
+                /// filesystem_copy currentpath targetpath         <- copys file in currentpath to targetpath
+                /// filesystem_move currentpath targetpath        <- moves file from currentpath to targetpath
+                /// filesystem_sethidden path                                  <- sets file at path to hidden
+                /// filesystem_setvisible path                                <- sets file at path to not hidden
+                /// filesystem_mkdir path                                                   <- creates directory at path
+                /// filesystem_rmdir path                                                  <- removes directory at path
+                /// filesystem_copydir currentpath targetpath                             <- copy directory in current path to targetpath
+                /// filesystem_movedir current path targetpath                           <- move directory from current path to targetpath
+                /// <summary>
 
-            if (split_input[0].StartsWith("filesystem_", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].StartsWith("filesystem_", StringComparison.OrdinalIgnoreCase))
             {
                 bool validCommand = false, hasOut = false, hasPlaceholder = false, expectsReturn = false, variableExists = false, validVariable = false;
                 int inputLen = split_input.Length;
@@ -5869,22 +5918,24 @@ namespace GyroPrompt
                     }
                 }
             }
+#endif
 
-            /// <summary>
-            /// Tasks are a list of commands than can be executed as a background task (on a separate thread) or in-line with the main code.
-            /// Tasks will run once in chronological order (unless a loop in the task keeps it alive)
-            /// 
-            /// SYNTAX EXAMPLES:
-            /// new_task taskname 'inline'/'background' *integer      <- creates new task list, sets to inline/background, *integer is optional parameter to define the task's local script delay
-            /// task_add taskname command(s) [...]                   <- appends new line of commands to task list
-            /// task_remove taskname index                          <- removes task line at specified index
-            /// task_insert taskname index command(s)[...]         <- interts new line of commands into index
-            /// task_clearall taskname                            <- clears all tasks within task list
-            /// task_printall                                     <- prints list of all task items
-            /// task_setdelay name int:miliseconds               <- sets the local script delay of task
-            /// task_execute taskname                           <- executes specified task
-            /// </summary>
-            if (split_input[0].Equals("new_task", StringComparison.OrdinalIgnoreCase))
+#if HASTASK          
+                /// <summary>
+                /// Tasks are a list of commands than can be executed as a background task (on a separate thread) or in-line with the main code.
+                /// Tasks will run once in chronological order (unless a loop in the task keeps it alive)
+                /// 
+                /// SYNTAX EXAMPLES:
+                /// new_task taskname 'inline'/'background' *integer      <- creates new task list, sets to inline/background, *integer is optional parameter to define the task's local script delay
+                /// task_add taskname command(s) [...]                   <- appends new line of commands to task list
+                /// task_remove taskname index                          <- removes task line at specified index
+                /// task_insert taskname index command(s)[...]         <- interts new line of commands into index
+                /// task_clearall taskname                            <- clears all tasks within task list
+                /// task_printall                                     <- prints list of all task items
+                /// task_setdelay name int:miliseconds               <- sets the local script delay of task
+                /// task_execute taskname                           <- executes specified task
+                /// </summary>
+                if (split_input[0].Equals("new_task", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "new_task newname inline/background 100" + Environment.NewLine + "Final parameter should be integer and is optional.";
@@ -6011,7 +6062,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "new_task", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("task_add", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("task_add", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "task_add taskname command";
@@ -6053,11 +6104,11 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "task_add", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("task_remove", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("task_remove", StringComparison.OrdinalIgnoreCase))
             {
 
             }
-            if (split_input[0].Equals("task_insert", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("task_insert", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "task_insert taskname index command";
@@ -6107,7 +6158,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1400, "task_insert", null, expectedIndex, "a valid integer", expectedFormat);
                 }
             }
-            if (split_input[0].Equals("task_clearall", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("task_clearall", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "task_clearall taskname";
@@ -6137,7 +6188,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "task_clearall", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("task_printall", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("task_printall", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "task_printall taskname";
@@ -6167,7 +6218,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "task_printall", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("task_setdelay", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("task_setdelay", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "task_setdelay taskname 100";
@@ -6207,7 +6258,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "task_setdelay", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("task_execute", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("task_execute", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "task_execute taskname";
@@ -6245,28 +6296,29 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "task_execute", null, null, null, expectedFormat);
                 }
             }
-
-            ///<summary>
-            /// TCP server and TCP client objects will enable network applications to communicate over the internet or locally.
-            /// TCPClientProtocols and TCPServerProtocols execute specific to the event and will execute an associated task.
-            /// There are no default task lists associated with protocols. When a client or server runs a protocol, the info
-            /// is passed to string eventMessage_ which details the event and allows code to be executed with the passed info.
-            /// 
-            /// TCP SERVER SYNTAX:
-            /// new_tcp_server servername                                       <- creates new server 
-            /// tcp_server_start servername                                    <- starts server
-            /// 
-            /// TCP CLIENT SYNTAX:
-            /// new_tcp_client clientname                                       <- creates new client
-            /// tcp_client_connect clientname ipaddress                        <- attempts to connect client to ipaddress
-            /// 
-            /// DATA PACKET STUFF:
-            /// new_datapacket ID:value| TCPObject:tcpclient/tcpserver Data:variable/list           <- creates new datapacket in specified TCP client/server with specified ID and data
-            /// datapacket_send tcpclient/tcpserver packetID *all                                  <- send datapacket in outgoing list from TCP client/server with packet ID. Optionally specify 'All' if multiple IDs exists
-            /// 
-            /// </summary>
-            // TCP Server
-            if (split_input[0].Equals("new_tcp_server", StringComparison.OrdinalIgnoreCase))
+#endif
+#if HASNETCODE
+                ///<summary>
+                /// TCP server and TCP client objects will enable network applications to communicate over the internet or locally.
+                /// TCPClientProtocols and TCPServerProtocols execute specific to the event and will execute an associated task.
+                /// There are no default task lists associated with protocols. When a client or server runs a protocol, the info
+                /// is passed to string eventMessage_ which details the event and allows code to be executed with the passed info.
+                /// 
+                /// TCP SERVER SYNTAX:
+                /// new_tcp_server servername                                       <- creates new server 
+                /// tcp_server_start servername                                    <- starts server
+                /// 
+                /// TCP CLIENT SYNTAX:
+                /// new_tcp_client clientname                                       <- creates new client
+                /// tcp_client_connect clientname ipaddress                        <- attempts to connect client to ipaddress
+                /// 
+                /// DATA PACKET STUFF:
+                /// new_datapacket ID:value| TCPObject:tcpclient/tcpserver Data:variable/list           <- creates new datapacket in specified TCP client/server with specified ID and data
+                /// datapacket_send tcpclient/tcpserver packetID *all                                  <- send datapacket in outgoing list from TCP client/server with packet ID. Optionally specify 'All' if multiple IDs exists
+                /// 
+                /// </summary>
+                // TCP Server
+                if (split_input[0].Equals("new_tcp_server", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "new_tcp_server newname";
@@ -6297,7 +6349,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "new_tcp_server", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("tcp_server_start", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("tcp_server_start", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "tcp_server_start servername";
@@ -6345,8 +6397,8 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "tcp_server_start", null, null, null, expectedFormat);
                 }
             }
-            // TCP Client
-            if (split_input[0].Equals("new_tcp_client", StringComparison.OrdinalIgnoreCase))
+                // TCP Client
+                if (split_input[0].Equals("new_tcp_client", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "new_tcp_client newname";
@@ -6378,7 +6430,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "new_tcp_client", null, null, null, expectedFormat);
                 }
             }
-            if (split_input[0].Equals("tcp_client_connect", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("tcp_client_connect", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "tcp_client_connect tcpclient address";
@@ -6429,8 +6481,8 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, "tcp_client_connect", null, null, null, expectedFormat);
                 }
             }
-            // TCP Client || TCP Server
-            if ((split_input[0].Equals("tcp_client_assignprotocol", StringComparison.OrdinalIgnoreCase) || (split_input[0].Equals("tcp_server_assignprotocol", StringComparison.OrdinalIgnoreCase))))
+                // TCP Client || TCP Server
+                if ((split_input[0].Equals("tcp_client_assignprotocol", StringComparison.OrdinalIgnoreCase) || (split_input[0].Equals("tcp_server_assignprotocol", StringComparison.OrdinalIgnoreCase))))
             {
                 entry_made = true;
                 // tcp_client_assignprotocol tcpobj protocol task
@@ -6614,7 +6666,7 @@ namespace GyroPrompt
                     errorHandler.ThrowError(1100, entryCommand, null, null, null, expectedFormat);
                 }
             }
-            if (
+                if (
                 ((split_input[0].StartsWith("tcp_client_", StringComparison.OrdinalIgnoreCase)) || (split_input[0].StartsWith("tcp_server_"))) &&
                 ((split_input[0].EndsWith("_whitelist", StringComparison.OrdinalIgnoreCase)) || (split_input[0].EndsWith("blacklist")))
                 )
@@ -6760,8 +6812,8 @@ namespace GyroPrompt
 
 
             }
-            // Data packet stuff
-            if (split_input[0].Equals("new_datapacket", StringComparison.OrdinalIgnoreCase))
+                // Data packet stuff
+                if (split_input[0].Equals("new_datapacket", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "new_datapacket TCPObject:clientname/servername ID:value| Data:object" + Environment.NewLine + "ID must end with vertical pipe | and Data must refer to object by name.";
@@ -7015,7 +7067,7 @@ namespace GyroPrompt
                     }
                 }
             }
-            if (split_input[0].Equals("datapacket_send", StringComparison.OrdinalIgnoreCase))
+                if (split_input[0].Equals("datapacket_send", StringComparison.OrdinalIgnoreCase))
             {
                 entry_made = true;
                 string expectedFormat = "datapacket_send clientname/servername packetid *all" + Environment.NewLine + "Final parameter all is optional and will send all datapackets with specified ID. If not included, first datapacket found with ID is sent.";
@@ -7142,8 +7194,9 @@ namespace GyroPrompt
                 }
 
             }
-
-            if (split_input[0].Equals("SETUP"))
+#endif
+#if is_PARSER
+                if (split_input[0].Equals("SETUP"))
             {
                 string expectedSyntax = "SETUP";
                 entry_made = true;
@@ -7171,8 +7224,8 @@ namespace GyroPrompt
                     }
                 }
             }
-
-            if ((valid_command == false) && (entry_made == false))
+#endif
+                if ((valid_command == false) && (entry_made == false))
             {
                 if (input != "")
                 {
@@ -7180,7 +7233,7 @@ namespace GyroPrompt
                 }
             }
 
-        } catch (Exception error){ Console.WriteLine($"Fatal error encountered.{error}"); }
+        } catch (Exception error){ Console.WriteLine($"Fatal error encountered."); }
         }
 
         // Executes a script file line-by-line
@@ -7225,6 +7278,7 @@ namespace GyroPrompt
         /// taskInfo is a struct used to pass List<string> and integer scriptdelay into new thread as object (if task is background and not in-line)
         /// If TaskType is inline, then we'll just process it in the executeTask method
         /// </summary>
+ #if HASTASK
         public struct taskInfo
         {
             public List<string> commands { get; set; }
@@ -7261,7 +7315,7 @@ namespace GyroPrompt
                 parse(pause_.TrimEnd());
             }
         }
-
+#endif
         // Returns a string where all variables encapsulated in square brackets [ ] are converted to their value
         public string SetVariableValue(string input)
         {
@@ -9012,6 +9066,7 @@ namespace GyroPrompt
             return true;
         }
         ///////////////////////////////////////////////////
+#if HASARRAY
         public Array_Type getArrayType(string arrayName)
         {
             foreach (int_array a in local_arrays)
@@ -9044,6 +9099,7 @@ namespace GyroPrompt
             }
             return Array_Type.None;
         }
+#endif
         public string GetDescription(Enum value)
         {
             Type type = value.GetType();

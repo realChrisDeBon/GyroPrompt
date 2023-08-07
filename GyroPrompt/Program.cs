@@ -1,6 +1,4 @@
-﻿using GyroPrompt.Compiler;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Terminal.Gui;
+﻿#define ISPARSER
 
 namespace GyroPrompt
 {
@@ -34,7 +32,7 @@ namespace GyroPrompt
                 Console.ReadKey();
                 Environment.Exit(0);
             }
-            //parser.SetConsoleOut();
+
             parser.beginInputLoop(); // Begin the input loop
         }
     }
