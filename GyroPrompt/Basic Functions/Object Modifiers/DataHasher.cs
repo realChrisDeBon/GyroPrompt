@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
 using System.Security.Cryptography;
-using System.Security.Policy;
 
 namespace GyroPrompt.Basic_Functions.Object_Modifiers
 {

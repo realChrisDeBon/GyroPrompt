@@ -1,14 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.VisualBasic;
-using GyroPrompt.Basic_Objects.Collections;
-using GyroPrompt.Basic_Objects.Variables;
-using System.Reflection.Metadata;
-using NStack;
+﻿using GyroPrompt.Basic_Objects.Collections;
 
 namespace GyroPrompt.Basic_Objects.Component
 {

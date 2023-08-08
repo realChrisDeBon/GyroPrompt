@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GyroPrompt.Basic_Objects.Collections.Arrays
+﻿namespace GyroPrompt.Basic_Objects.Collections.Arrays
 {
     public class int_array : array_baseitem
     {

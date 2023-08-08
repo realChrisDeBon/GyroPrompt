@@ -1,14 +1,9 @@
 ﻿using GyroPrompt.Basic_Objects.Collections;
 using GyroPrompt.Basic_Objects.Variables;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GyroPrompt.Network_Objects.TCPSocket
 {

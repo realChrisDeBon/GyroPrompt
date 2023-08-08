@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GyroPrompt.Network_Objects.TCPSocket
+﻿namespace GyroPrompt.Network_Objects.TCPSocket
 {
     public class dataPacket
     {

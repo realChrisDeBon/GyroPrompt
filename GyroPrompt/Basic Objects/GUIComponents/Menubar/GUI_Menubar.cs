@@ -1,11 +1,4 @@
 ﻿using GyroPrompt.Basic_Objects.Collections;
-using GyroPrompt.Basic_Objects.Variables;
-using Microsoft.CodeAnalysis.CSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Terminal.Gui;
 
 namespace GyroPrompt.Basic_Objects.GUIComponents
