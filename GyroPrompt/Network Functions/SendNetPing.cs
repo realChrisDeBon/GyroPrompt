@@ -1,4 +1,5 @@
-﻿using System.Net.NetworkInformation;
+﻿using GlobalSuppressions;
+using System.Net.NetworkInformation;
 
 namespace GyroPrompt.Network_Functions
 {

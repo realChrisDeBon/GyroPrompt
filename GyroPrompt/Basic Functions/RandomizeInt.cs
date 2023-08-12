@@ -1,4 +1,5 @@
-﻿namespace GyroPrompt.Basic_Functions
+﻿
+namespace GyroPrompt.Basic_Functions
 {
     public class RandomizeInt
     {

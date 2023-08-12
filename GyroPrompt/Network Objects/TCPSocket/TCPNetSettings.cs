@@ -1,9 +1,11 @@
-﻿using GyroPrompt.Basic_Objects.Collections;
+﻿
+using GyroPrompt.Basic_Objects.Collections;
 using GyroPrompt.Basic_Objects.Variables;
 using System.ComponentModel;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Collections.Generic;
 
 namespace GyroPrompt.Network_Objects.TCPSocket
 {
@@ -71,7 +73,7 @@ namespace GyroPrompt.Network_Objects.TCPSocket
         public string ParentName;
         public int tcpobj_type = -1; // 0 for client, 1 for server
         // An IPAddressBook that blacklists and whitelists IP address (some basic security settings)
-        public IDictionary<IPAddress, IPStatus> IPAddressBook = new Dictionary<IPAddress, IPStatus>();
+        public Dictionary<IPAddress, IPStatus> IPAddressBook = new Dictionary<IPAddress, IPStatus>();
         public bool WhitelistConnectionsOnly = false;
         // Compartmentalize the data going over the network
         public List<dataPacket> incomingDataPackets = new List<dataPacket>();

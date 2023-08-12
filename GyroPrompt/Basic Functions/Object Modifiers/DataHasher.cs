@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿
+using System.Text;
 using System.Security.Cryptography;
 
 namespace GyroPrompt.Basic_Functions.Object_Modifiers

@@ -11,7 +11,7 @@
     }
     public class ConditionChecker
     {
-        public IDictionary<string, OperatorTypes> operationsDictionary = new Dictionary<string, OperatorTypes>();
+        public Dictionary<string, OperatorTypes> operationsDictionary = new Dictionary<string, OperatorTypes>();
         public void LoadOperations()
         {
             operationsDictionary.Add("=", OperatorTypes.EqualTo);

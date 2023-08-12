@@ -1,4 +1,5 @@
-﻿namespace GyroPrompt.Basic_Objects.Variables
+﻿
+namespace GyroPrompt.Basic_Objects.Variables
 {
     public enum VariableType
     {

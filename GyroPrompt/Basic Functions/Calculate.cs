@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿
+using System.Data;
 
 namespace GyroPrompt.Basic_Functions
 {
@@ -34,7 +35,7 @@ namespace GyroPrompt.Basic_Functions
                 // Convert the result to double
                 return Convert.ToDouble(result);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 Console.WriteLine("Error: Invalid equation.");
                 return double.NaN;

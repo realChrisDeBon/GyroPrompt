@@ -1,4 +1,5 @@
-﻿using GyroPrompt.Network_Objects.TCPSocket;
+﻿
+using GyroPrompt.Network_Objects.TCPSocket;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -18,7 +19,7 @@ namespace GyroPrompt.Network_Objects
         public List<ClientHandler> clients = new List<ClientHandler>();
 
         // Defines the logic and rules for handling incoming and outgoing data packets
-        public IDictionary<TCPServerProtocols, TaskList> serverProtocols = new Dictionary<TCPServerProtocols, TaskList>();
+        public Dictionary<TCPServerProtocols, TaskList> serverProtocols = new Dictionary<TCPServerProtocols, TaskList>();
         private Parser toplevelParser;
 
         public ServerSide (Parser toplvlparser, string name_)

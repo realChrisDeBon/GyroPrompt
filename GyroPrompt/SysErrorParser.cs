@@ -1,11 +1,15 @@
-﻿using GyroPrompt.Basic_Objects.GUIComponents;
-
+﻿#if HASGUICODE
+using GyroPrompt.Basic_Objects.GUIComponents;
+#endif
+using GlobalSuppressions;
 namespace GyroPrompt
 {
     public  class SysErrorParser
     {
         public Parser topLevelParser;
+#if HASGUICODE
         public ConsoleOutputDirector GUIConsole;
+#endif
 
         public readonly Dictionary<int, string> errorCategory = new Dictionary<int, string>
         {
@@ -75,7 +79,8 @@ namespace GyroPrompt
                     outputMessage += errorCategory[errCategory];
                     break;
             }
-            
+
+#if HASGUICODE
             if (topLevelParser.GUIModeEnabled == false)
             {
                 Console.WriteLine(outputMessage);
@@ -94,8 +99,12 @@ namespace GyroPrompt
                     // um
                 }
             }
+#else
+            Console.WriteLine(outputMessage);
+#endif
 
-            
+
+
         }
 
     }

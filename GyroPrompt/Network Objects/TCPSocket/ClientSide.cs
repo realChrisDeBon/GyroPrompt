@@ -1,4 +1,5 @@
-﻿using GyroPrompt.Basic_Objects.Collections;
+﻿
+using GyroPrompt.Basic_Objects.Collections;
 using GyroPrompt.Network_Objects.TCPSocket;
 using Newtonsoft.Json;
 using System.Net.Sockets;
@@ -11,7 +12,7 @@ namespace GyroPrompt.Network_Objects
         public TcpClient client;
         public string username;
         public string name;
-        public IDictionary<TCPClientProtocols, TaskList> clientProtocols = new Dictionary<TCPClientProtocols, TaskList>();
+        public Dictionary<TCPClientProtocols, TaskList> clientProtocols = new Dictionary<TCPClientProtocols, TaskList>();
         private Parser toplevelParser;
         public bool hasStarted = false;
         public string thisClientIP {  get; set; }

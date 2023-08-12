@@ -11,9 +11,12 @@
 
 #define valueModifier_calculate
 
-using System;
-using System.Collections;
-using System.ComponentModel;
+global using GlobalSuppressions;
+global using System;
+global using System.Collections;
+global using System.Collections.Generic;
+global using System.ComponentModel;
+
 
 using System.Globalization;
 using System.Linq;
@@ -175,10 +178,14 @@ namespace GyroPrompt
 #if HASIFILESYSTEM
         public FilesystemInterface filesystem = new FilesystemInterface();
 #endif
+#if HASHASH
         public DataHasher datahasher = new DataHasher();
+#endif
+#if HASJSON
         public DataSerializer dataserializer = new DataSerializer();
+#endif
 
-        public IDictionary<string, objectClass> namesInUse = new Dictionary<string, objectClass>();
+        public Dictionary<string, objectClass> namesInUse = new Dictionary<string, objectClass>();
         public bool running_script = false; // Used for determining if a script is being ran
         public int current_line = 0; // Used for reading scripts
         public int max_lines = 0;
@@ -195,11 +202,11 @@ namespace GyroPrompt
         public bool GUIModeEnabled = false;
         public string ConsoleOutCatcher = "";
         public ConsoleOutputDirector consoleDirector = new ConsoleOutputDirector();
-        public IDictionary<string, GUI_BaseItem> GUIObjectsInUse = new Dictionary<string, GUI_BaseItem>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, GUI_BaseItem> GUIObjectsInUse = new Dictionary<string, GUI_BaseItem>(StringComparer.OrdinalIgnoreCase);
 #endif
         /// <summary>
         /// Below are environmental variables. These are meant for the users to be able to interact with the console settings and modify the environment.
-        /// The ConsoleInfo struct/method and keyConsoleKey IDictionary enable easier manipulation of console colors and to save current settings to be recalled.
+        /// The ConsoleInfo struct/method and keyConsoleKey Dictionary enable easier manipulation of console colors and to save current settings to be recalled.
         /// All the proceeding variables are meant to enable the users to reference them through 'set environment variable_ value'
         /// </summary>
         public struct ConsoleInfo {
@@ -213,16 +220,16 @@ namespace GyroPrompt
             info.status_backcolor = _background;
             return info;
         }
-        public IDictionary<string, ConsoleColor> keyConsoleColor = new Dictionary<string, ConsoleColor>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, ConsoleColor> keyConsoleColor = new Dictionary<string, ConsoleColor>(StringComparer.OrdinalIgnoreCase);
 #if HASGUICODE
-        public IDictionary<string, Terminal.Gui.Color> terminalColor = new Dictionary<string, Terminal.Gui.Color>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, Terminal.Gui.Color> terminalColor = new Dictionary<string, Terminal.Gui.Color>(StringComparer.OrdinalIgnoreCase);
 #endif
         public void setConsoleStatus(ConsoleInfo _consoleinfo)
         {
             Console.ForegroundColor = _consoleinfo.status_forecolor;
             Console.BackgroundColor = _consoleinfo.status_backcolor;
         }
-        IDictionary<string, object> environmentalVars = new Dictionary<string, object>();
+        Dictionary<string, object> environmentalVars = new Dictionary<string, object>();
 
         // The rest are just environmental variables
         public string Title = Console.Title;
@@ -385,10 +392,13 @@ namespace GyroPrompt
             }
             condition_checker.LoadOperations(); // Load enum types for operators
             errorHandler.topLevelParser = this; // Hand error handler a reference to instance of this parser
+#if HASGUICODE
             errorHandler.GUIConsole = consoleDirector; // Hand error handler a reference to instance of console director
-
+#endif
+#if HASIFILESYSTEM
             filesystem.topparse = this;
             filesystem.LoadComDict();
+#endif
         }
 
 #if is_PARSER
@@ -723,6 +733,7 @@ namespace GyroPrompt
                 }
                 // Detect a new variable array declatation
 #if HASARRAY
+
                 if (split_input[0].StartsWith("new_array_", StringComparison.OrdinalIgnoreCase))
                 {
                     entry_made = true;
@@ -7279,6 +7290,7 @@ namespace GyroPrompt
         /// If TaskType is inline, then we'll just process it in the executeTask method
         /// </summary>
  #if HASTASK
+
         public struct taskInfo
         {
             public List<string> commands { get; set; }
@@ -7540,6 +7552,8 @@ namespace GyroPrompt
                     string processedTimeDate = timedate_handler.returnDateTime(_placeholder);
                     a += processedTimeDate;
                 }
+
+#if HASARRAY
                 // Then check for array
                 if (capturedText.StartsWith("Array:", StringComparison.OrdinalIgnoreCase))
                 {
@@ -7625,6 +7639,9 @@ namespace GyroPrompt
                         }
                     }
                 }
+#endif
+#if HASLIST
+
                 // Then check for list items
                 if (capturedText.StartsWith("List:", StringComparison.OrdinalIgnoreCase))
                 {
@@ -7751,6 +7768,8 @@ namespace GyroPrompt
                         Console.WriteLine("Must point to list position with Item or At, or number of items with Len.");
                     }
                 }
+#endif
+#if HASIFILESYSTEM
                 // Then check for filesystem conditions
                 if (capturedText.StartsWith("Filesystem:", StringComparison.OrdinalIgnoreCase))
                 {
@@ -7781,6 +7800,8 @@ namespace GyroPrompt
                         }
                     }
                 }
+#endif
+#if HASGUICODE
                 // Then check for references to GUI items
                 if (capturedText.StartsWith("GUIItem:", StringComparison.OrdinalIgnoreCase))
                 {
@@ -7994,6 +8015,8 @@ namespace GyroPrompt
                         Console.WriteLine("Invalid property type. Expected Text, X, Y, Height, or Width");
                     }
                 }
+#endif
+#if HASNETCODE
                 // Then check for data packet properties
                 if (capturedText.StartsWith("DataPacket:", StringComparison.OrdinalIgnoreCase))
                 {
@@ -8109,6 +8132,7 @@ namespace GyroPrompt
                         Console.WriteLine("Expecting TCP object and packet ID separated by comma.");
                     }
                 }
+#endif
                 // Finally, check for newline
                 if (capturedText.Equals("nl", StringComparison.OrdinalIgnoreCase)) { a = a + Environment.NewLine; }
             }
@@ -8344,7 +8368,9 @@ namespace GyroPrompt
                     string processedTimeDate = timedate_handler.returnDateTime(_placeholder);
                     Console.Write(processedTimeDate);
                 }
+
                 // Then check for an array refernce
+#if HASARRAY
                 if (capturedText.StartsWith("Array:", StringComparison.OrdinalIgnoreCase))
                 {
                     string[] nonIntValues = { "Length" };
@@ -8427,7 +8453,9 @@ namespace GyroPrompt
                         }
                     }
                 }
+#endif 
                 // Then check for a list reference
+#if HASLIST
                 if (capturedText.StartsWith("List:", StringComparison.OrdinalIgnoreCase))
                 {
                     string _placeholder = capturedText.Remove(0, 5);
@@ -8568,7 +8596,10 @@ namespace GyroPrompt
                         }
                     }
                 }
+#endif
                 // Then check for filesystem
+#if HASIFILESYSTEM
+
                 if (capturedText.StartsWith("Filesystem:"))
                 {
                     string placeholder_ = capturedText.Remove(0, 11);
@@ -8599,7 +8630,10 @@ namespace GyroPrompt
                         }
                     }
                 }
+
                 // Then check for references to GUI items
+#endif
+#if HASGUICODE
                 if (capturedText.StartsWith("GUIItem:", StringComparison.OrdinalIgnoreCase))
                 {
                     // text, x, y, width, height
@@ -8780,7 +8814,10 @@ namespace GyroPrompt
                         Console.WriteLine("Invalid property type. Expected Text, X, Y, Height, or Width");
                     }
                 }
+#endif
                 // Then check for data packet references
+#if HASNETCODE
+
                 if (capturedText.StartsWith("DataPacket:", StringComparison.OrdinalIgnoreCase))
                 {
                     string placeholder_ = capturedText.Remove(0, 11);
@@ -8902,6 +8939,7 @@ namespace GyroPrompt
                         Console.WriteLine("Expecting TCP object and packet ID separated by comma.");
                     }
                 }
+#endif
                 // Check for newline
                 if (capturedText.Equals("nl", StringComparison.OrdinalIgnoreCase)) { Console.WriteLine(); }
                 // Check for the foreground color
@@ -9067,6 +9105,7 @@ namespace GyroPrompt
         }
         ///////////////////////////////////////////////////
 #if HASARRAY
+
         public Array_Type getArrayType(string arrayName)
         {
             foreach (int_array a in local_arrays)

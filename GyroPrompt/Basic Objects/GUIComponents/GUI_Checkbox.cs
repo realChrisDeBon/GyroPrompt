@@ -16,6 +16,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
             GUIObjName = name_;
             GUIObjectType = GUIObjectType.Checkbox;
             topLevelParser = topparse;
+#pragma warning disable 8625
             linkedBoolVariables = linkedBool_;
             hasLinkedBools = hasLinkedBools_;
             newCheckbox = new CheckBox()

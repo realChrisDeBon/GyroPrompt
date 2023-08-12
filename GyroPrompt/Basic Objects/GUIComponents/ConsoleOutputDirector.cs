@@ -1,15 +1,7 @@
 ﻿using GyroPrompt.Basic_Objects.Collections;
 using GyroPrompt.Basic_Objects.Variables;
-using Microsoft.VisualBasic.FileIO;
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Terminal.Gui;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace GyroPrompt.Basic_Objects.GUIComponents
 {
@@ -49,7 +41,7 @@ namespace GyroPrompt.Basic_Objects.GUIComponents
         public SaveDialog saveDialog;
         public OpenDialog openDialog;
         public Parser topLevelParser;
-        private IDictionary<Key, TaskList> keyFunctionList = new Dictionary<Key, TaskList>();
+        private Dictionary<Key, TaskList> keyFunctionList = new Dictionary<Key, TaskList>();
 
         public void InitializeGUIWindow(Parser topparser, string windowTitle = "GUIMode", int x_ = 0, int y_ = 0)
         {

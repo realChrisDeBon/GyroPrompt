@@ -1,4 +1,5 @@
-﻿namespace GyroPrompt.Network_Objects.TCPSocket
+﻿
+namespace GyroPrompt.Network_Objects.TCPSocket
 {
     public class dataPacket
     {
